@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARX | Interface Initialization</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ================= COMMON RESET ================= */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    
+    /* ================= LANDING PAGE ================= */
+    #landing-container {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        color: #e8dcc0;
+        z-index: 50;
+        transition: opacity 0.5s;
+    }
+
+    #background { position: fixed; inset: 0; z-index: 0; transition: opacity 0.5s; }
+    .nebula {
+      position: absolute; inset: 0;
+      background: url("https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/backiee-105012-landscape.jpg") center / cover no-repeat;
+      animation: nebulaMove 80s linear infinite alternate;
+    }
+    @keyframes nebulaMove { from { transform: scale(1); } to { transform: scale(1.1); } }
+    
+    .hero {
+      position: relative; z-index: 2; height: 100vh;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      text-align: center; gap: 18px; perspective: 1000px;
+    }
+
+    .logo-container {
+      position: relative; width: 160px; height: 160px;
+      display: flex; justify-content: center; align-items: center;
+      margin-bottom: 20px; transition: transform 1s, opacity 0.5s;
+    }
+
+    .logo { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; animation: logoFloat 6s ease-in-out infinite; }
+    .logo img { width: 300%; height: 300%; object-fit: contain; filter: drop-shadow(0 0 45px rgba(255,200,140,0.4)); }
+    @keyframes logoFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+    h1 { letter-spacing: 6px; font-size: 42px; font-weight: 600; color: #e8dcc0; text-shadow: 0 0 20px rgba(232,220,192,0.6); transition: 0.5s; }
+    .hero p { letter-spacing: 3px; font-size: 13px; opacity: 0.8; transition: 0.5s; }
+
+    .btn {
+      margin-top: 20px; padding: 14px 36px; border-radius: 10px; border: none;
+      background: linear-gradient(135deg, #f1c27d, #d4a256);
+      color: #1b1407; font-weight: 600; letter-spacing: 2px; cursor: pointer;
+      box-shadow: 0 10px 40px rgba(241,194,125,0.35); transition: all 0.2s; position: relative; z-index: 10;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 20px 60px rgba(241,194,125,0.55); }
+
+    .hero.launching .logo-container { transform: translateY(-800px) scale(0.5); opacity: 0; }
+    .hero.launching h1, .hero.launching p, .hero.launching .btn { opacity: 0; transform: scale(1.1); filter: blur(5px); transition-duration: 0.8s; }
+
+    #stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+    .hyperspace-active #background { opacity: 0; }
+
+    #warp-flash {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #fff; opacity: 0; pointer-events: none; z-index: 9999;
+    }
+    #warp-flash.active { animation: flashAndFade 1.5s forwards; }
+    @keyframes flashAndFade {
+      0% { opacity: 0; background: #fff; }
+      20% { opacity: 1; background: #fff; }
+      100% { opacity: 1; background: #000; } 
+    }
+
+    /* ================= SYSTEM BOOT TEXT ================= */
+    #boot-text {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        font-family: 'Orbitron', sans-serif; font-size: 3rem; color: #00f3ff;
+        text-shadow: 0 0 20px rgba(0, 243, 255, 0.8); letter-spacing: 5px;
+        opacity: 0; pointer-events: none; z-index: 10000;
+        transition: opacity 0.5s ease-in-out;
+    }
+    .boot-text-visible { opacity: 1 !important; }
+
+
+    /* ================= DASHBOARD STYLES ================= */
+    :root {
+        --bg-deep: #020408; --bg-panel: rgba(10, 20, 30, 0.6);
+        --cyan-primary: #00f3ff; --cyan-dim: rgba(0, 243, 255, 0.2);
+        --cyan-glow: rgba(0, 243, 255, 0.5); --orange-alert: #ff9d00;
+        --font-display: 'Orbitron', sans-serif; --font-data: 'Rajdhani', monospace;
+    }
+
+    #dashboard-container {
+        display: none; width: 100%; height: 100%; position: relative; z-index: 10;
+        color: var(--cyan-primary); font-family: var(--font-data);
+    }
+
+    .boot-hidden { 
+        opacity: 0; 
+        transform: translateY(20px); 
+        transition: all 0.8s ease-out; 
+        pointer-events: none; 
+    }
+    .boot-scale-hidden { 
+        opacity: 0; 
+        transform: scale(0.8); 
+        transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
+        pointer-events: none; 
+    }
+    .boot-visible { 
+        opacity: 1; 
+        transform: translateY(0); 
+        pointer-events: auto; 
+    }
+    .boot-scale-visible { 
+        opacity: 1; 
+        transform: scale(1); 
+        pointer-events: auto; 
+    }
+
+    body.dashboard-mode {
+        background-color: var(--bg-deep);
+        background-image: linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+        background-size: 30px 30px;
+    }
+    body.dashboard-mode::after {
+        content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: radial-gradient(circle at 50% 50%, transparent 20%, #000000 90%);
+        pointer-events: none; z-index: 0;
+    }
+
+    .reactor-ring {
+        width: 70vh; height: 70vh; border: 2px dashed var(--cyan-primary); border-radius: 50%;
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        animation: rotateRight 120s linear infinite; z-index: 1; opacity: 0; 
+        box-shadow: 0 0 25px var(--cyan-glow), inset 0 0 20px var(--cyan-glow);
+        transition: opacity 2s ease, border-color 0.5s ease; 
+    }
+    .reactor-ring-inner {
+        width: 50vh; height: 50vh; border: 2px solid var(--cyan-primary); border-radius: 50%;
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        animation: rotateLeft 60s linear infinite; z-index: 1; opacity: 0; 
+        box-shadow: 0 0 30px var(--cyan-glow), inset 0 0 25px var(--cyan-glow);
+        transition: opacity 2s ease, border-color 0.5s ease;
+    }
+    @keyframes rotateRight { 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+    @keyframes rotateLeft { 100% { transform: translate(-50%, -50%) rotate(-360deg); } }
+
+    .top-nav {
+        display: flex; justify-content: space-between; align-items: center; padding: 15px 40px;
+        width: 100%; height: 80px; flex-shrink: 0;
+        background: linear-gradient(180deg, rgba(0,243,255,0.05) 0%, transparent 100%);
+        border-bottom: 1px solid var(--cyan-dim); position: relative; z-index: 10;
+    }
+    .main-stage { display: grid; grid-template-columns: 280px 1fr 280px; height: calc(100vh - 80px); width: 100%; padding: 20px; gap: 20px; position: relative; z-index: 5; overflow: hidden; }
+
+    .hud-panel {
+        display: flex; flex-direction: column; gap: 20px; padding: 15px;
+        border: 1px solid var(--cyan-dim); background: rgba(0, 0, 0, 0.3);
+        position: relative; overflow: hidden; transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    .hud-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 10px; height: 10px; border-top: 2px solid var(--cyan-primary); border-left: 2px solid var(--cyan-primary); }
+    .hud-panel::after { content: ''; position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-bottom: 2px solid var(--cyan-primary); border-right: 2px solid var(--cyan-primary); }
+    .panel-header { font-family: var(--font-display); font-size: 1rem; color: var(--cyan-primary); border-bottom: 1px solid var(--cyan-dim); padding-bottom: 5px; margin-bottom: 5px; text-align: center; letter-spacing: 2px; }
+
+    .graph-container { flex: 1; position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: flex-start; border-left: 1px solid var(--cyan-dim); border-bottom: 1px solid var(--cyan-dim); }
+    .thrust-line { fill: none; stroke: var(--orange-alert); stroke-width: 2; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 4px var(--orange-alert)); animation: dashScroll 2s linear infinite; }
+    @keyframes dashScroll { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+    .scan-container { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 10px; }
+    .rocket-wireframe { height: 65%; width: auto; max-width: 100%; fill: none; stroke: var(--cyan-primary); stroke-width: 1.5; opacity: 0.9; filter: drop-shadow(0 0 5px var(--cyan-primary)); }
+    .scan-line { position: absolute; top: 0; left: 10%; right: 10%; height: 2px; background: #fff; box-shadow: 0 0 10px #fff, 0 0 20px var(--cyan-primary); animation: scanMove 4s ease-in-out infinite; z-index: 5; }
+    @keyframes scanMove { 0% { top: 15%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 85%; opacity: 0; } }
+    .scan-ring { position: absolute; width: 120px; height: 30px; border: 1px solid var(--cyan-dim); border-radius: 50%; animation: rotate3D 6s linear infinite; }
+    .scan-ring:nth-child(2) { width: 90px; animation-duration: 8s; border-color: var(--orange-alert); opacity: 0.5; }
+    @keyframes rotate3D { 0% { transform: rotateX(75deg) rotateZ(0deg); } 100% { transform: rotateX(75deg) rotateZ(360deg); } }
+
+    .center-stage { display: flex; align-items: center; justify-content: center; }
+    .grid-container { display: grid; grid-template-columns: repeat(3, 200px); gap: 20px; }
+    
+    .module-card {
+        background-color: var(--bg-panel); position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        cursor: pointer; backdrop-filter: blur(4px); clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+        border-left: 1px solid var(--cyan-dim); border-right: 1px solid var(--cyan-dim); height: 200px;
+        transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, opacity 0.5s; 
+    }
+    
+    .module-card:hover {
+        transform: translateY(-8px);
+        background-color: rgba(0, 243, 255, 0.1);
+        border-color: var(--cyan-primary);
+        box-shadow: 0 10px 30px rgba(0, 243, 255, 0.15);
+    }
+
+    .module-card::before { content: ""; position: absolute; top: 0; left: 20px; right: 0; height: 1px; background: var(--cyan-dim); }
+    .module-card .card-border-bottom { position: absolute; bottom: 0; right: 20px; left: 0; height: 1px; background: var(--cyan-dim); }
+    .module-card::after { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.05); pointer-events: none; z-index: -1; }
+    
+    .card-square { aspect-ratio: 1 / 1; }
+    .card-wide { grid-column: 1 / -1; height: 100px; }
+    .card-label { color: var(--cyan-primary); font-family: var(--font-display); font-size: 1.2rem; text-transform: uppercase; text-shadow: 0 0 5px var(--cyan-glow); z-index: 2; }
+    .card-subtext { color: var(--cyan-dim); font-size: 0.7rem; margin-top: 5px; font-family: var(--font-data); letter-spacing: 2px; }
+    
+    .module-card.red-alert { --bg-panel: rgba(40, 0, 0, 0.6); --cyan-primary: #ff3333; --cyan-dim: rgba(255, 51, 51, 0.3); --cyan-glow: rgba(255, 51, 51, 0.8); border-color: #ff3333; }
+    .module-card.red-alert:hover { 
+        transform: translateY(-8px);
+        background-color: rgba(255, 51, 51, 0.15); 
+        box-shadow: 0 10px 30px rgba(255, 51, 51, 0.2); 
+    }
+
+    .profile-bubble { width: 48px; height: 48px; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); background: rgba(0,243,255,0.1); border: 1px solid var(--cyan-primary); display: flex; justify-content: center; align-items: center; position: relative; }
+    .profile-bubble::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--cyan-primary); clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); z-index: -1; transform: scale(1.1); opacity: 0.5; }
+    .nav-right { display: flex; gap: 30px; }
+    .nav-link { background: transparent; border: 1px solid transparent; color: var(--cyan-primary); font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; padding: 8px 16px; transition: 0.3s; }
+    .nav-link:hover { background: rgba(0,243,255,0.1); border-color: var(--cyan-dim); box-shadow: 0 0 10px var(--cyan-dim); text-shadow: 0 0 5px var(--cyan-primary); }
+    .nav-link.accent { color: var(--orange-alert); }
+    .nav-link.accent:hover { border-color: var(--orange-alert); box-shadow: 0 0 10px rgba(255,157,0,0.4); text-shadow: 0 0 5px var(--orange-alert); }
+    .tech-corner-text { position: absolute; font-size: 0.5rem; color: var(--cyan-dim); opacity: 0.7; }
+    .tr { top: 8px; right: 8px; text-align: right; }
+    .bl { bottom: 8px; left: 8px; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); display: none; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(10px); }
+    .modal-content { background: #050505; border: 1px solid #ff3333; padding: 40px; text-align: center; width: 450px; box-shadow: 0 0 40px rgba(255, 51, 51, 0.3); }
+    .modal-text { font-family: var(--font-data); color: #fff; margin-bottom: 30px; font-size: 1.2rem; line-height: 1.5; letter-spacing: 1px; }
+
+    .fade-exit { opacity: 0 !important; transform: scale(0.95); pointer-events: none; }
+    
+    .mode-x-center { 
+        position: fixed !important; top: 50% !important; left: 50% !important; 
+        transform: translate(-50%, -50%); z-index: 500 !important; margin: 0 !important; width: 400px !important; 
+        transition: all 1.5s ease-in-out !important; 
+        pointer-events: none !important; 
+    }
+
+    @keyframes violence {
+        0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+        10% { transform: translate(calc(-50% - 30px), calc(-50% + 30px)) scale(1.5) rotate(-5deg); }
+        30% { transform: translate(calc(-50% + 30px), calc(-50% - 30px)) scale(1.5) rotate(5deg); }
+        50% { transform: translate(calc(-50% - 20px), calc(-50% - 20px)) scale(1.5) rotate(-5deg); }
+        70% { transform: translate(calc(-50% + 20px), calc(-50% + 20px)) scale(1.5) rotate(5deg); }
+        90% { transform: translate(calc(-50% - 10px), calc(-50% + 10px)) scale(1.5) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); }
+    }
+    .shake-hard {
+        animation: violence 0.08s infinite !important; width: 110vw !important; height: 110vh !important;
+        border-radius: 0 !important; clip-path: none !important; border: none !important;
+        background-color: rgba(20, 0, 0, 0.95) !important; position: fixed !important; top: 50% !important; left: 50% !important;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .reactor-critical { border-color: #ff3333 !important; border-style: solid !important; box-shadow: 0 0 60px #ff3333, inset 0 0 40px #ff3333 !important; animation-duration: 0.1s !important; }
+    .vanish-final { opacity: 0 !important; transition: opacity 1.5s ease !important; }
+  </style>
+</head>
+
+<body>
+  
+  <div id="landing-container">
+      <div id="background"><div class="nebula"></div></div>
+      <canvas id="stars"></canvas>
+      <section class="hero" id="hero-section">
+        <div class="logo-container"><div class="logo"><img src="https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/main.png" alt="ARX Logo"></div></div>
+        <h1>ARX</h1><p>AUTOMATED ROCKET EXPLORATION</p>
+        <button class="btn" id="start-btn">GET STARTED</button>
+      </section>
+  </div>
+
+  <div id="warp-flash"></div>
+
+  <div id="boot-text">WELCOME, BOSS</div>
+
+  <div id="dashboard-container">
+      <div id="modeXModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="panel-header" style="color:#ff3333; border-color:#ff3333; margin-bottom:20px;">SYSTEM OVERRIDE</div>
+            <div class="modal-text">This mode does all three tasks of A.R.X. together.<br>Do you want to continue?</div>
+            <div style="display:flex; justify-content:center; gap:20px;">
+                <button class="nav-link accent" id="btn-yes" onclick="confirmModeX()">YES</button>
+                <button class="nav-link" id="btn-no" onclick="closeModal()">NO</button>
+            </div>
+        </div>
+      </div>
+
+      <div class="reactor-ring" id="ring1"></div>
+      <div class="reactor-ring-inner" id="ring2"></div>
+    
+      <nav class="top-nav boot-hidden" id="topNav">
+        <div class="nav-left">
+            <div class="profile-bubble">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00f3ff" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+        </div>
+        <div class="nav-right">
+            <button class="nav-link">Initialize</button>
+            <button class="nav-link">New User</button>
+            <button class="nav-link accent">Protocol 8</button>
+        </div>
+      </nav>
+
+      <main class="main-stage">
+        
+        <div class="hud-panel side-panel boot-hidden">
+            <div class="panel-header">ARX-E1 ENGINE OUTPUT</div>
+            <div class="graph-container">
+                <svg width="100%" height="100%" viewBox="0 0 300 200" preserveAspectRatio="none">
+                    <defs><linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:rgba(255,157,0,0);stop-opacity:1" /><stop offset="100%" style="stop-color:rgba(255,157,0,1);stop-opacity:1" /></linearGradient></defs>
+                    <path class="thrust-line" d="M0,180 Q30,170 50,150 T100,100 T150,120 T200,60 T250,80 T300,20" stroke="url(#grad1)" stroke-dasharray="5,5" />
+                    <line x1="0" y1="50" x2="300" y2="50" stroke="rgba(0,243,255,0.1)" stroke-width="1"/><line x1="0" y1="100" x2="300" y2="100" stroke="rgba(0,243,255,0.1)" stroke-width="1"/><line x1="0" y1="150" x2="300" y2="150" stroke="rgba(0,243,255,0.1)" stroke-width="1"/>
+                </svg>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--cyan-dim); margin-top: 5px;">> CHAMBER PRESSURE: 300 BAR<br>> LOX LEVEL: 92%<br>> CH4 LEVEL: 94%</div>
+        </div>
+
+        <div class="center-stage">
+            <div class="grid-container" id="moduleGrid">
+                <div class="module-card card-square boot-scale-hidden" onclick="selectModule('SYSTEM')">
+                    <div class="tech-corner-text tr">SYS.64<br>ACT</div><div class="tech-corner-text bl">45.211</div>
+                    <span class="card-label" style="font-size: 3rem; line-height: 1;">A</span><span class="card-subtext">MOTOR DEVELOPMENT</span><div class="card-border-bottom"></div>
+                </div>
+                <div class="module-card card-square boot-scale-hidden" onclick="selectModule('ARMOR')">
+                    <div class="tech-corner-text tr">MK.85<br>RDY</div><div class="tech-corner-text bl">98.4%</div>
+                    <span class="card-label" style="font-size: 3rem; line-height: 1;">R</span><span class="card-subtext">ROCKET DEVELOPMENT</span><div class="card-border-bottom"></div>
+                </div>
+                <div class="module-card card-square boot-scale-hidden" onclick="selectModule('NETWORK')">
+                    <div class="tech-corner-text tr">NET.09<br>UPL</div><div class="tech-corner-text bl">120 TB/s</div>
+                    <span class="card-label" style="font-size: 3rem; line-height: 1;">X</span><span class="card-subtext">SIMULATIONS</span><div class="card-border-bottom"></div>
+                </div>
+                <div class="module-card card-wide red-alert boot-scale-hidden" id="modeXBtn" onclick="selectModule('ADVANCED')">
+                    <div class="tech-corner-text tr">ADV.OP<br>SECURE</div><div class="tech-corner-text bl">LAT: 34.05 LON: -118.25</div>
+                    <span class="card-label">MODE X</span> 
+                    <span class="card-subtext" style="color: #ff4d4d; text-shadow: 0 0 15px #ff0000, 0 0 5px #ff0000; opacity: 1; font-weight: bold;">THREAT LEVEL: HIGH</span>
+                    <div class="card-border-bottom"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-panel side-panel boot-hidden">
+            <div class="panel-header">ARX-V1 TELEMETRY</div>
+            <div class="scan-container">
+                <div class="scan-ring"></div><div class="scan-ring"></div><div class="scan-line"></div>
+                <svg class="rocket-wireframe" viewBox="0 0 120 360" preserveAspectRatio="xMidYMid meet">
+                    <path d="M 60 10 Q 90 60 90 120 V 350 H 30 V 120 Q 30 60 60 10 Z" fill="none" stroke="var(--cyan-primary)" stroke-width="1.5" />
+                    <path d="M 90 60 L 115 70 L 115 90 L 90 100" fill="none" stroke="var(--cyan-primary)" stroke-width="1" />
+                    <path d="M 30 60 L 5 70 L 5 90 L 30 100" fill="none" stroke="var(--cyan-primary)" stroke-width="1" />
+                    <path d="M 90 240 L 120 250 V 340 L 90 330" fill="none" stroke="var(--cyan-primary)" stroke-width="1" />
+                    <path d="M 30 240 L 0 250 V 340 L 30 330" fill="none" stroke="var(--cyan-primary)" stroke-width="1" />
+                    <line x1="60" y1="10" x2="60" y2="350" stroke="var(--cyan-dim)" stroke-dasharray="4,4" />
+                </svg>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--cyan-dim); text-align: right;">SCANNING HULL...<br>TILES: 100% SECURE<br>PAYLOAD: DEPLOYED</div>
+        </div>
+      </main>
+  </div>
+
+
+  <script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let voiceAudio, bgmAudio, alarmAudio;
+
+    const floatSound = new Audio("https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/axr%20float.mp3");
+    const modeXHoverSound = new Audio("https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/mode%20x%20option%20slexes.mp3");
+    const popupSound = new Audio("https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/pop%20up.mp3");
+
+    function playBootSound() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        voiceAudio = new Audio("https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/main%20jarvis.mp3"); 
+        voiceAudio.volume = 1.0; 
+        bgmAudio = new Audio("https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/sound%20track%20ai'%20main.mp3");
+        bgmAudio.volume = 0.8;
+        voiceAudio.play().catch(e => console.log("Voice Audio Error:", e));
+        bgmAudio.play().catch(e => console.log("BGM Audio Error:", e));
+    }
+
+    function attachHoverSounds() {
+        // Standard Card Sounds
+        const standardCards = document.querySelectorAll('.module-card:not(.red-alert)');
+        const modeXCard = document.getElementById('modeXBtn');
+        
+        standardCards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                const sound = floatSound.cloneNode();
+                sound.volume = 0.5;
+                sound.play().catch(e => {}); 
+            });
+        });
+
+        // Mode X Card Special Sound
+        if(modeXCard) {
+            modeXCard.addEventListener('mouseenter', () => {
+                const sound = modeXHoverSound.cloneNode();
+                sound.volume = 0.6;
+                sound.play().catch(e => {});
+            });
+        }
+
+        // --- NEW: ADD FLOAT SOUND TO MODAL BUTTONS (YES/NO) ---
+        const modalBtns = document.querySelectorAll('#modeXModal button');
+        modalBtns.forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                const sound = floatSound.cloneNode();
+                sound.volume = 0.5;
+                sound.play().catch(e => {});
+            });
+        });
+    }
+
+    const canvas = document.getElementById("stars");
+    const ctx = canvas.getContext("2d");
+    const btn = document.getElementById('start-btn');
+    const hero = document.getElementById('hero-section');
+    const flash = document.getElementById('warp-flash');
+    const landingContainer = document.getElementById('landing-container');
+    const dashboardContainer = document.getElementById('dashboard-container');
+    const bootText = document.getElementById('boot-text');
+    
+    let stars = [];
+    const STAR_COUNT = 2500; let speed = 0.5; let warp = false; let animationId;
+
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener("resize", resize); resize();
+
+    function initStars() {
+      stars = [];
+      for (let i = 0; i < STAR_COUNT; i++) {
+        stars.push({ 
+            x: (Math.random()-0.5)*canvas.width, 
+            y: (Math.random()-0.5)*canvas.height, 
+            z: Math.random()*canvas.width, 
+            color: Math.random()>0.3?"200, 240, 255":"255, 255, 255" 
+        });
+      }
+    }
+
+    function animateStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); 
+      ctx.globalCompositeOperation = "lighter";
+      let cx = canvas.width / 2; 
+      let cy = canvas.height / 2;
+      if (warp && speed > 20) { 
+          cx += (Math.random() - 0.5) * (speed / 4); 
+          cy += (Math.random() - 0.5) * (speed / 4); 
+      }
+      for (const s of stars) {
+        s.z -= speed;
+        if (s.z <= 0) { 
+            s.z = canvas.width; 
+            s.x = (Math.random()-0.5)*canvas.width; 
+            s.y = (Math.random()-0.5)*canvas.height; 
+        }
+        const k = 400 / s.z; 
+        const x = s.x * k + cx; 
+        const y = s.y * k + cy;
+        const trailLength = warp ? (speed * 1.5) : (speed * 5); 
+        const prevZ = s.z + trailLength; 
+        const prevK = 400 / prevZ; 
+        const px = s.x * prevK + cx; 
+        const py = s.y * prevK + cy;
+        const depthAlpha = 1 - (s.z / canvas.width);
+        if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+            ctx.beginPath(); 
+            ctx.strokeStyle = `rgba(${s.color}, ${depthAlpha})`;
+            let thickness = (1 - s.z / canvas.width) * 3; 
+            if(warp) thickness *= 1.5;
+            ctx.lineWidth = Math.max(0.1, thickness); 
+            ctx.lineCap = 'round';
+            ctx.moveTo(px, py); 
+            ctx.lineTo(x, y); 
+            ctx.stroke();
+        }
+      }
+      ctx.globalCompositeOperation = "source-over"; 
+      animationId = requestAnimationFrame(animateStars);
+    }
+    initStars(); animateStars();
+
+    function startWarp() {
+      warp = true; document.body.classList.add('hyperspace-active');
+      const warpInterval = setInterval(() => { 
+          if(speed < 80) speed *= 1.05; 
+          if(speed < 2) speed += 0.5; 
+          if (speed > 80) clearInterval(warpInterval); 
+      }, 20);
+    }
+
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        startWarp();
+        hero.classList.add('launching');
+        setTimeout(() => {
+            flash.classList.add('active');
+            setTimeout(() => {
+                cancelAnimationFrame(animationId);
+                landingContainer.style.display = 'none';
+                document.body.style.backgroundColor = 'black'; 
+                bootText.classList.add('boot-text-visible');
+                playBootSound();
+                setTimeout(() => {
+                    bootText.classList.remove('boot-text-visible');
+                    document.body.classList.add('dashboard-mode'); 
+                    dashboardContainer.style.display = 'block';
+                    flash.style.transition = 'opacity 1s ease';
+                    flash.style.opacity = '0';
+                    setTimeout(() => { flash.style.display = 'none'; }, 1000);
+                    const rings = document.querySelectorAll('.reactor-ring, .reactor-ring-inner');
+                    const nav = document.getElementById('topNav');
+                    const panels = document.querySelectorAll('.side-panel');
+                    const cards = document.querySelectorAll('.module-card');
+                    rings.forEach(r => r.style.opacity = '0.8'); 
+                    setTimeout(() => { nav.classList.remove('boot-hidden'); nav.classList.add('boot-visible'); }, 500);
+                    setTimeout(() => { panels.forEach(p => { p.classList.remove('boot-hidden'); p.classList.add('boot-visible'); }); }, 1000);
+                    cards.forEach((card, index) => {
+                        setTimeout(() => {
+                            card.classList.remove('boot-scale-hidden');
+                            card.classList.add('boot-scale-visible');
+                        }, 1500 + (index * 200));
+                    });
+                    attachHoverSounds();
+                }, 2000);
+            }, 1000);
+        }, 2500);
+    });
+
+    function selectModule(id) {
+        if(id === 'ADVANCED') { 
+            const sound = popupSound.cloneNode();
+            sound.volume = 0.7;
+            sound.play().catch(e => {});
+
+            document.getElementById('modeXModal').style.display = 'flex'; 
+            return; 
+        }
+        const flash = document.createElement('div');
+        flash.style.position = 'absolute'; flash.style.top = '0'; flash.style.left = '0';
+        flash.style.width = '100vw'; flash.style.height = '100vh';
+        flash.style.backgroundColor = 'rgba(0, 243, 255, 0.2)'; flash.style.zIndex = '100';
+        document.body.appendChild(flash);
+        setTimeout(() => { flash.remove(); alert(`[J.A.R.V.I.S]: ${id} Module Loaded.`); }, 150);
+    }
+
+    function closeModal() { document.getElementById('modeXModal').style.display = 'none'; }
+
+    function confirmModeX() {
+        closeModal();
+        if(voiceAudio) { voiceAudio.pause(); voiceAudio.currentTime = 0; }
+        if(bgmAudio) { bgmAudio.pause(); bgmAudio.currentTime = 0; }
+        alarmAudio = new Audio('https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/alarm-301729.mp3');
+        alarmAudio.loop = true;
+        alarmAudio.volume = 0.7;
+        alarmAudio.play();
+        const modeXCard = document.getElementById('modeXBtn');
+        const ring1 = document.getElementById('ring1');
+        const ring2 = document.getElementById('ring2');
+        document.querySelectorAll('.side-panel').forEach(el => el.classList.add('fade-exit'));
+        document.getElementById('topNav').classList.add('fade-exit');
+        document.querySelectorAll('.module-card').forEach(el => { if(el.id !== 'modeXBtn') el.classList.add('fade-exit'); });
+        modeXCard.classList.add('mode-x-center');
+        setTimeout(() => {
+            ring1.classList.add('reactor-critical'); ring2.classList.add('reactor-critical');
+            setTimeout(() => {
+                modeXCard.classList.add('shake-hard');
+                setTimeout(() => {
+                    modeXCard.classList.add('vanish-final'); ring1.classList.add('vanish-final'); ring2.classList.add('vanish-final');
+                    document.body.style.backgroundColor = '#000'; document.body.style.backgroundImage = 'none';
+                    if(alarmAudio) { alarmAudio.pause(); }
+                    setTimeout(() => { console.log("Redirecting..."); }, 1500);
+                }, 1500); 
+            }, 1500);
+        }, 1000); 
+    }
+    
+    setInterval(() => { document.querySelectorAll('.tech-corner-text.bl').forEach(el => { if(Math.random() > 0.7) el.innerText = (Math.random() * 100).toFixed(2) + "%"; }); }, 2000);
+  </script>
+</body>
+</html>

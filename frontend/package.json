@@ -1,3 +1,25 @@
 {
-  "__comment__": "Har Har Mahadev"
+  "name": "arx-frontend",
+  "__comment__": "Har Har Mahadev",
+  "private": true,
+  "version": "0.1.0",
+  "dependencies": {
+    "@react-three/fiber": "^9.5.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "three": "^0.179.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }

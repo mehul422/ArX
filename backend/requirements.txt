@@ -1,1 +1,8 @@
 # Har Har Mahadev
+fastapi
+uvicorn
+jpype1
+numpy
+celery
+redis
+psycopg2-binary

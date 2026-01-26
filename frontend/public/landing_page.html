@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ARX — Cinematic Hyperspace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ================= ORIGINAL STYLES ================= */
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Space Grotesk", system-ui, sans-serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; color: #e8dcc0; }
+    
+    /* Background Layer */
+    #background { position: fixed; inset: 0; z-index: 0; transition: opacity 0.5s; }
+    .nebula {
+      position: absolute; inset: 0;
+      background: url("https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/backiee-105012-landscape.jpg") center / cover no-repeat;
+      animation: nebulaMove 80s linear infinite alternate;
+    }
+    @keyframes nebulaMove { from { transform: scale(1); } to { transform: scale(1.1); } }
+    
+    /* Hero Section */
+    .hero {
+      position: relative; z-index: 2; height: 100vh;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      text-align: center; gap: 18px;
+      perspective: 1000px;
+    }
+
+    /* Logo Styles */
+    .logo-container {
+      position: relative; width: 160px; height: 160px;
+      display: flex; justify-content: center; align-items: center;
+      margin-bottom: 20px;
+      transition: transform 1s cubic-bezier(0.6, 0, 0.2, 1), opacity 0.5s ease;
+    }
+
+    .logo {
+      width: 100%; height: 100%;
+      display: flex; justify-content: center; align-items: center;
+      animation: logoFloat 6s ease-in-out infinite;
+    }
+    
+    .logo img {
+      width: 300%; height: 300%; object-fit: contain;
+      filter: drop-shadow(0 0 45px rgba(255,200,140,0.4));
+    }
+
+    @keyframes logoFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+    h1 {
+      letter-spacing: 6px; font-size: 42px; font-weight: 600; color: #e8dcc0;
+      text-shadow: 0 0 20px rgba(232,220,192,0.6);
+      transition: transform 0.5s, opacity 0.5s;
+    }
+    p { letter-spacing: 3px; font-size: 13px; opacity: 0.8; transition: transform 0.5s, opacity 0.5s; }
+
+    .btn {
+      margin-top: 20px; padding: 14px 36px; border-radius: 10px; border: none;
+      background: linear-gradient(135deg, #f1c27d, #d4a256);
+      color: #1b1407; font-weight: 600; letter-spacing: 2px; cursor: pointer;
+      box-shadow: 0 10px 40px rgba(241,194,125,0.35);
+      transition: all 0.2s; position: relative; z-index: 10;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 20px 60px rgba(241,194,125,0.55); }
+
+    /* ================= TRANSITION STYLES ================= */
+    .hero.launching .logo-container { transform: translateY(-800px) scale(0.5); opacity: 0; }
+    .hero.launching h1, .hero.launching p, .hero.launching .btn {
+      opacity: 0; transform: scale(1.1); filter: blur(5px); transition-duration: 0.8s;
+    }
+
+    #stars {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 1; pointer-events: none;
+    }
+    .hyperspace-active #background { opacity: 0; }
+
+    #warp-flash {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #fff; opacity: 0; pointer-events: none; z-index: 9999;
+    }
+    #warp-flash.active { animation: flashAndFade 1.5s forwards; }
+    @keyframes flashAndFade {
+      0% { opacity: 0; }
+      20% { opacity: 1; background: #fff; }
+      100% { opacity: 1; background: #000; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="background"><div class="nebula"></div></div>
+  <canvas id="stars"></canvas>
+
+  <section class="hero" id="hero-section">
+    <div class="logo-container">
+      <div class="logo">
+        <img src="https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/main.png" alt="ARX Logo">
+      </div>
+    </div>
+    <h1>ARX</h1>
+    <p>AUTOMATED ROCKET EXPLORATION</p>
+    <button class="btn" id="start-btn">GET STARTED</button>
+  </section>
+
+  <div id="warp-flash"></div>
+
+  <script>
+    const canvas = document.getElementById("stars");
+    const ctx = canvas.getContext("2d");
+    const btn = document.getElementById('start-btn');
+    const hero = document.getElementById('hero-section');
+    const flash = document.getElementById('warp-flash');
+    const body = document.body;
+
+    let stars = [];
+    // High count for density
+    const STAR_COUNT = 2500; 
+
+    // Controls
+    let speed = 0.5;
+    let warp = false;
+    let animationId;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    function initStars() {
+      stars = [];
+      for (let i = 0; i < STAR_COUNT; i++) {
+        stars.push({
+          x: (Math.random() - 0.5) * canvas.width,
+          y: (Math.random() - 0.5) * canvas.height,
+          z: Math.random() * canvas.width,
+          // Assign random tints for realism (Cyan, White, slight Violet)
+          color: Math.random() > 0.3 ? "200, 240, 255" : "255, 255, 255"
+        });
+      }
+    }
+
+    function animateStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Add "Additive Blending" for the Glow Effect
+      // This makes overlapping stars brighter, creating a realistic core
+      ctx.globalCompositeOperation = "lighter";
+
+      // Basic center
+      let cx = canvas.width / 2;
+      let cy = canvas.height / 2;
+
+      // CAMERA SHAKE: Randomly offset center when speed is high
+      if (warp && speed > 20) {
+          cx += (Math.random() - 0.5) * (speed / 4);
+          cy += (Math.random() - 0.5) * (speed / 4);
+      }
+
+      for (const s of stars) {
+        s.z -= speed;
+
+        // Recycle star
+        if (s.z < 1) {
+          s.z = canvas.width;
+          s.x = (Math.random() - 0.5) * canvas.width;
+          s.y = (Math.random() - 0.5) * canvas.height;
+        }
+
+        const k = 400 / s.z;
+        const x = s.x * k + cx;
+        const y = s.y * k + cy;
+
+        // Trail Logic: Dynamic length based on speed
+        const trailLength = warp ? (speed * 1.5) : (speed * 5); 
+        const prevK = 400 / (s.z + trailLength);
+        const px = s.x * prevK + cx;
+        const py = s.y * prevK + cy;
+
+        // Draw Logic
+        // 1. Distance-based opacity (Fade out distant stars)
+        const depthAlpha = 1 - (s.z / canvas.width);
+        
+        ctx.beginPath();
+        // Use HSLA for better color control
+        // Opacity gets higher as it gets closer
+        ctx.strokeStyle = `rgba(${s.color}, ${depthAlpha})`;
+        
+        // 2. Variable Thickness: Stars closer to screen are THICKER
+        // This adds massive 3D depth perception
+        let thickness = (1 - s.z / canvas.width) * 3;
+        if(warp) thickness *= 1.5; // Thicker during warp
+        ctx.lineWidth = Math.max(0.1, thickness);
+        
+        ctx.lineCap = 'round';
+        ctx.moveTo(px, py);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      
+      // Reset composite for next frame (optional but good practice)
+      ctx.globalCompositeOperation = "source-over";
+
+      animationId = requestAnimationFrame(animateStars);
+    }
+
+    initStars();
+    animateStars();
+
+    /* ===== TRANSITION LOGIC ===== */
+    function startWarp() {
+      warp = true;
+      body.classList.add('hyperspace-active');
+      
+      const warpInterval = setInterval(() => {
+        // Exponential acceleration for "Physical" feel
+        if(speed < 80) speed *= 1.05; 
+        if(speed < 2) speed += 0.5; // Initial kick
+        
+        if (speed > 80) clearInterval(warpInterval); 
+      }, 20);
+    }
+
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        startWarp();
+        hero.classList.add('launching');
+
+        setTimeout(() => {
+            flash.classList.add('active');
+            setTimeout(() => {
+                cancelAnimationFrame(animationId);
+                document.body.innerHTML = ''; 
+                document.body.style.backgroundColor = 'black';
+            }, 1000);
+        }, 2500);
+    });
+  </script>
+</body>
+</html>

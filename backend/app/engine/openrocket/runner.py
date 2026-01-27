@@ -678,6 +678,129 @@ def _motor_mount_component_ids(rocket_path: str) -> set[str]:
     return mount_ids
 
 
+def _xml_position_value(element) -> tuple[float | None, str | None]:
+    pos_node = element.find("position")
+    if pos_node is None:
+        pos_node = element.find("axialoffset")
+    if pos_node is None or pos_node.text is None:
+        return None, None
+    try:
+        value = float(pos_node.text)
+    except Exception:
+        return None, None
+    pos_type = pos_node.get("type") or pos_node.get("method")
+    return value, pos_type
+
+
+def _absolute_z(parent_start_z: float, parent_length: float, element) -> float:
+    value, pos_type = _xml_position_value(element)
+    if value is None:
+        return parent_start_z
+    normalized = (pos_type or "top").lower()
+    if normalized == "absolute":
+        return value
+    if normalized == "bottom":
+        return parent_start_z + parent_length - value
+    return parent_start_z + value
+
+
+def _compute_custom_cg_from_xml(
+    rocket_path: str,
+    sustainer_motor_mass_kg: float | None,
+    booster_motor_mass_kg: float | None,
+    target_mount_ids: set[str] | None,
+    motor_cg_offset_m: float = 0.34,
+) -> tuple[float | None, float]:
+    try:
+        tree = ET.parse(rocket_path)
+    except Exception:
+        return None, 0.0
+    root = tree.getroot()
+    rocket = root if root.tag == "rocket" else root.find("rocket")
+    if rocket is None:
+        return None, 0.0
+    rocket_subs = rocket.find("subcomponents")
+    if rocket_subs is None:
+        return None, 0.0
+
+    total_mass = 0.0
+    total_moment = 0.0
+
+    def process_tube_contents(
+        tube_element, tube_start_z: float, tube_length: float, stage_name: str | None
+    ) -> None:
+        nonlocal total_mass, total_moment
+        subs = tube_element.find("subcomponents")
+        if subs is None:
+            return
+        for child in subs:
+            child_z = _absolute_z(tube_start_z, tube_length, child)
+            mass_node = child.find("mass")
+            override_node = child.find("overridemass")
+            if mass_node is not None and mass_node.text:
+                try:
+                    mass = float(mass_node.text)
+                except Exception:
+                    mass = None
+            elif override_node is not None and override_node.text:
+                try:
+                    mass = float(override_node.text)
+                except Exception:
+                    mass = None
+            else:
+                mass = None
+            if mass is not None:
+                total_mass += mass
+                total_moment += mass * child_z
+
+            if child.tag == "innertube" and child.find("motormount") is not None:
+                include_mount = True
+                if target_mount_ids is not None:
+                    id_node = child.find("id")
+                    child_id = id_node.text.strip() if id_node is not None and id_node.text else None
+                    include_mount = child_id in target_mount_ids if child_id else False
+                if include_mount:
+                    motor_mass = None
+                    stage_token = (stage_name or "").lower()
+                    if "sustainer" in stage_token:
+                        motor_mass = sustainer_motor_mass_kg
+                    elif "booster" in stage_token:
+                        motor_mass = booster_motor_mass_kg
+                    if motor_mass is None or motor_mass <= 0:
+                        continue
+                    motor_cg_z = tube_start_z + tube_length - motor_cg_offset_m
+                    total_mass += motor_mass
+                    total_moment += motor_mass * motor_cg_z
+
+    running_z = 0.0
+    for stage in rocket_subs:
+        if stage.tag != "stage":
+            continue
+        stage_name = None
+        stage_name_node = stage.find("name")
+        if stage_name_node is not None and stage_name_node.text:
+            stage_name = stage_name_node.text.strip()
+        stage_subs = stage.find("subcomponents")
+        if stage_subs is None:
+            continue
+        for comp in stage_subs:
+            if comp.tag not in ("nosecone", "bodytube", "transition"):
+                continue
+            length = 0.0
+            length_node = comp.find("length")
+            if length_node is not None and length_node.text:
+                try:
+                    length = float(length_node.text)
+                except Exception:
+                    length = 0.0
+            process_tube_contents(comp, running_z, length, stage_name)
+            running_z += length
+
+    if total_mass <= 0:
+        return None, 0.0
+    return total_moment / total_mass, total_mass
+
+
 def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
     settings = get_settings()
     jar_path = params.get("openrocket_jar") or settings.openrocket_jar
@@ -834,6 +957,7 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
                 for mount in target_mounts:
                     _add_motor_mass_component(mount, extra_motor_mass_kg)
 
+
         try:
             rocket.setSelectedConfiguration(configuration)
         except Exception:
@@ -844,7 +968,20 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
             bool(params.get("use_all_stages", True)),
         )
 
+    target_mount_ids = {str(mount.getID()) for mount in target_mounts} if target_mounts else None
+    motor_cg_offset_m = float(params.get("motor_cg_offset_m", 0.34))
+    sustainer_motor_mass_kg = params.get("sustainer_motor_mass_kg")
+    booster_motor_mass_kg = params.get("booster_motor_mass_kg")
+    custom_cg_x_m, _ = _compute_custom_cg_from_xml(
+        rocket_path,
+        float(sustainer_motor_mass_kg) if sustainer_motor_mass_kg is not None else None,
+        float(booster_motor_mass_kg) if booster_motor_mass_kg is not None else None,
+        target_mount_ids,
+        motor_cg_offset_m=motor_cg_offset_m,
+    )
+
     cg = mass_calc(configuration)
+    custom_cg_x_m = custom_cg_x_m if custom_cg_x_m is not None else float(cg.x)
 
     if expected_motor_mass_kg is not None and expected_motor_mass_kg > 0 and target_mounts:
         observed_motor_mass_kg = max(0.0, float(cg.weight) - float(base_cg.weight))
@@ -898,7 +1035,7 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
     reference_diameter_m = max(stage_diameters_m.values(), default=0.0)
     stability_margin = None
     if reference_diameter_m > 0:
-        stability_margin = float((cp.x - cg.x) / reference_diameter_m)
+        stability_margin = float((cp.x - custom_cg_x_m) / reference_diameter_m)
 
     stage_masses = _compute_stage_masses(mass_calc, configuration)
     total_mass = float(cg.weight)
@@ -919,12 +1056,12 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
             )
 
     return {
-        "cg": {"x": float(cg.x), "y": float(cg.y), "z": float(cg.z), "unit": "m"},
+        "cg": {"x": custom_cg_x_m, "y": float(cg.y), "z": float(cg.z), "unit": "m"},
         "cp": {"x": float(cp.x), "y": float(cp.y), "z": float(cp.z), "unit": "m"},
         "total_mass": total_mass,
         "stage_masses": {str(k): v for k, v in stage_masses.items()},
         "stability_margin": stability_margin,
-        "cg_in": {"x": _to_inches(float(cg.x)), "y": 0.0, "z": 0.0, "unit": "in"},
+        "cg_in": {"x": _to_inches(custom_cg_x_m), "y": 0.0, "z": 0.0, "unit": "in"},
         "cp_in": {"x": _to_inches(float(cp.x)), "y": 0.0, "z": 0.0, "unit": "in"},
         "total_mass_lb": _to_pounds(total_mass),
         "stage_masses_lb": stage_masses_lb,
@@ -1111,7 +1248,20 @@ def run_openrocket_pipeline(params: dict[str, Any]) -> dict[str, Any]:
         bool(params.get("use_all_stages", True)),
     )
 
+    target_mount_ids = {str(mount.getID()) for mount in target_mounts} if target_mounts else None
+    motor_cg_offset_m = float(params.get("motor_cg_offset_m", 0.34))
+    sustainer_motor_mass_kg = params.get("sustainer_motor_mass_kg")
+    booster_motor_mass_kg = params.get("booster_motor_mass_kg")
+    custom_cg_x_m, _ = _compute_custom_cg_from_xml(
+        rocket_path,
+        float(sustainer_motor_mass_kg) if sustainer_motor_mass_kg is not None else None,
+        float(booster_motor_mass_kg) if booster_motor_mass_kg is not None else None,
+        target_mount_ids,
+        motor_cg_offset_m=motor_cg_offset_m,
+    )
+
     cg = mass_calc(configuration)
+    custom_cg_x_m = custom_cg_x_m if custom_cg_x_m is not None else float(cg.x)
 
     flight_conditions = FlightConditions(configuration)
     flight_conditions.setAOA(0.0)
@@ -1127,7 +1277,7 @@ def run_openrocket_pipeline(params: dict[str, Any]) -> dict[str, Any]:
     reference_diameter_m = max(stage_diameters_m.values(), default=0.0)
     stability_margin = None
     if reference_diameter_m > 0:
-        stability_margin = float((cp.x - cg.x) / reference_diameter_m)
+        stability_margin = float((cp.x - custom_cg_x_m) / reference_diameter_m)
 
     expected_motor_mass_kg = float(desired_motor_mass_kg) * max(len(target_mounts), 1)
     observed_motor_mass_kg = max(0.0, float(cg.weight) - float(base_cg.weight))
@@ -1198,7 +1348,7 @@ def run_openrocket_pipeline(params: dict[str, Any]) -> dict[str, Any]:
     return {
         "global": {
             "mass_lb": _to_pounds(float(cg.weight)),
-            "cg_in": _to_inches(float(cg.x)),
+            "cg_in": _to_inches(custom_cg_x_m),
             "cp_in": _to_inches(float(cp.x)),
             "stability_margin": stability_margin,
             "motors_included": motors_included,

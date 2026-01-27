@@ -18,6 +18,8 @@ See `docs/tech-stack.md` for the canonical stack used across this project.
 - `REDIS_URL` (optional; default `redis://localhost:6379/0`)
 - `JAR_DIR` (optional; default `backend/resources/jars`)
 - `OPENROCKET_JAR` (required for OpenRocket integration)
+- `MOTORS_DIR` (optional; default `backend/resources/motors`)
+- `MOTOR_UPLOAD_DIR` (optional; default `backend/resources/motors/uploads`)
 - `CORS_ORIGINS` (optional; comma-separated)
 - `CELERY_TASK_SOFT_TIME_LIMIT` (optional; seconds)
 - `CELERY_TASK_TIME_LIMIT` (optional; seconds)
@@ -38,9 +40,14 @@ celery -A app.workers.celery_app.celery_app worker --loglevel=info
 
 ### Example requests
 ```bash
+curl http://localhost:8000/api/v1/motors
+
+curl -X POST http://localhost:8000/api/v1/motors/upload \
+  -F "file=@/path/to/motor.eng"
+
 curl -X POST http://localhost:8000/api/v1/simulate \
   -H "Content-Type: application/json" \
-  -d '{"params":{"chamber_pressure":3000000,"burn_time":2.2}}'
+  -d '{"rocket_path":"/abs/path/rocket.ork","motor_source":"bundled","motor_id":"motor.eng","material_mode":"custom","use_all_stages":true,"params":{"chamber_pressure":3000000,"burn_time":2.2}}'
 
 curl http://localhost:8000/api/v1/simulate/<job_id>
 ```

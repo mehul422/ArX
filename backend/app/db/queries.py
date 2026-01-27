@@ -26,6 +26,56 @@ def create_jobs_table() -> None:
             )
 
 
+def create_user_inputs_table() -> None:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_inputs (
+                    id TEXT PRIMARY KEY,
+                    payload JSONB NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """
+            )
+
+
+def insert_user_input(payload: dict[str, Any]) -> str:
+    input_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO user_inputs (id, payload, created_at)
+                VALUES (%s, %s, %s)
+                """,
+                (input_id, Json(payload), now),
+            )
+    return input_id
+
+
+def fetch_user_input(input_id: str) -> dict[str, Any] | None:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, payload, created_at
+                FROM user_inputs
+                WHERE id = %s
+                """,
+                (input_id,),
+            )
+            row = cur.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "payload": row[1],
+        "created_at": row[2],
+    }
+
+
 def insert_job(job_type: str, params: dict[str, Any]) -> str:
     job_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)

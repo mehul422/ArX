@@ -154,6 +154,46 @@ def _motor_mount_stage_numbers(rocket) -> list[int]:
     return stages
 
 
+def _resolve_motor_cg_fraction(
+    motor: Any | None,
+    motor_length_m: float | None,
+    eng_data: EngMotorDefinition | None,
+) -> float | None:
+    if motor_length_m is None or motor_length_m <= 0:
+        return None
+    for name in ("getCG", "getCenterOfMass", "getCenterOfGravity"):
+        try:
+            value = getattr(motor, name)()
+            if hasattr(value, "getX"):
+                cg = float(value.getX())
+            else:
+                cg = float(value)
+            if 0.0 <= cg <= float(motor_length_m):
+                return cg / float(motor_length_m)
+        except Exception:
+            continue
+    total_mass = None
+    prop_mass = None
+    if motor is not None:
+        try:
+            prop_mass = float(motor.getPropellantMass())
+        except Exception:
+            prop_mass = None
+        total_mass = _motor_mass_kg(motor)
+    if eng_data is not None:
+        if prop_mass is None and eng_data.propellant_mass_kg is not None:
+            prop_mass = float(eng_data.propellant_mass_kg)
+        if total_mass is None and eng_data.total_mass_kg is not None:
+            total_mass = float(eng_data.total_mass_kg)
+    if total_mass is None or total_mass <= 0:
+        return None
+    prop_mass = float(prop_mass or 0.0)
+    casing_mass = max(0.0, float(total_mass) - float(prop_mass))
+    if casing_mass <= 0 and prop_mass > 0:
+        return 0.5
+    return (prop_mass * 0.5 + casing_mass * 0.35) / float(total_mass)
+
+
 def _motor_mounts_by_stage(rocket) -> list[tuple[Any, int]]:
     MotorMount = jpype.JClass("net.sf.openrocket.rocketcomponent.MotorMount")
     mounts: list[tuple[Any, int]] = []
@@ -710,7 +750,8 @@ def _compute_custom_cg_from_xml(
     booster_motor_mass_kg: float | None,
     target_mount_ids: set[str] | None,
     default_motor_mass_kg: float | None = None,
-    motor_cg_offset_m: float = 0.34,
+    motor_length_m: float | None = None,
+    motor_cg_fraction: float | None = None,
 ) -> tuple[float | None, float]:
     try:
         tree = ET.parse(rocket_path)
@@ -773,7 +814,17 @@ def _compute_custom_cg_from_xml(
                         motor_mass = float(default_motor_mass_kg)
                     if motor_mass is None or motor_mass <= 0:
                         continue
-                    motor_cg_z = tube_start_z + tube_length - motor_cg_offset_m
+                    if (
+                        motor_cg_fraction is not None
+                        and motor_length_m is not None
+                        and motor_length_m > 0
+                    ):
+                        motor_cg_offset_m = float(motor_length_m) * (
+                            1.0 - float(motor_cg_fraction)
+                        )
+                        motor_cg_z = tube_start_z + tube_length - motor_cg_offset_m
+                    else:
+                        motor_cg_z = tube_start_z + tube_length * 0.5
                     total_mass += motor_mass
                     total_moment += motor_mass * motor_cg_z
 
@@ -849,6 +900,7 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
 
     motor_mass_kg = None
     motor_length_m = params.get("motor_length_m")
+    motor = None
 
     pressure_pa = params.get("pressure_pa")
     if pressure_pa is None:
@@ -883,7 +935,12 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
     desired_motor_mass_kg: float | None = None
     expected_motor_mass_kg: float | None = None
 
+    eng_data = None
     if motor_path:
+        try:
+            eng_data = parse_eng_file(motor_path)
+        except Exception:
+            eng_data = None
         motor_loader = GeneralMotorLoader()
         normalized_path, temp_path = _normalized_motor_path_for_openrocket(motor_path)
         stream = FileInputStream(normalized_path)
@@ -974,7 +1031,18 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
         )
 
     target_mount_ids = {str(mount.getID()) for mount in target_mounts} if target_mounts else None
-    motor_cg_offset_m = float(params.get("motor_cg_offset_m", 0.34))
+    motor_cg_fraction = params.get("motor_cg_fraction")
+    motor_cg_offset_m = params.get("motor_cg_offset_m")
+    if motor_cg_fraction is None and motor_cg_offset_m is not None:
+        try:
+            if motor_length_m is not None and float(motor_length_m) > 0:
+                motor_cg_fraction = 1.0 - (
+                    float(motor_cg_offset_m) / float(motor_length_m)
+                )
+        except Exception:
+            motor_cg_fraction = None
+    if motor_cg_fraction is None:
+        motor_cg_fraction = _resolve_motor_cg_fraction(motor, motor_length_m, eng_data)
     sustainer_motor_mass_kg = params.get("sustainer_motor_mass_kg")
     booster_motor_mass_kg = params.get("booster_motor_mass_kg")
     custom_cg_x_m, _ = _compute_custom_cg_from_xml(
@@ -985,7 +1053,10 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
         default_motor_mass_kg=(
             float(desired_motor_mass_kg) if desired_motor_mass_kg is not None else None
         ),
-        motor_cg_offset_m=motor_cg_offset_m,
+        motor_length_m=float(motor_length_m) if motor_length_m is not None else None,
+        motor_cg_fraction=float(motor_cg_fraction)
+        if motor_cg_fraction is not None
+        else None,
     )
 
     cg = mass_calc(configuration)
@@ -1257,7 +1328,18 @@ def run_openrocket_pipeline(params: dict[str, Any]) -> dict[str, Any]:
     )
 
     target_mount_ids = {str(mount.getID()) for mount in target_mounts} if target_mounts else None
-    motor_cg_offset_m = float(params.get("motor_cg_offset_m", 0.34))
+    motor_cg_fraction = params.get("motor_cg_fraction")
+    motor_cg_offset_m = params.get("motor_cg_offset_m")
+    if motor_cg_fraction is None and motor_cg_offset_m is not None:
+        try:
+            if motor_length_m is not None and float(motor_length_m) > 0:
+                motor_cg_fraction = 1.0 - (
+                    float(motor_cg_offset_m) / float(motor_length_m)
+                )
+        except Exception:
+            motor_cg_fraction = None
+    if motor_cg_fraction is None:
+        motor_cg_fraction = _resolve_motor_cg_fraction(motor, motor_length_m, eng_data)
     sustainer_motor_mass_kg = params.get("sustainer_motor_mass_kg")
     booster_motor_mass_kg = params.get("booster_motor_mass_kg")
     custom_cg_x_m, _ = _compute_custom_cg_from_xml(
@@ -1268,7 +1350,10 @@ def run_openrocket_pipeline(params: dict[str, Any]) -> dict[str, Any]:
         default_motor_mass_kg=(
             float(desired_motor_mass_kg) if desired_motor_mass_kg is not None else None
         ),
-        motor_cg_offset_m=motor_cg_offset_m,
+        motor_length_m=float(motor_length_m) if motor_length_m is not None else None,
+        motor_cg_fraction=float(motor_cg_fraction)
+        if motor_cg_fraction is not None
+        else None,
     )
 
     cg = mass_calc(configuration)

@@ -16,6 +16,8 @@ const ArxInterface: React.FC = () => {
     let arxHoverTimer: number | null = null;
     let hasBooted = false;
     let isTransitioning = false;
+    let isSubPageLocked = false;
+    let pendingSubPageType: string | null = null;
 
     const floatSound = new Audio(
       "https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/axr%20float.mp3"
@@ -516,9 +518,8 @@ const ArxInterface: React.FC = () => {
       floater.style.color = config.color;
       floater.style.fontSize = getComputedStyle(letterSpan).fontSize;
       floater.id = "activeFloater";
-      floater.style.cursor = "pointer";
-      floater.style.pointerEvents = "auto";
-      floater.onclick = () => initiateArcSequence(floater);
+      floater.style.cursor = "default";
+      floater.style.pointerEvents = "none";
       document.body.appendChild(floater);
       requestAnimationFrame(() => {
         floater.classList.add("centered-massive");
@@ -558,6 +559,8 @@ const ArxInterface: React.FC = () => {
     const handleNavClick = (type: string) => {
       if (isTransitioning) return;
       isTransitioning = true;
+      pendingSubPageType = null;
+      isSubPageLocked = false;
       const sound = popupSound.cloneNode() as HTMLAudioElement;
       sound.volume = 0.5;
       sound.play().catch(() => {});
@@ -603,6 +606,7 @@ const ArxInterface: React.FC = () => {
       }
 
       document.documentElement.style.setProperty("--grid-color", newGridColor);
+      document.documentElement.style.setProperty("--page-accent", color);
 
       document.getElementById("topNav")?.classList.add("fade-exit");
       document.querySelectorAll(".side-panel").forEach((el) => el.classList.add("fade-exit"));
@@ -625,18 +629,22 @@ const ArxInterface: React.FC = () => {
       floater.style.transition = "opacity 1s ease, top 1s ease";
       floater.id = "activeFloater";
       document.body.appendChild(floater);
-      if (isPricing && subPageContent) {
-        subPageContent.innerHTML =
-          '<div class="pricing-grid"><div class="pricing-box"></div><div class="pricing-box"></div><div class="pricing-box"></div></div>';
-        setTimeout(() => {
-          document.querySelectorAll(".pricing-box").forEach((box) => {
-            box.addEventListener("mouseenter", () => {
-              const s = floatSound.cloneNode() as HTMLAudioElement;
-              s.volume = 0.5;
-              s.play().catch(() => {});
+      const loginLayer = document.getElementById("login-layer");
+      if (loginLayer) loginLayer.innerHTML = "";
+      if (subPageContent) {
+        if (isPricing) {
+          subPageContent.innerHTML =
+            '<div class="pricing-grid"><div class="pricing-box"></div><div class="pricing-box"></div><div class="pricing-box"></div></div>';
+          setTimeout(() => {
+            document.querySelectorAll(".pricing-box").forEach((box) => {
+              box.addEventListener("mouseenter", () => {
+                const s = floatSound.cloneNode() as HTMLAudioElement;
+                s.volume = 0.5;
+                s.play().catch(() => {});
+              });
             });
-          });
-        }, 100);
+          }, 100);
+        }
       }
       requestAnimationFrame(() => {
         floater.style.opacity = "1";
@@ -648,12 +656,489 @@ const ArxInterface: React.FC = () => {
       }
       setTimeout(() => {
         document.getElementById("subPage")?.classList.add("active");
+        if (type === "INIT" || type === "NEW" || type === "PROTO") {
+          document.getElementById("subPage")?.classList.add("form-active");
+          document
+            .getElementById("arc-reactor-overlay")
+            ?.classList.add("active", "form-mode");
+        }
+        if (type === "INIT") {
+          if (loginLayer) {
+            loginLayer.innerHTML = `
+              <form class="subpage-form login-layer-form" data-form="login" novalidate>
+                <div class="form-title">LOGIN ACCESS</div>
+                <div class="form-subtitle">SECURE AUTHENTICATION REQUIRED</div>
+                <div class="arx-field">
+                  <input type="email" name="email" placeholder=" " autocomplete="email" required />
+                  <label>YOUR EMAIL</label>
+                </div>
+                <div class="arx-field">
+                  <input type="password" name="password" placeholder=" " autocomplete="current-password" required />
+                  <label>ACCESS CODE</label>
+                </div>
+                <div class="form-status"></div>
+                <div class="arx-form-actions">
+                  <button type="submit" class="arx-btn">Authorize</button>
+                  <button type="button" class="arx-btn" id="login-clear">Clear</button>
+                </div>
+              </form>
+            `;
+            bindFormActions(loginLayer);
+          }
+        } else if (type === "NEW") {
+          if (loginLayer) {
+            loginLayer.innerHTML = `
+              <form class="subpage-form login-layer-form" data-form="new" novalidate>
+                <div class="form-title">NEW USER</div>
+                <div class="form-subtitle">REGISTER ARX ACCESS</div>
+                <div class="arx-field">
+                  <input type="text" name="name" placeholder=" " autocomplete="name" required />
+                  <label>YOUR NAME</label>
+                </div>
+                <div class="arx-field">
+                  <input type="email" name="email" placeholder=" " autocomplete="email" required />
+                  <label>YOUR EMAIL</label>
+                </div>
+                <div class="arx-field">
+                  <input type="date" name="dob" placeholder=" " required />
+                  <label>DATE OF BIRTH</label>
+                </div>
+                <div class="form-status"></div>
+                <div class="arx-form-actions">
+                  <button type="submit" class="arx-btn">Register</button>
+                  <button type="button" class="arx-btn" id="newuser-clear">Reset</button>
+                </div>
+              </form>
+            `;
+            bindFormActions(loginLayer);
+          }
+        } else if (type === "PROTO") {
+          if (loginLayer) {
+            loginLayer.innerHTML = `
+              <form class="subpage-form login-layer-form" data-form="proto" novalidate>
+                <div class="form-title">PROTOCOL 8</div>
+                <div class="form-subtitle">SECURE CONTACT CHANNEL</div>
+                <div class="arx-field">
+                  <input type="text" name="name" placeholder=" " autocomplete="name" required />
+                  <label>YOUR NAME</label>
+                </div>
+                <div class="arx-field">
+                  <input type="email" name="email" placeholder=" " autocomplete="email" required />
+                  <label>YOUR EMAIL</label>
+                </div>
+                <div class="arx-field">
+                  <textarea name="message" placeholder=" " required></textarea>
+                  <label>MISSION BRIEF</label>
+                </div>
+                <div class="form-status"></div>
+                <div class="arx-form-actions">
+                  <button type="submit" class="arx-btn">Transmit</button>
+                  <button type="button" class="arx-btn" id="proto-clear">Clear</button>
+                </div>
+              </form>
+            `;
+            bindFormActions(loginLayer);
+          }
+        }
       }, 500);
     };
 
+    const bindFormActions = (container: Element | null) => {
+      if (!container) return;
+      const form = container.querySelector("form");
+      if (form && form.getAttribute("data-bound") === "true") return;
+      if (form) form.setAttribute("data-bound", "true");
+      let pendingSuccessToken = Date.now();
+      const cancelPendingSuccess = () => {
+        pendingSuccessToken = Date.now();
+      };
+      const showSuccessLayer = (
+        message: string,
+        holdMs: number,
+        onComplete?: () => void
+      ) => {
+        const successLayer = document.getElementById("success-layer");
+        if (!successLayer) return;
+        successLayer.innerHTML = `<div class="form-success">${message}</div>`;
+        const success = successLayer.querySelector(".form-success") as HTMLElement | null;
+        if (!success) return;
+        requestAnimationFrame(() => success.classList.add("visible"));
+        const token = pendingSuccessToken;
+        setTimeout(() => {
+          if (pendingSuccessToken !== token) return;
+          success.classList.add("fade-out");
+          setTimeout(() => {
+            if (pendingSuccessToken !== token) return;
+            successLayer.innerHTML = "";
+            onComplete?.();
+          }, 1500);
+        }, holdMs);
+      };
+      const handleSubmit = () => {
+        const status = container.querySelector(".form-status") as HTMLElement | null;
+        const formType = form?.getAttribute("data-form");
+        const fields = form ? new FormData(form) : null;
+        if (!fields) return;
+        if (formType === "login") {
+          const email = String(fields.get("email") || "").trim();
+          const password = String(fields.get("password") || "").trim();
+          if (!email || !password) {
+            if (status) status.textContent = "ENTER EMAIL AND ACCESS CODE.";
+            return;
+          }
+          pendingSubPageType = null;
+          showSuccessLayer("YOU HAVE BEEN LOGGED IN SUCCESSFULLY.", 6000);
+          const loginLayer = document.getElementById("login-layer");
+          if (loginLayer) loginLayer.innerHTML = "";
+          const floater = document.getElementById("activeFloater");
+          if (floater) floater.remove();
+          const titleEl = document.getElementById("activeModuleTitle");
+          if (titleEl) titleEl.remove();
+          document.getElementById("arc-reactor-overlay")?.classList.remove("active");
+          document
+            .getElementById("arc-reactor-overlay")
+            ?.classList.remove("form-mode");
+          setTimeout(() => {
+            document.getElementById("blackout-screen")?.classList.add("active");
+          }, 7200);
+        } else if (formType === "new") {
+          const name = String(fields.get("name") || "").trim();
+          const email = String(fields.get("email") || "").trim();
+          const dob = String(fields.get("dob") || "").trim();
+          if (!name || !email || !dob) {
+            if (status) status.textContent = "INPUT INFORMATION.";
+            return;
+          }
+          const formEl = container.querySelector("form");
+          formEl?.classList.add("fade-out");
+          const floater = document.getElementById("activeFloater");
+          if (floater) floater.remove();
+          const titleEl = document.getElementById("activeModuleTitle");
+          if (titleEl) titleEl.remove();
+          const overlay = document.getElementById("arc-reactor-overlay");
+          overlay?.classList.remove("active");
+          overlay?.classList.remove("form-mode");
+          setTimeout(() => {
+            const onFadeEnd = () => {
+              overlay?.removeEventListener("transitionend", onFadeEnd);
+              showSuccessLayer("WELCOME. YOU HAVE BEEN REGISTERED TO A.R.X.", 5000, () => {
+                showSuccessLayer("YOU CAN GO TO LOGIN NOW.", 4000);
+              });
+            };
+            if (overlay) {
+              overlay.addEventListener("transitionend", onFadeEnd, { once: true });
+            } else {
+              showSuccessLayer("WELCOME. YOU HAVE BEEN REGISTERED TO A.R.X.", 5000, () => {
+                showSuccessLayer("YOU CAN GO TO LOGIN NOW.", 4000);
+              });
+            }
+            const loginLayer = document.getElementById("login-layer");
+            if (loginLayer) {
+              setTimeout(() => {
+                loginLayer.innerHTML = "";
+              }, 3000);
+            }
+          }, 1200);
+        } else if (formType === "proto") {
+          const name = String(fields.get("name") || "").trim();
+          const email = String(fields.get("email") || "").trim();
+          const message = String(fields.get("message") || "").trim();
+          if (!name || !email || !message) {
+            if (status) status.textContent = "NOTHING TO TRANSMIT.";
+            return;
+          }
+          const formEl = container.querySelector("form");
+          formEl?.classList.add("fade-out");
+          const floater = document.getElementById("activeFloater");
+          if (floater) floater.remove();
+          const titleEl = document.getElementById("activeModuleTitle");
+          if (titleEl) titleEl.remove();
+          const overlay = document.getElementById("arc-reactor-overlay");
+          overlay?.classList.remove("active");
+          overlay?.classList.remove("form-mode");
+          setTimeout(() => {
+            const onFadeEnd = () => {
+              overlay?.removeEventListener("transitionend", onFadeEnd);
+              showSuccessLayer(
+                "YOUR MISSION BRIEF HAS BEEN SENT TO THE CREATORS.",
+                5000,
+                () => {
+                  const loginLayer = document.getElementById("login-layer");
+                  if (loginLayer) {
+                    loginLayer.innerHTML = `
+                      <form class="subpage-form login-layer-form" data-form="proto" novalidate>
+                        <div class="form-title">PROTOCOL 8</div>
+                        <div class="form-subtitle">SECURE CONTACT CHANNEL</div>
+                        <div class="arx-field">
+                          <input type="text" name="name" placeholder=" " autocomplete="name" required />
+                          <label>YOUR NAME</label>
+                        </div>
+                        <div class="arx-field">
+                          <input type="email" name="email" placeholder=" " autocomplete="email" required />
+                          <label>YOUR EMAIL</label>
+                        </div>
+                        <div class="arx-field">
+                          <textarea name="message" placeholder=" " required></textarea>
+                          <label>MISSION BRIEF</label>
+                        </div>
+                        <div class="form-status"></div>
+                        <div class="arx-form-actions">
+                          <button type="submit" class="arx-btn">Transmit</button>
+                          <button type="button" class="arx-btn" id="proto-clear">Clear</button>
+                        </div>
+                      </form>
+                    `;
+                    bindFormActions(loginLayer);
+                  }
+                }
+              );
+            };
+            if (overlay) {
+              overlay.addEventListener("transitionend", onFadeEnd, { once: true });
+            } else {
+              showSuccessLayer("YOUR MISSION BRIEF HAS BEEN SENT TO THE CREATORS.", 5000);
+            }
+            const loginLayer = document.getElementById("login-layer");
+            if (loginLayer) {
+              setTimeout(() => {
+                loginLayer.innerHTML = "";
+              }, 3000);
+            }
+          }, 1200);
+        }
+      };
+
+      const handleClear = () => {
+        const status = container.querySelector(".form-status") as HTMLElement | null;
+        const fields = form ? new FormData(form) : null;
+        const formType = form?.getAttribute("data-form");
+        if (formType === "login" && fields) {
+          const email = String(fields.get("email") || "").trim();
+          const password = String(fields.get("password") || "").trim();
+          if (!email && !password) {
+            if (status) status.textContent = "NOTHING TO CLEAR.";
+            return;
+          }
+        } else if (formType === "new" && fields) {
+          const name = String(fields.get("name") || "").trim();
+          const email = String(fields.get("email") || "").trim();
+          const dob = String(fields.get("dob") || "").trim();
+          if (!name && !email && !dob) {
+            if (status) status.textContent = "NOTHING TO RESET.";
+            return;
+          }
+        } else if (formType === "proto" && fields) {
+          const name = String(fields.get("name") || "").trim();
+          const email = String(fields.get("email") || "").trim();
+          const message = String(fields.get("message") || "").trim();
+          if (!name && !email && !message) {
+            if (status) status.textContent = "NOTHING TO CLEAR.";
+            return;
+          }
+        }
+        form?.querySelectorAll("input, textarea").forEach((field) => {
+          (field as HTMLInputElement | HTMLTextAreaElement).value = "";
+        });
+        if (status) status.textContent = "";
+      };
+
+      form?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        handleSubmit();
+      });
+      const clearBtn = container.querySelector("#login-clear, #newuser-clear, #proto-clear");
+      clearBtn?.addEventListener("click", () => {
+        handleClear();
+      });
+      const hoverButtons = container.querySelectorAll(".arx-btn");
+      hoverButtons.forEach((button) => {
+        button.addEventListener("mouseenter", () => {
+          const sound = floatSound.cloneNode() as HTMLAudioElement;
+          sound.volume = 0.5;
+          sound.play().catch(() => {});
+        });
+      });
+      container.addEventListener("click", (event) => {
+        const target = event.target as HTMLElement | null;
+        if (!target) return;
+        if (target.closest(".form-success")) return;
+        const clear = target.closest("#login-clear, #newuser-clear, #proto-clear");
+        const authorize = target.closest("button[type='submit']");
+        if (clear) {
+          event.preventDefault();
+          handleClear();
+        } else if (authorize) {
+          event.preventDefault();
+          handleSubmit();
+        }
+      });
+
+      const resetButton = document.getElementById("subPageBtn");
+      resetButton?.addEventListener("click", () => {
+        cancelPendingSuccess();
+      });
+    };
+
+    const awaitSubPageKey = (type: string) => {
+      pendingSubPageType = type;
+      isSubPageLocked = false;
+      document.getElementById("subPage")?.classList.remove("locked");
+      showPressAnyKeyHint();
+    };
+
+    const showPressAnyKeyHint = () => {
+      const hint = document.getElementById("spacebar-hint");
+      if (hint) {
+        hint.textContent = "PRESS ANY KEY TO CONTINUE";
+        hint.classList.remove("visible");
+        requestAnimationFrame(() => hint.classList.add("visible"));
+      }
+    };
+
+    const unlockSubPage = () => {
+      isSubPageLocked = false;
+      pendingSubPageType = null;
+      document.getElementById("subPage")?.classList.remove("locked");
+      const subPageContent = document.getElementById("subPageContent") as HTMLElement | null;
+      if (subPageContent) {
+        subPageContent.style.pointerEvents = "auto";
+      }
+      const hint = document.getElementById("spacebar-hint");
+      if (hint) {
+        hint.classList.remove("visible");
+        hint.textContent = "PRESS SPACEBAR TO INITIALIZE";
+      }
+      const floater = document.getElementById("activeFloater");
+      if (floater && floater.classList.contains("centered-contained-word")) {
+        floater.remove();
+      }
+      const titleEl = document.getElementById("activeModuleTitle");
+      if (titleEl) {
+        titleEl.remove();
+      }
+    };
+
+    const revealPendingSubPage = () => {
+      const type = pendingSubPageType;
+      if (!type) return;
+      const floater = document.getElementById("activeFloater");
+      if (floater && floater.classList.contains("centered-contained-word")) {
+        floater.remove();
+      }
+      const titleEl = document.getElementById("activeModuleTitle");
+      if (titleEl) {
+        titleEl.remove();
+      }
+      const subPageContent = document.getElementById("subPageContent");
+      if (!subPageContent) return;
+      if (type === "INIT") {
+        subPageContent.innerHTML = `
+          <form class="subpage-form" data-form="login" novalidate>
+            <div class="form-title">LOGIN ACCESS</div>
+            <div class="form-subtitle">SECURE AUTHENTICATION REQUIRED</div>
+            <div class="arx-field">
+              <input type="email" name="email" placeholder=" " autocomplete="email" required />
+              <label>YOUR EMAIL</label>
+            </div>
+            <div class="arx-field">
+              <input type="password" name="password" placeholder=" " autocomplete="current-password" required />
+              <label>ACCESS CODE</label>
+            </div>
+            <div class="form-status"></div>
+            <div class="arx-form-actions">
+              <button type="submit" class="arx-btn">Authorize</button>
+              <button type="button" class="arx-btn" id="login-clear">Clear</button>
+            </div>
+          </form>
+        `;
+      } else if (type === "NEW") {
+        subPageContent.innerHTML = `
+          <form class="subpage-form" data-form="new" novalidate>
+            <div class="form-title">NEW USER</div>
+            <div class="form-subtitle">REGISTER ARX ACCESS</div>
+            <div class="arx-field">
+              <input type="text" name="name" placeholder=" " autocomplete="name" required />
+              <label>YOUR NAME</label>
+            </div>
+            <div class="arx-field">
+              <input type="email" name="email" placeholder=" " autocomplete="email" required />
+              <label>YOUR EMAIL</label>
+            </div>
+            <div class="arx-field">
+              <input type="date" name="dob" placeholder=" " required />
+              <label>DATE OF BIRTH</label>
+            </div>
+            <div class="form-status"></div>
+            <div class="arx-form-actions">
+              <button type="submit" class="arx-btn">Register</button>
+              <button type="button" class="arx-btn" id="newuser-clear">Reset</button>
+            </div>
+          </form>
+        `;
+      } else if (type === "PROTO") {
+        subPageContent.innerHTML = `
+          <form class="subpage-form" data-form="proto" novalidate>
+            <div class="form-title">PROTOCOL 8</div>
+            <div class="form-subtitle">SECURE CONTACT CHANNEL</div>
+            <div class="arx-field">
+              <input type="text" name="name" placeholder=" " autocomplete="name" required />
+              <label>YOUR NAME</label>
+            </div>
+            <div class="arx-field">
+              <input type="email" name="email" placeholder=" " autocomplete="email" required />
+              <label>YOUR EMAIL</label>
+            </div>
+            <div class="arx-field">
+              <textarea name="message" placeholder=" " required></textarea>
+              <label>MISSION BRIEF</label>
+            </div>
+            <div class="form-status"></div>
+            <div class="arx-form-actions">
+              <button type="submit" class="arx-btn">Transmit</button>
+              <button type="button" class="arx-btn" id="proto-clear">Clear</button>
+            </div>
+          </form>
+        `;
+      }
+      bindFormActions(subPageContent);
+      unlockSubPage();
+      subPageContent.style.pointerEvents = "auto";
+      const interactive = subPageContent.querySelectorAll("input, textarea, button");
+      interactive.forEach((el) => {
+        (el as HTMLElement).style.pointerEvents = "auto";
+      });
+    };
+
     document.addEventListener("keydown", (e) => {
+      if (pendingSubPageType) {
+        revealPendingSubPage();
+        return;
+      }
       const floater = document.getElementById("activeFloater");
       if (!floater) return;
+
+      if (floater.dataset.mode === "mode-x") {
+        e.preventDefault();
+        if (!floater.classList.contains("mode-x-collapsed")) {
+          floater.classList.add("mode-x-collapsed");
+          floater.classList.remove("centered-massive-word");
+          floater.classList.add("centered-contained-word");
+          (floater as HTMLElement).style.opacity = "1";
+          if (!document.getElementById("activeModuleTitle") && floater.dataset.title) {
+            const titleEl = document.createElement("div");
+            titleEl.innerText = floater.dataset.title;
+            titleEl.className = "module-page-title";
+            titleEl.style.color = (floater as HTMLElement).style.color;
+            titleEl.id = "activeModuleTitle";
+            document.body.appendChild(titleEl);
+            requestAnimationFrame(() => {
+              titleEl.classList.add("visible");
+            });
+          }
+        }
+        return;
+      }
+
       if (floater.classList.contains("centered-massive")) {
         floater.classList.remove("centered-massive");
         floater.classList.add("centered-contained");
@@ -696,13 +1181,25 @@ const ArxInterface: React.FC = () => {
 
     const resetDashboard = () => {
       document.documentElement.style.setProperty("--grid-color", "0, 243, 255");
+      document.getElementById("blackout-screen")?.classList.remove("active");
+      const loginLayer = document.getElementById("login-layer");
+      if (loginLayer) loginLayer.innerHTML = "";
+      const successLayer = document.getElementById("success-layer");
+      if (successLayer) successLayer.innerHTML = "";
       document.getElementById("backBtnContainer")?.classList.remove("hidden-fast");
       document.getElementById("arc-reactor-overlay")?.classList.remove("active");
       document.querySelector(".close-x-btn")?.classList.remove("active");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
       document.getElementById("subPage")?.classList.remove("active");
+      document.getElementById("subPage")?.classList.remove("locked");
+      document.getElementById("subPage")?.classList.remove("form-active");
+      document
+        .getElementById("arc-reactor-overlay")
+        ?.classList.remove("active", "form-mode");
       const subPageContent = document.getElementById("subPageContent");
       if (subPageContent) subPageContent.innerHTML = "";
+      isSubPageLocked = false;
+      pendingSubPageType = null;
       const floaters = document.querySelectorAll(".floating-letter");
       floaters.forEach((f) => {
         (f as HTMLElement).style.opacity = "0";
@@ -805,6 +1302,7 @@ const ArxInterface: React.FC = () => {
                   const floater = document.createElement("span");
                   floater.innerText = "MODE X";
                   floater.dataset.title = "A.R.X";
+                  floater.dataset.mode = "mode-x";
                   floater.className = "floating-letter centered-massive-word text-fade-entry";
                   floater.style.color = "#ff3333";
                   floater.style.fontSize = "4rem";
@@ -851,6 +1349,7 @@ const ArxInterface: React.FC = () => {
       const floater = document.createElement("span");
       floater.innerText = "MODE X";
       floater.dataset.title = "A.R.X";
+      floater.dataset.mode = "mode-x";
       floater.className =
         "floating-letter centered-massive-word text-fade-entry text-fade-visible";
       floater.style.color = "#ff3333";
@@ -946,6 +1445,23 @@ const ArxInterface: React.FC = () => {
     btnNo?.addEventListener("click", closeModal);
     const modeXSkipBtn = document.getElementById("modeXSkipBtn");
     modeXSkipBtn?.addEventListener("click", skipModeXAnimation);
+
+    const subPageContainer = document.getElementById("subPage");
+    subPageContainer?.addEventListener("click", () => {
+      if (pendingSubPageType) {
+        revealPendingSubPage();
+      }
+    });
+
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (pendingSubPageType) {
+          revealPendingSubPage();
+        }
+      },
+      true
+    );
 
     // STARSHIP HOLOGRAM 3D ENGINE
     const rocketCanvasEl = document.getElementById("rocketCanvas") as HTMLCanvasElement | null;
@@ -1123,6 +1639,9 @@ const ArxInterface: React.FC = () => {
         <div className="arc-ring arc-r3"></div>
         <div className="arc-core"></div>
       </div>
+      <div id="login-layer"></div>
+      <div id="success-layer"></div>
+      <div id="blackout-screen"></div>
       <div className="close-x-btn"></div>
       <div id="spacebar-hint">PRESS SPACEBAR TO INITIALIZE</div>
 

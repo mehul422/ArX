@@ -266,6 +266,7 @@ h1 {
   --cyan-glow: rgba(0, 243, 255, 0.5);
   --orange-alert: #ff9d00;
   --reactor-color: #00f3ff;
+  --page-accent: #00f3ff;
   --font-display: "Orbitron", sans-serif;
   --font-data: "Rajdhani", monospace;
   --grid-color: 0, 243, 255;
@@ -890,6 +891,40 @@ body.dashboard-mode::after {
   opacity: 1;
   animation: blinkText 1s infinite alternate;
 }
+#blackout-screen {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9999;
+  transition: opacity 0.4s ease;
+}
+#blackout-screen.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+#login-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10000;
+}
+#login-layer .login-layer-form {
+  pointer-events: auto;
+}
+#success-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10001;
+}
 @keyframes blinkText {
   0% {
     opacity: 0.3;
@@ -1087,6 +1122,9 @@ body.dashboard-mode::after {
   transform: translate(-50%, -50%) scale(1.5) !important;
   opacity: 1 !important;
 }
+.slow-fade {
+  transition: opacity 2s ease !important;
+}
 /* Implode Animation for Mode X Turn Off */
 .implode-into-core {
   top: 50% !important;
@@ -1230,6 +1268,194 @@ body.dashboard-mode::after {
 .sub-page-container.active {
   opacity: 1;
   pointer-events: auto;
+}
+.sub-page-container.locked #subPageContent {
+  pointer-events: none;
+}
+.subpage-blocker {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+}
+.subpage-blocker.active {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 70;
+}
+#subPage:not(.locked) #subPageBlocker {
+  display: none !important;
+  pointer-events: none !important;
+}
+#subPageContent input,
+#subPageContent textarea,
+#subPageContent button {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 80;
+}
+#arc-reactor-overlay.form-mode {
+  opacity: 1;
+  pointer-events: none;
+}
+#arc-reactor-overlay.form-mode .arc-core {
+  opacity: 0;
+  box-shadow: none;
+  animation: none;
+}
+.subpage-form {
+  position: relative;
+  width: min(680px, 85vw);
+  padding: 40px 45px 30px;
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  background: rgba(0, 10, 20, 0.5);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  pointer-events: auto;
+  z-index: 65;
+}
+.subpage-form.fade-out {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 1.2s ease, transform 1.2s ease;
+}
+.form-success {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--page-accent);
+  text-align: center;
+  text-shadow: 0 0 18px rgba(0, 243, 255, 0.5);
+  opacity: 0;
+  transition: opacity 1.2s ease;
+  pointer-events: none;
+}
+.form-success.visible {
+  opacity: 1;
+}
+.form-success.fade-out {
+  opacity: 0;
+}
+#subPageContent {
+  position: relative;
+  z-index: 1000;
+  pointer-events: auto;
+}
+.subpage-form input,
+.subpage-form textarea,
+.subpage-form button {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1001;
+}
+.subpage-form .form-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  letter-spacing: 3px;
+  color: var(--page-accent);
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+}
+.subpage-form .form-subtitle {
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  color: rgba(0, 243, 255, 0.5);
+  text-align: center;
+}
+.arx-field {
+  position: relative;
+  width: 100%;
+}
+.arx-field input,
+.arx-field textarea {
+  width: 100%;
+  padding: 14px 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(0, 243, 255, 0.25);
+  color: var(--cyan-primary);
+  font-family: var(--font-data);
+  letter-spacing: 1px;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.arx-field input {
+  color: rgba(0, 243, 255, 0.95);
+  text-shadow: 0 0 6px rgba(0, 243, 255, 0.25);
+}
+.arx-field input::placeholder,
+.arx-field textarea::placeholder {
+  color: transparent;
+}
+.arx-field label {
+  color: rgba(0, 243, 255, 0.55);
+  text-shadow: 0 0 6px rgba(0, 243, 255, 0.25);
+}
+.arx-field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+.arx-field input:focus,
+.arx-field textarea:focus {
+  border-color: var(--page-accent);
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.25);
+}
+.arx-field label {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  color: rgba(0, 243, 255, 0.75);
+  text-shadow: 0 0 6px rgba(0, 243, 255, 0.35);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.arx-field textarea + label {
+  top: 18px;
+  transform: none;
+}
+.arx-field input:focus + label,
+.arx-field textarea:focus + label,
+.arx-field input:not(:placeholder-shown) + label,
+.arx-field textarea:not(:placeholder-shown) + label {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+.arx-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.form-status {
+  min-height: 18px;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: rgba(0, 243, 255, 0.75);
+  text-align: center;
+  text-transform: uppercase;
+}
+.arx-btn {
+  padding: 12px 28px;
+  border: 1px solid rgba(0, 243, 255, 0.35);
+  background: rgba(0, 243, 255, 0.08);
+  color: var(--page-accent);
+  font-family: var(--font-display);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.arx-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
 }
 .back-btn-container {
   position: absolute;

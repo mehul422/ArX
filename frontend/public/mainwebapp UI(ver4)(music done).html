@@ -775,16 +775,36 @@
         setTimeout(() => { document.getElementById('subPage').classList.add('active'); }, 500);
     }
 
-    document.addEventListener('keydown', () => {
+    document.addEventListener('keydown', (e) => {
         const floater = document.getElementById('activeFloater');
-        if(floater) {
-            if(floater.classList.contains('centered-massive')) {
-                floater.classList.remove('centered-massive'); floater.classList.add('centered-contained');
-                if(floater.dataset.title) { const titleEl = document.createElement('div'); titleEl.innerText = floater.dataset.title; titleEl.className = 'module-page-title'; titleEl.style.color = floater.style.color; titleEl.id = 'activeModuleTitle'; document.body.appendChild(titleEl); requestAnimationFrame(() => { titleEl.classList.add('visible'); }); }
-            } else if (floater.classList.contains('centered-massive-word')) {
-                floater.classList.remove('centered-massive-word'); floater.classList.add('centered-contained-word');
-                if(floater.dataset.title) { const titleEl = document.createElement('div'); titleEl.innerText = floater.dataset.title; titleEl.className = 'module-page-title'; titleEl.style.color = floater.style.color; titleEl.id = 'activeModuleTitle'; document.body.appendChild(titleEl); requestAnimationFrame(() => { titleEl.classList.add('visible'); }); }
+        if(!floater) return;
+
+        if (floater.dataset.mode === 'mode-x') {
+            e.preventDefault();
+            if (!floater.classList.contains('mode-x-collapsed')) {
+                floater.classList.add('mode-x-collapsed');
+                floater.classList.remove('centered-massive-word');
+                floater.classList.add('centered-contained-word');
+                floater.style.opacity = '1';
+                if (!document.getElementById('activeModuleTitle') && floater.dataset.title) {
+                    const titleEl = document.createElement('div');
+                    titleEl.innerText = floater.dataset.title;
+                    titleEl.className = 'module-page-title';
+                    titleEl.style.color = floater.style.color;
+                    titleEl.id = 'activeModuleTitle';
+                    document.body.appendChild(titleEl);
+                    requestAnimationFrame(() => { titleEl.classList.add('visible'); });
+                }
             }
+            return;
+        }
+
+        if(floater.classList.contains('centered-massive')) {
+            floater.classList.remove('centered-massive'); floater.classList.add('centered-contained');
+            if(floater.dataset.title) { const titleEl = document.createElement('div'); titleEl.innerText = floater.dataset.title; titleEl.className = 'module-page-title'; titleEl.style.color = floater.style.color; titleEl.id = 'activeModuleTitle'; document.body.appendChild(titleEl); requestAnimationFrame(() => { titleEl.classList.add('visible'); }); }
+        } else if (floater.classList.contains('centered-massive-word')) {
+            floater.classList.remove('centered-massive-word'); floater.classList.add('centered-contained-word');
+            if(floater.dataset.title) { const titleEl = document.createElement('div'); titleEl.innerText = floater.dataset.title; titleEl.className = 'module-page-title'; titleEl.style.color = floater.style.color; titleEl.id = 'activeModuleTitle'; document.body.appendChild(titleEl); requestAnimationFrame(() => { titleEl.classList.add('visible'); }); }
         }
     });
 
@@ -854,7 +874,8 @@
                     // 2. Create Text immediately with 0 opacity
                     const floater = document.createElement('span');
                     floater.innerText = "MODE X";
-                    floater.dataset.title = "A.R.X"; 
+                    floater.dataset.title = "A.R.X";
+                    floater.dataset.mode = "mode-x";
                     floater.className = 'floating-letter centered-massive-word text-fade-entry'; // Start invisible
                     floater.style.color = '#ff3333';
                     floater.style.fontSize = '4rem'; 
@@ -902,6 +923,7 @@
         const floater = document.createElement('span');
         floater.innerText = "MODE X";
         floater.dataset.title = "A.R.X";
+        floater.dataset.mode = "mode-x";
         floater.className = 'floating-letter centered-massive-word text-fade-entry text-fade-visible';
         floater.style.color = '#ff3333';
         floater.style.fontSize = '4rem'; 

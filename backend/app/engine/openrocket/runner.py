@@ -709,6 +709,7 @@ def _compute_custom_cg_from_xml(
     sustainer_motor_mass_kg: float | None,
     booster_motor_mass_kg: float | None,
     target_mount_ids: set[str] | None,
+    default_motor_mass_kg: float | None = None,
     motor_cg_offset_m: float = 0.34,
 ) -> tuple[float | None, float]:
     try:
@@ -766,6 +767,10 @@ def _compute_custom_cg_from_xml(
                         motor_mass = sustainer_motor_mass_kg
                     elif "booster" in stage_token:
                         motor_mass = booster_motor_mass_kg
+                    if (
+                        motor_mass is None or motor_mass <= 0
+                    ) and default_motor_mass_kg is not None:
+                        motor_mass = float(default_motor_mass_kg)
                     if motor_mass is None or motor_mass <= 0:
                         continue
                     motor_cg_z = tube_start_z + tube_length - motor_cg_offset_m
@@ -977,6 +982,9 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
         float(sustainer_motor_mass_kg) if sustainer_motor_mass_kg is not None else None,
         float(booster_motor_mass_kg) if booster_motor_mass_kg is not None else None,
         target_mount_ids,
+        default_motor_mass_kg=(
+            float(desired_motor_mass_kg) if desired_motor_mass_kg is not None else None
+        ),
         motor_cg_offset_m=motor_cg_offset_m,
     )
 
@@ -1257,6 +1265,9 @@ def run_openrocket_pipeline(params: dict[str, Any]) -> dict[str, Any]:
         float(sustainer_motor_mass_kg) if sustainer_motor_mass_kg is not None else None,
         float(booster_motor_mass_kg) if booster_motor_mass_kg is not None else None,
         target_mount_ids,
+        default_motor_mass_kg=(
+            float(desired_motor_mass_kg) if desired_motor_mass_kg is not None else None
+        ),
         motor_cg_offset_m=motor_cg_offset_m,
     )
 

@@ -16,6 +16,7 @@ const ArxInterface: React.FC = () => {
     let arxHoverTimer: number | null = null;
     let hasBooted = false;
     let isTransitioning = false;
+    let activeModuleId: string | null = null;
     let isSubPageLocked = false;
     let pendingSubPageType: string | null = null;
 
@@ -186,7 +187,9 @@ const ArxInterface: React.FC = () => {
 
     const duckLandingAudio = () => {
       landingAudio.muted = false;
-      landingAudio.pause();
+      if (hasLaunched) {
+        landingAudio.pause();
+      }
       landingAudio.currentTime = 0;
       landingAudio.volume = 0.0;
     };
@@ -434,6 +437,7 @@ const ArxInterface: React.FC = () => {
     // NAVIGATION LOGIC
     const selectModule = (id: string, element: HTMLElement) => {
       if (isTransitioning) return;
+      activeModuleId = id;
       if (id === "ADVANCED") {
         const sound = popupSound.cloneNode() as HTMLAudioElement;
         sound.volume = 0.7;
@@ -542,15 +546,32 @@ const ArxInterface: React.FC = () => {
     const initiateArcSequence = (floater: HTMLElement) => {
       document.getElementById("backBtnContainer")?.classList.add("hidden-fast");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
+      document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
+      document.getElementById("ring1")?.classList.remove("hidden-fast");
+      document.getElementById("ring2")?.classList.remove("hidden-fast");
       floater.classList.add("force-vanish");
       const titleEl = document.getElementById("activeModuleTitle");
       if (titleEl) titleEl.classList.add("float-up-exit");
       document.getElementById("arc-reactor-overlay")?.classList.add("active");
       document.querySelector(".close-x-btn")?.classList.add("active");
+      if (activeModuleId) {
+        setTimeout(() => {
+          const overlay = document.getElementById("arc-reactor-overlay");
+          const onFloatEnd = () => {
+            overlay?.removeEventListener("transitionend", onFloatEnd);
+            document.getElementById("ring1")?.classList.add("hidden-fast");
+            document.getElementById("ring2")?.classList.add("hidden-fast");
+          };
+          overlay?.addEventListener("transitionend", onFloatEnd, { once: true });
+          overlay?.classList.add("arc-reactor-corner");
+          document.getElementById("activeFloater")?.remove();
+        }, 4000);
+      }
     };
 
     const closeArcSequence = () => {
       document.getElementById("arc-reactor-overlay")?.classList.remove("active");
+      document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
       document.querySelector(".close-x-btn")?.classList.remove("active");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
       setTimeout(() => resetDashboard(), 500);
@@ -699,9 +720,48 @@ const ArxInterface: React.FC = () => {
                   <input type="email" name="email" placeholder=" " autocomplete="email" required />
                   <label>YOUR EMAIL</label>
                 </div>
-                <div class="arx-field">
-                  <input type="date" name="dob" placeholder=" " required />
+                <div class="arx-field dob-field">
+                  <div class="dob-inputs">
+                    <input
+                      type="text"
+                      name="dob_month"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      maxlength="2"
+                      placeholder="MM"
+                      autocomplete="bday-month"
+                      required
+                    />
+                    <span class="dob-sep">/</span>
+                    <input
+                      type="text"
+                      name="dob_day"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      maxlength="2"
+                      placeholder="DD"
+                      autocomplete="bday-day"
+                      required
+                    />
+                    <span class="dob-sep">/</span>
+                    <input
+                      type="text"
+                      name="dob_year"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      maxlength="4"
+                      placeholder="YYYY"
+                      autocomplete="bday-year"
+                      required
+                    />
+                    <button
+                      type="button"
+                      class="dob-calendar-btn"
+                      aria-label="Open calendar"
+                    ></button>
+                  </div>
                   <label>DATE OF BIRTH</label>
+                  <div class="dob-age" aria-live="polite"></div>
                 </div>
                 <div class="form-status"></div>
                 <div class="arx-form-actions">
@@ -743,11 +803,488 @@ const ArxInterface: React.FC = () => {
       }, 500);
     };
 
+    const setupDobFields = (scope: Element | null) => {
+      if (!scope) return;
+      const dobFields = scope.querySelectorAll(".dob-field");
+      dobFields.forEach((field) => {
+        const fieldEl = field as HTMLElement;
+        if (fieldEl.getAttribute("data-dob-bound") === "true") return;
+        fieldEl.setAttribute("data-dob-bound", "true");
+        const monthInput = fieldEl.querySelector(
+          'input[name="dob_month"]'
+        ) as HTMLInputElement | null;
+        const dayInput = fieldEl.querySelector(
+          'input[name="dob_day"]'
+        ) as HTMLInputElement | null;
+        const yearInput = fieldEl.querySelector(
+          'input[name="dob_year"]'
+        ) as HTMLInputElement | null;
+        const inputs = [monthInput, dayInput, yearInput].filter(
+          (input): input is HTMLInputElement => Boolean(input)
+        );
+        const calendarButton = fieldEl.querySelector(
+          ".dob-calendar-btn"
+        ) as HTMLButtonElement | null;
+        const labelEl = fieldEl.querySelector("label") as HTMLElement | null;
+        const ageEl = fieldEl.querySelector(".dob-age") as HTMLElement | null;
+
+        const updateState = () => {
+          const hasValue = inputs.some((input) => input.value.trim().length > 0);
+          const isFocused = inputs.some((input) => document.activeElement === input);
+          if (hasValue || isFocused) {
+            fieldEl.classList.add("is-active");
+          } else {
+            fieldEl.classList.remove("is-active");
+          }
+        };
+
+        const sanitizeInput = (input: HTMLInputElement, maxLen: number) => {
+          const digitsOnly = input.value.replace(/\D/g, "");
+          if (digitsOnly !== input.value) {
+            input.value = digitsOnly;
+          }
+          if (input.value.length > maxLen) {
+            input.value = input.value.slice(0, maxLen);
+          }
+        };
+
+        const clearAgeTimer = () => {
+          const timerId = Number(fieldEl.dataset.dobAgeTimer || "0");
+          if (timerId) {
+            window.clearInterval(timerId);
+            fieldEl.dataset.dobAgeTimer = "";
+          }
+        };
+
+        const ensureAgeTimer = () => {
+          if (fieldEl.dataset.dobAgeTimer) return;
+          const timerId = window.setInterval(() => {
+            updateAge();
+          }, 1000);
+          fieldEl.dataset.dobAgeTimer = String(timerId);
+        };
+
+        const formatAge = (dobDate: Date) => {
+          const now = new Date();
+          let years = now.getFullYear() - dobDate.getFullYear();
+          const anniversary = new Date(dobDate);
+          anniversary.setFullYear(dobDate.getFullYear() + years);
+          if (anniversary > now) {
+            years -= 1;
+            anniversary.setFullYear(dobDate.getFullYear() + years);
+          }
+          let months = now.getMonth() - anniversary.getMonth();
+          let monthAnchor = new Date(anniversary);
+          if (months < 0) {
+            months += 12;
+          }
+          monthAnchor.setMonth(anniversary.getMonth() + months);
+          if (monthAnchor > now) {
+            months -= 1;
+            monthAnchor = new Date(anniversary);
+            monthAnchor.setMonth(anniversary.getMonth() + months);
+          }
+          if (months < 0) {
+            months += 12;
+            years = Math.max(0, years - 1);
+            monthAnchor = new Date(anniversary);
+            monthAnchor.setMonth(anniversary.getMonth() + months);
+          }
+          const msDiff = now.getTime() - monthAnchor.getTime();
+          const days = Math.max(0, Math.floor(msDiff / (1000 * 60 * 60 * 24)));
+          const totalSeconds = Math.max(
+            0,
+            Math.floor((now.getTime() - dobDate.getTime()) / 1000)
+          );
+          const hours = Math.floor((totalSeconds % 86400) / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+          return `${years} YEARS ${months} MONTHS ${days} DAYS ${hours} HOURS ${minutes} MINUTES ${seconds} SECONDS`;
+        };
+
+        const updateAge = () => {
+          if (!ageEl || !labelEl) return;
+          const month = monthInput?.value.trim() || "";
+          const day = dayInput?.value.trim() || "";
+          const year = yearInput?.value.trim() || "";
+          if (month.length < 2 || day.length < 2 || year.length < 4) {
+            clearAgeTimer();
+            labelEl.textContent = "DATE OF BIRTH";
+            ageEl.textContent = "";
+            fieldEl.classList.remove("age-active");
+            return;
+          }
+          const dobDate = new Date(Number(year), Number(month) - 1, Number(day));
+          if (Number.isNaN(dobDate.getTime())) {
+            clearAgeTimer();
+            labelEl.textContent = "DATE OF BIRTH";
+            ageEl.textContent = "";
+            fieldEl.classList.remove("age-active");
+            return;
+          }
+          labelEl.textContent = "YOU HAVE BEEN ALIVE FOR";
+          ageEl.textContent = formatAge(dobDate);
+          fieldEl.classList.add("age-active");
+          ensureAgeTimer();
+        };
+
+        inputs.forEach((input, index) => {
+          const maxLen = Number(input.getAttribute("maxlength") || "0");
+          input.addEventListener("input", () => {
+            sanitizeInput(input, maxLen);
+            if (maxLen > 0 && input.value.length === maxLen && index < inputs.length - 1) {
+              inputs[index + 1].focus();
+            }
+            updateState();
+            updateAge();
+          });
+          input.addEventListener("keydown", (event) => {
+            if (event.key === "Backspace" && input.value === "" && index > 0) {
+              inputs[index - 1].focus();
+            }
+          });
+          input.addEventListener("focus", updateState);
+          input.addEventListener("blur", () => {
+            setTimeout(updateState, 0);
+          });
+        });
+
+        const monthNames = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+
+        const ensureCalendar = () => {
+          let calendar = fieldEl.querySelector(".dob-calendar") as HTMLElement | null;
+          if (calendar) return calendar;
+          calendar = document.createElement("div");
+          calendar.className = "dob-calendar";
+          calendar.innerHTML = `
+            <div class="dob-calendar-header">
+              <button type="button" class="dob-calendar-nav prev" aria-label="Previous month">‹</button>
+              <div class="dob-calendar-title">
+                <span class="dob-calendar-title-month"></span>
+                <button type="button" class="dob-calendar-title-year" aria-label="Choose year"></button>
+              </div>
+              <button type="button" class="dob-calendar-nav next" aria-label="Next month">›</button>
+            </div>
+            <div class="dob-calendar-controls">
+              <select class="dob-calendar-month" aria-label="Select month">
+                ${monthNames
+                  .map((name, index) => `<option value="${index}">${name}</option>`)
+                  .join("")}
+              </select>
+              <select class="dob-calendar-year" aria-label="Select year">
+                ${Array.from({ length: 3001 }, (_, i) => 1000 + i)
+                  .map((year) => `<option value="${year}">${year}</option>`)
+                  .join("")}
+              </select>
+            </div>
+            <div class="dob-calendar-weekdays">
+              <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+            </div>
+            <div class="dob-calendar-grid"></div>
+            <div class="dob-calendar-years">
+              <div class="dob-calendar-years-header">
+                <button type="button" class="dob-calendar-years-prev" aria-label="Previous years">‹</button>
+                <div class="dob-calendar-years-title"></div>
+                <button type="button" class="dob-calendar-years-next" aria-label="Next years">›</button>
+              </div>
+              <div class="dob-calendar-years-grid"></div>
+            </div>
+          `;
+          fieldEl.appendChild(calendar);
+          return calendar;
+        };
+
+        const getSelectedDate = () => {
+          const month = monthInput ? parseInt(monthInput.value, 10) : NaN;
+          const day = dayInput ? parseInt(dayInput.value, 10) : NaN;
+          const year = yearInput ? parseInt(yearInput.value, 10) : NaN;
+          if (!Number.isNaN(month) && !Number.isNaN(day) && !Number.isNaN(year)) {
+            return new Date(year, month - 1, day);
+          }
+          return new Date();
+        };
+
+        const fillDate = (date: Date) => {
+          if (!monthInput || !dayInput || !yearInput) return;
+          monthInput.value = String(date.getMonth() + 1).padStart(2, "0");
+          dayInput.value = String(date.getDate()).padStart(2, "0");
+          yearInput.value = String(date.getFullYear());
+          updateState();
+          updateAge();
+        };
+
+        const openCalendar = () => {
+          const calendar = ensureCalendar();
+          const title = calendar.querySelector(".dob-calendar-title") as HTMLElement | null;
+          const titleMonth = calendar.querySelector(
+            ".dob-calendar-title-month"
+          ) as HTMLElement | null;
+          const titleYearButton = calendar.querySelector(
+            ".dob-calendar-title-year"
+          ) as HTMLButtonElement | null;
+          const grid = calendar.querySelector(".dob-calendar-grid") as HTMLElement | null;
+          const yearsPanel = calendar.querySelector(".dob-calendar-years") as HTMLElement | null;
+          const yearsTitle = calendar.querySelector(
+            ".dob-calendar-years-title"
+          ) as HTMLElement | null;
+          const yearsGrid = calendar.querySelector(
+            ".dob-calendar-years-grid"
+          ) as HTMLElement | null;
+          const yearsPrev = calendar.querySelector(
+            ".dob-calendar-years-prev"
+          ) as HTMLButtonElement | null;
+          const yearsNext = calendar.querySelector(
+            ".dob-calendar-years-next"
+          ) as HTMLButtonElement | null;
+          const monthSelect = calendar.querySelector(
+            ".dob-calendar-month"
+          ) as HTMLSelectElement | null;
+          const yearSelect = calendar.querySelector(
+            ".dob-calendar-year"
+          ) as HTMLSelectElement | null;
+          if (
+            !title ||
+            !titleMonth ||
+            !titleYearButton ||
+            !grid ||
+            !yearsPanel ||
+            !yearsTitle ||
+            !yearsGrid ||
+            !yearsPrev ||
+            !yearsNext ||
+            !monthSelect ||
+            !yearSelect
+          )
+            return;
+          const selected = getSelectedDate();
+          let viewYear = selected.getFullYear();
+          let viewMonth = selected.getMonth();
+          if (viewYear < 1000) viewYear = 1000;
+          if (viewYear > 4000) viewYear = 4000;
+          const yearsPerPage = 12;
+          const clampYearStart = (start: number) => {
+            let value = start;
+            if (value < 1000) value = 1000;
+            if (value > 4000 - (yearsPerPage - 1)) {
+              value = 4000 - (yearsPerPage - 1);
+            }
+            return value;
+          };
+          let yearsStart = clampYearStart(
+            Math.floor(viewYear / yearsPerPage) * yearsPerPage
+          );
+
+          const renderCalendar = () => {
+            titleMonth.textContent = monthNames[viewMonth];
+            titleYearButton.textContent = String(viewYear);
+            monthSelect.value = String(viewMonth);
+            yearSelect.value = String(viewYear);
+            grid.innerHTML = "";
+            const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+            for (let i = 0; i < firstDay; i += 1) {
+              const empty = document.createElement("span");
+              empty.className = "dob-calendar-empty";
+              grid.appendChild(empty);
+            }
+            for (let day = 1; day <= daysInMonth; day += 1) {
+              const button = document.createElement("button");
+              button.type = "button";
+              button.className = "dob-calendar-day";
+              if (
+                day === selected.getDate() &&
+                viewMonth === selected.getMonth() &&
+                viewYear === selected.getFullYear()
+              ) {
+                button.classList.add("selected");
+              }
+              button.textContent = String(day);
+              button.dataset.day = String(day);
+              grid.appendChild(button);
+            }
+          };
+
+          const renderYears = () => {
+            yearsStart = clampYearStart(yearsStart);
+            yearsTitle.textContent = `${yearsStart} - ${yearsStart + (yearsPerPage - 1)}`;
+            yearsGrid.innerHTML = "";
+            for (let i = 0; i < yearsPerPage; i += 1) {
+              const yearValue = yearsStart + i;
+              const button = document.createElement("button");
+              button.type = "button";
+              button.className = "dob-calendar-year-btn";
+              button.textContent = String(yearValue);
+              button.dataset.year = String(yearValue);
+              if (yearValue === viewYear) {
+                button.classList.add("selected");
+              }
+              yearsGrid.appendChild(button);
+            }
+          };
+
+          const openYears = () => {
+            calendar.classList.add("years-open");
+            yearsStart = clampYearStart(
+              Math.floor(viewYear / yearsPerPage) * yearsPerPage
+            );
+            renderYears();
+          };
+
+          const closeYears = () => {
+            calendar.classList.remove("years-open");
+          };
+
+          const handleCalendarClick = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (target.closest(".dob-calendar-nav.prev")) {
+              viewMonth -= 1;
+              if (viewMonth < 0) {
+                viewMonth = 11;
+                viewYear = Math.max(1000, viewYear - 1);
+              }
+              renderCalendar();
+              return;
+            }
+            if (target.closest(".dob-calendar-nav.next")) {
+              viewMonth += 1;
+              if (viewMonth > 11) {
+                viewMonth = 0;
+                viewYear = Math.min(4000, viewYear + 1);
+              }
+              renderCalendar();
+              return;
+            }
+            if (target.closest(".dob-calendar-years-prev")) {
+              yearsStart = clampYearStart(yearsStart - yearsPerPage);
+              renderYears();
+              return;
+            }
+            if (target.closest(".dob-calendar-years-next")) {
+              yearsStart = clampYearStart(yearsStart + yearsPerPage);
+              renderYears();
+              return;
+            }
+            if (target.classList.contains("dob-calendar-year-btn")) {
+              const yearValue = Number(target.dataset.year || "0");
+              if (yearValue >= 1000 && yearValue <= 4000) {
+                viewYear = yearValue;
+                closeYears();
+                renderCalendar();
+              }
+              return;
+            }
+            if (target.classList.contains("dob-calendar-month")) {
+              viewMonth = Number((target as HTMLSelectElement).value);
+              renderCalendar();
+              return;
+            }
+            if (target.classList.contains("dob-calendar-year")) {
+              viewYear = Number((target as HTMLSelectElement).value);
+              renderCalendar();
+              return;
+            }
+            if (target.classList.contains("dob-calendar-day")) {
+              const day = Number(target.dataset.day || "0");
+              if (day > 0) {
+                fillDate(new Date(viewYear, viewMonth, day));
+              }
+              closeCalendar();
+            }
+          };
+
+          const handleOutsideClick = (event: MouseEvent) => {
+            const target = event.target as Node;
+            if (!calendar.contains(target) && !fieldEl.contains(target)) {
+              closeCalendar();
+            }
+          };
+
+          const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+              closeCalendar();
+            }
+          };
+
+          const handleMonthChange = (event: Event) => {
+            const target = event.target as HTMLSelectElement;
+            viewMonth = Number(target.value);
+            renderCalendar();
+          };
+          const handleYearChange = (event: Event) => {
+            const target = event.target as HTMLSelectElement;
+            viewYear = Number(target.value);
+            renderCalendar();
+          };
+          const handleYearTitleClick = () => {
+            if (calendar.classList.contains("years-open")) {
+              closeYears();
+            } else {
+              openYears();
+            }
+          };
+
+          const closeCalendar = () => {
+            calendar.classList.remove("open");
+            closeYears();
+            calendar.removeEventListener("click", handleCalendarClick);
+            monthSelect.removeEventListener("change", handleMonthChange);
+            yearSelect.removeEventListener("change", handleYearChange);
+            titleYearButton.removeEventListener("click", handleYearTitleClick);
+            document.removeEventListener("mousedown", handleOutsideClick);
+            document.removeEventListener("keydown", handleEscape);
+          };
+
+          calendar.classList.add("open");
+          (calendar as any)._closeDobCalendar = closeCalendar;
+          renderCalendar();
+          calendar.addEventListener("click", handleCalendarClick);
+          monthSelect.addEventListener("change", handleMonthChange);
+          yearSelect.addEventListener("change", handleYearChange);
+          titleYearButton.addEventListener("click", handleYearTitleClick);
+          setTimeout(() => {
+            document.addEventListener("mousedown", handleOutsideClick);
+            document.addEventListener("keydown", handleEscape);
+          }, 0);
+        };
+
+        calendarButton?.addEventListener("click", () => {
+          const calendar = ensureCalendar();
+          if (calendar.classList.contains("open")) {
+            const close = (calendar as any)._closeDobCalendar as (() => void) | undefined;
+            if (close) {
+              close();
+            } else {
+              calendar.classList.remove("open");
+            }
+            return;
+          }
+          openCalendar();
+        });
+
+        updateState();
+        updateAge();
+      });
+    };
+
     const bindFormActions = (container: Element | null) => {
       if (!container) return;
       const form = container.querySelector("form");
       if (form && form.getAttribute("data-bound") === "true") return;
       if (form) form.setAttribute("data-bound", "true");
+      setupDobFields(container);
       let pendingSuccessToken = Date.now();
       const cancelPendingSuccess = () => {
         pendingSuccessToken = Date.now();
@@ -774,6 +1311,32 @@ const ArxInterface: React.FC = () => {
           }, 1500);
         }, holdMs);
       };
+      const readDobValue = () => {
+        if (!form) return "";
+        const monthInput = form.querySelector(
+          'input[name="dob_month"]'
+        ) as HTMLInputElement | null;
+        const dayInput = form.querySelector(
+          'input[name="dob_day"]'
+        ) as HTMLInputElement | null;
+        const yearInput = form.querySelector(
+          'input[name="dob_year"]'
+        ) as HTMLInputElement | null;
+        if (!monthInput || !dayInput || !yearInput) {
+          const fields = new FormData(form);
+          return String(fields.get("dob") || "").trim();
+        }
+        const month = monthInput.value.trim();
+        const day = dayInput.value.trim();
+        const year = yearInput.value.trim();
+        if (!month && !day && !year) return "";
+        if (month.length < 2 || day.length < 2 || year.length < 4) return "";
+        return `${year.padStart(4, "0")}-${month.padStart(2, "0")}-${day.padStart(
+          2,
+          "0"
+        )}`;
+      };
+
       const handleSubmit = () => {
         const status = container.querySelector(".form-status") as HTMLElement | null;
         const formType = form?.getAttribute("data-form");
@@ -804,7 +1367,7 @@ const ArxInterface: React.FC = () => {
         } else if (formType === "new") {
           const name = String(fields.get("name") || "").trim();
           const email = String(fields.get("email") || "").trim();
-          const dob = String(fields.get("dob") || "").trim();
+          const dob = readDobValue();
           if (!name || !email || !dob) {
             if (status) status.textContent = "INPUT INFORMATION.";
             return;
@@ -908,6 +1471,26 @@ const ArxInterface: React.FC = () => {
         }
       };
 
+      const hasAnyDobInput = () => {
+        if (!form) return false;
+        const monthInput = form.querySelector(
+          'input[name="dob_month"]'
+        ) as HTMLInputElement | null;
+        const dayInput = form.querySelector(
+          'input[name="dob_day"]'
+        ) as HTMLInputElement | null;
+        const yearInput = form.querySelector(
+          'input[name="dob_year"]'
+        ) as HTMLInputElement | null;
+        if (!monthInput || !dayInput || !yearInput) {
+          const fields = new FormData(form);
+          return Boolean(String(fields.get("dob") || "").trim());
+        }
+        return Boolean(
+          monthInput.value.trim() || dayInput.value.trim() || yearInput.value.trim()
+        );
+      };
+
       const handleClear = () => {
         const status = container.querySelector(".form-status") as HTMLElement | null;
         const fields = form ? new FormData(form) : null;
@@ -922,8 +1505,8 @@ const ArxInterface: React.FC = () => {
         } else if (formType === "new" && fields) {
           const name = String(fields.get("name") || "").trim();
           const email = String(fields.get("email") || "").trim();
-          const dob = String(fields.get("dob") || "").trim();
-          if (!name && !email && !dob) {
+          const hasDob = hasAnyDobInput();
+          if (!name && !email && !hasDob) {
             if (status) status.textContent = "NOTHING TO RESET.";
             return;
           }
@@ -938,6 +1521,14 @@ const ArxInterface: React.FC = () => {
         }
         form?.querySelectorAll("input, textarea").forEach((field) => {
           (field as HTMLInputElement | HTMLTextAreaElement).value = "";
+        });
+        container.querySelectorAll(".dob-field").forEach((field) => {
+          field.classList.remove("is-active");
+          field.classList.remove("age-active");
+          const label = field.querySelector("label");
+          if (label) label.textContent = "DATE OF BIRTH";
+          const age = field.querySelector(".dob-age");
+          if (age) age.textContent = "";
         });
         if (status) status.textContent = "";
       };
@@ -1064,9 +1655,48 @@ const ArxInterface: React.FC = () => {
               <input type="email" name="email" placeholder=" " autocomplete="email" required />
               <label>YOUR EMAIL</label>
             </div>
-            <div class="arx-field">
-              <input type="date" name="dob" placeholder=" " required />
+            <div class="arx-field dob-field">
+              <div class="dob-inputs">
+                <input
+                  type="text"
+                  name="dob_month"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  maxlength="2"
+                  placeholder="MM"
+                  autocomplete="bday-month"
+                  required
+                />
+                <span class="dob-sep">/</span>
+                <input
+                  type="text"
+                  name="dob_day"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  maxlength="2"
+                  placeholder="DD"
+                  autocomplete="bday-day"
+                  required
+                />
+                <span class="dob-sep">/</span>
+                <input
+                  type="text"
+                  name="dob_year"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  maxlength="4"
+                  placeholder="YYYY"
+                  autocomplete="bday-year"
+                  required
+                />
+                <button
+                  type="button"
+                  class="dob-calendar-btn"
+                  aria-label="Open calendar"
+                ></button>
+              </div>
               <label>DATE OF BIRTH</label>
+              <div class="dob-age" aria-live="polite"></div>
             </div>
             <div class="form-status"></div>
             <div class="arx-form-actions">
@@ -1188,6 +1818,9 @@ const ArxInterface: React.FC = () => {
       if (successLayer) successLayer.innerHTML = "";
       document.getElementById("backBtnContainer")?.classList.remove("hidden-fast");
       document.getElementById("arc-reactor-overlay")?.classList.remove("active");
+      document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
+      document.getElementById("ring1")?.classList.remove("hidden-fast");
+      document.getElementById("ring2")?.classList.remove("hidden-fast");
       document.querySelector(".close-x-btn")?.classList.remove("active");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
       document.getElementById("subPage")?.classList.remove("active");
@@ -1660,7 +2293,7 @@ const ArxInterface: React.FC = () => {
             </div>
           </div>
           <h1>ARX</h1>
-          <p>AUTOMATED ROCKET EXPLORATION</p>
+          <p>RELEASING SOON</p>
           <button className="btn" id="start-btn">
             GET STARTED
           </button>

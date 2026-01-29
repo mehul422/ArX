@@ -98,6 +98,16 @@ body {
   }
 }
 
+@keyframes pulseInOut {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
 h1 {
   letter-spacing: 6px;
   font-size: 42px;
@@ -111,6 +121,7 @@ h1 {
   font-size: 13px;
   opacity: 0.8;
   transition: 0.5s;
+  animation: pulseInOut 5.5s ease-in-out infinite;
 }
 
 .btn {
@@ -127,6 +138,8 @@ h1 {
   transition: all 0.2s;
   position: relative;
   z-index: 10;
+  animation: pulseInOut 5.5s ease-in-out infinite;
+  animation-delay: 0.35s;
 }
 .btn:hover {
   transform: translateY(-2px);
@@ -1304,6 +1317,15 @@ body.dashboard-mode::after {
   box-shadow: none;
   animation: none;
 }
+#arc-reactor-overlay.arc-reactor-corner {
+  top: 20px;
+  left: 20px;
+  right: auto;
+  bottom: auto;
+  transform: translate(0, 0) scale(0.35);
+  transform-origin: top left;
+  transition: transform 1.2s ease, top 1.2s ease, left 1.2s ease;
+}
 .subpage-form {
   position: relative;
   width: min(680px, 85vw);
@@ -1417,6 +1439,249 @@ body.dashboard-mode::after {
   text-shadow: 0 0 6px rgba(0, 243, 255, 0.35);
   pointer-events: none;
   transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.dob-field {
+  z-index: 1002;
+}
+.dob-field label {
+  position: static;
+  display: block;
+  margin-top: 8px;
+  transform: none;
+  text-align: left;
+}
+.dob-field.age-active label {
+  color: rgba(0, 243, 255, 0.85);
+}
+.dob-age {
+  margin-top: 6px;
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  color: rgba(0, 243, 255, 0.7);
+  text-transform: uppercase;
+}
+.dob-field .dob-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dob-field .dob-inputs input {
+  width: 64px;
+  text-align: center;
+  padding: 14px 8px;
+}
+.dob-field .dob-inputs input[name="dob_year"] {
+  width: 86px;
+}
+.dob-field .dob-sep {
+  color: rgba(0, 243, 255, 0.55);
+  font-family: var(--font-data);
+  letter-spacing: 1px;
+}
+.dob-field .dob-inputs input::placeholder {
+  color: rgba(0, 243, 255, 0.6);
+}
+.dob-field.is-active label {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+.dob-calendar-btn {
+  position: static;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(0, 243, 255, 0.35);
+  background: rgba(0, 243, 255, 0.08);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dob-calendar-btn::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(0, 243, 255, 0.7);
+  border-radius: 2px;
+}
+.dob-calendar-btn::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  top: 10px;
+  height: 2px;
+  background: rgba(0, 243, 255, 0.8);
+  box-shadow: 0 6px 0 rgba(0, 243, 255, 0.4);
+}
+.dob-calendar-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 14px rgba(0, 243, 255, 0.25);
+}
+.dob-calendar {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 240px;
+  background: rgba(6, 14, 22, 0.95);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  box-shadow: 0 0 24px rgba(0, 243, 255, 0.18);
+  padding: 12px;
+  border-radius: 6px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 1003;
+}
+.dob-calendar.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.dob-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.dob-calendar-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dob-calendar-controls select {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  color: rgba(0, 243, 255, 0.85);
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  padding: 6px 8px;
+}
+.dob-calendar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  color: var(--page-accent);
+  text-transform: uppercase;
+}
+.dob-calendar-title-year {
+  background: transparent;
+  border: none;
+  color: var(--page-accent);
+  letter-spacing: 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  padding: 0;
+}
+.dob-calendar-nav {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 243, 255, 0.35);
+  background: rgba(0, 243, 255, 0.08);
+  color: var(--page-accent);
+  font-family: var(--font-display);
+  cursor: pointer;
+}
+.dob-calendar-weekdays,
+.dob-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+.dob-calendar-years {
+  margin-top: 10px;
+  display: none;
+}
+.dob-calendar.years-open .dob-calendar-weekdays,
+.dob-calendar.years-open .dob-calendar-grid,
+.dob-calendar.years-open .dob-calendar-controls {
+  display: none;
+}
+.dob-calendar.years-open .dob-calendar-years {
+  display: block;
+}
+.dob-calendar-years-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.dob-calendar-years-title {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  color: var(--page-accent);
+}
+.dob-calendar-years-prev,
+.dob-calendar-years-next {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 243, 255, 0.35);
+  background: rgba(0, 243, 255, 0.08);
+  color: var(--page-accent);
+  font-family: var(--font-display);
+  cursor: pointer;
+}
+.dob-calendar-years-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.dob-calendar-year-btn {
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  background: rgba(0, 243, 255, 0.06);
+  color: rgba(0, 243, 255, 0.85);
+  font-size: 0.7rem;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dob-calendar-year-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+}
+.dob-calendar-year-btn.selected {
+  border-color: rgba(0, 243, 255, 0.6);
+  background: rgba(0, 243, 255, 0.18);
+}
+.dob-calendar-weekdays span {
+  font-size: 0.65rem;
+  color: rgba(0, 243, 255, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.dob-calendar-day {
+  width: 100%;
+  padding: 6px 0;
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  background: rgba(0, 243, 255, 0.06);
+  color: rgba(0, 243, 255, 0.85);
+  font-size: 0.7rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dob-calendar-day:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+}
+.dob-calendar-day.selected {
+  border-color: rgba(0, 243, 255, 0.6);
+  background: rgba(0, 243, 255, 0.18);
+}
+.dob-calendar-empty {
+  height: 28px;
 }
 .arx-field textarea + label {
   top: 18px;

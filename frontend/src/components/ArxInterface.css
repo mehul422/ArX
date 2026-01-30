@@ -186,6 +186,75 @@ h1 {
 #warp-flash.active {
   animation: flashAndFade 1.5s forwards;
 }
+
+#press-any-key-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+  z-index: 20002;
+}
+
+#press-any-key-layer.visible {
+  opacity: 1 !important;
+}
+
+#press-any-key-text {
+  font-family: var(--font-display);
+  letter-spacing: 3px;
+  color: var(--page-accent);
+  text-transform: uppercase;
+  animation: pressAnyKeyPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pressAnyKeyPulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+#grid-mat-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  z-index: 300;
+}
+
+#arc-reactor-overlay.arc-reactor-corner ~ #grid-mat-layer {
+  opacity: 1;
+}
+
+#grid-mat {
+  width: min(88vw, 1400px);
+  height: min(80vh, 980px);
+  background-image:
+    linear-gradient(rgba(var(--grid-color, 0, 243, 255), 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--grid-color, 0, 243, 255), 0.35) 1px, transparent 1px),
+    linear-gradient(rgba(var(--grid-color, 0, 243, 255), 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--grid-color, 0, 243, 255), 0.15) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px, 16px 16px, 16px 16px;
+  background-position: center;
+  border: 1px solid rgba(var(--grid-color, 0, 243, 255), 0.75);
+  box-shadow: 0 0 60px rgba(var(--grid-color, 0, 243, 255), 0.6);
+  transform: none;
+  filter: brightness(1.6);
+  opacity: 1;
+}
 @keyframes flashAndFade {
   0% {
     opacity: 0;
@@ -338,6 +407,10 @@ body.dashboard-mode {
       transparent 31px
     );
   background-size: 60px 60px;
+}
+
+body.dashboard-mode.grid-mat-active {
+  background-image: none;
 }
 body.dashboard-mode::after {
   content: "";

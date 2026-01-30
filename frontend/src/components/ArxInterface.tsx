@@ -42,6 +42,46 @@ const ArxInterface: React.FC = () => {
     let hasLaunched = false;
     let landingAudioStarted = false;
     let enableAudio: (() => void) | null = null;
+    let loggedInEmail: string | null = null;
+
+    const showPressAnyKey = () => {
+      let layer = document.getElementById("press-any-key-layer");
+      if (!layer) {
+        layer = document.createElement("div");
+        layer.id = "press-any-key-layer";
+        const text = document.createElement("div");
+        text.id = "press-any-key-text";
+        text.innerText = "PRESS ANY KEY";
+        layer.appendChild(text);
+        document.body.appendChild(layer);
+      }
+      layer.classList.add("visible");
+      (layer as HTMLElement).style.display = "flex";
+      (layer as HTMLElement).style.opacity = "1";
+    };
+    const hidePressAnyKey = () => {
+      const layer = document.getElementById("press-any-key-layer");
+      if (!layer) return;
+      layer.classList.remove("visible");
+      (layer as HTMLElement).style.opacity = "0";
+      (layer as HTMLElement).style.display = "none";
+    };
+    const updateAuthUI = () => {
+      const navLoginBtn = document.querySelector(
+        '.nav-right [data-action="INIT"]'
+      ) as HTMLButtonElement | null;
+      const dropdownLoginItem = document.querySelector(
+        '.dropdown-menu [data-action="INIT"]'
+      ) as HTMLElement | null;
+      if (loggedInEmail) {
+        const label = loggedInEmail.slice(0, 5).toUpperCase();
+        if (navLoginBtn) navLoginBtn.textContent = label;
+        if (dropdownLoginItem) dropdownLoginItem.textContent = "LOG OUT";
+      } else {
+        if (navLoginBtn) navLoginBtn.textContent = "Initialize";
+        if (dropdownLoginItem) dropdownLoginItem.textContent = "LOG IN";
+      }
+    };
 
     const startLandingAudio = () => {
       if (landingAudioStarted || hasLaunched) return;
@@ -275,7 +315,9 @@ const ArxInterface: React.FC = () => {
     };
 
     const skipIntro = () => {
-      landingAudio.pause();
+      if (hasLaunched) {
+        landingAudio.pause();
+      }
       landingAudio.currentTime = 0;
       warpAudio.pause();
       warpAudio.currentTime = 0;
@@ -532,6 +574,7 @@ const ArxInterface: React.FC = () => {
         document.getElementById("moduleGrid")?.classList.add("fade-exit");
         document.getElementById("ring1")?.classList.add(config.ringClass);
         document.getElementById("ring2")?.classList.add(config.ringInnerClass);
+        showPressAnyKey();
       });
       const subPageBtn = document.getElementById("subPageBtn") as HTMLButtonElement | null;
       if (subPageBtn) {
@@ -546,6 +589,7 @@ const ArxInterface: React.FC = () => {
     const initiateArcSequence = (floater: HTMLElement) => {
       document.getElementById("backBtnContainer")?.classList.add("hidden-fast");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
+      hidePressAnyKey();
       document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
       document.getElementById("ring1")?.classList.remove("hidden-fast");
       document.getElementById("ring2")?.classList.remove("hidden-fast");
@@ -564,6 +608,7 @@ const ArxInterface: React.FC = () => {
           };
           overlay?.addEventListener("transitionend", onFloatEnd, { once: true });
           overlay?.classList.add("arc-reactor-corner");
+          document.body.classList.add("grid-mat-active");
           document.getElementById("activeFloater")?.remove();
         }, 4000);
       }
@@ -572,8 +617,10 @@ const ArxInterface: React.FC = () => {
     const closeArcSequence = () => {
       document.getElementById("arc-reactor-overlay")?.classList.remove("active");
       document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
+      document.body.classList.remove("grid-mat-active");
       document.querySelector(".close-x-btn")?.classList.remove("active");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
+      hidePressAnyKey();
       setTimeout(() => resetDashboard(), 500);
     };
 
@@ -582,6 +629,13 @@ const ArxInterface: React.FC = () => {
       isTransitioning = true;
       pendingSubPageType = null;
       isSubPageLocked = false;
+      if (type === "INIT" && loggedInEmail) {
+        loggedInEmail = null;
+        updateAuthUI();
+        resetDashboard();
+        isTransitioning = false;
+        return;
+      }
       const sound = popupSound.cloneNode() as HTMLAudioElement;
       sound.volume = 0.5;
       sound.play().catch(() => {});
@@ -1351,6 +1405,8 @@ const ArxInterface: React.FC = () => {
           }
           pendingSubPageType = null;
           showSuccessLayer("YOU HAVE BEEN LOGGED IN SUCCESSFULLY.", 6000);
+        loggedInEmail = email;
+        updateAuthUI();
           const loginLayer = document.getElementById("login-layer");
           if (loginLayer) loginLayer.innerHTML = "";
           const floater = document.getElementById("activeFloater");
@@ -1362,8 +1418,8 @@ const ArxInterface: React.FC = () => {
             .getElementById("arc-reactor-overlay")
             ?.classList.remove("form-mode");
           setTimeout(() => {
-            document.getElementById("blackout-screen")?.classList.add("active");
-          }, 7200);
+          resetDashboard();
+        }, 7500);
         } else if (formType === "new") {
           const name = String(fields.get("name") || "").trim();
           const email = String(fields.get("email") || "").trim();
@@ -1740,11 +1796,16 @@ const ArxInterface: React.FC = () => {
     };
 
     document.addEventListener("keydown", (e) => {
+      const hint = document.getElementById("spacebar-hint");
+      if (e.code === "Space" && !hint?.classList.contains("visible")) {
+        return;
+      }
+      const floater = document.getElementById("activeFloater");
+
       if (pendingSubPageType) {
         revealPendingSubPage();
         return;
       }
-      const floater = document.getElementById("activeFloater");
       if (!floater) return;
 
       if (floater.dataset.mode === "mode-x") {
@@ -1770,6 +1831,7 @@ const ArxInterface: React.FC = () => {
       }
 
       if (floater.classList.contains("centered-massive")) {
+        hidePressAnyKey();
         floater.classList.remove("centered-massive");
         floater.classList.add("centered-contained");
         if (floater.dataset.title) {
@@ -1793,6 +1855,7 @@ const ArxInterface: React.FC = () => {
         document.getElementById("spacebar-hint")?.classList.remove("visible");
         initiateArcSequence(floater);
       } else if (floater.classList.contains("centered-massive-word")) {
+        hidePressAnyKey();
         floater.classList.remove("centered-massive-word");
         floater.classList.add("centered-contained-word");
         if (floater.dataset.title) {
@@ -1819,10 +1882,12 @@ const ArxInterface: React.FC = () => {
       document.getElementById("backBtnContainer")?.classList.remove("hidden-fast");
       document.getElementById("arc-reactor-overlay")?.classList.remove("active");
       document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
+      document.body.classList.remove("grid-mat-active");
       document.getElementById("ring1")?.classList.remove("hidden-fast");
       document.getElementById("ring2")?.classList.remove("hidden-fast");
       document.querySelector(".close-x-btn")?.classList.remove("active");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
+      hidePressAnyKey();
       document.getElementById("subPage")?.classList.remove("active");
       document.getElementById("subPage")?.classList.remove("locked");
       document.getElementById("subPage")?.classList.remove("form-active");
@@ -1846,6 +1911,7 @@ const ArxInterface: React.FC = () => {
       document.getElementById("topNav")?.classList.remove("fade-exit");
       document.querySelectorAll(".side-panel").forEach((el) => el.classList.remove("fade-exit"));
       document.getElementById("moduleGrid")?.classList.remove("fade-exit");
+      updateAuthUI();
 
       const ring1 = document.getElementById("ring1");
       const ring2 = document.getElementById("ring2");
@@ -2272,11 +2338,17 @@ const ArxInterface: React.FC = () => {
         <div className="arc-ring arc-r3"></div>
         <div className="arc-core"></div>
       </div>
+      <div id="grid-mat-layer" aria-hidden="true">
+        <div id="grid-mat"></div>
+      </div>
       <div id="login-layer"></div>
       <div id="success-layer"></div>
       <div id="blackout-screen"></div>
       <div className="close-x-btn"></div>
       <div id="spacebar-hint">PRESS SPACEBAR TO INITIALIZE</div>
+      <div id="press-any-key-layer">
+        <div id="press-any-key-text">PRESS ANY KEY</div>
+      </div>
 
       <div id="landing-container">
         <div id="background">

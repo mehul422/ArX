@@ -1783,9 +1783,9 @@ const ArxInterface: React.FC = () => {
       });
     };
 
-    document.addEventListener("keydown", (e) => {
+    const handleGlobalInput = (isSpaceLike: boolean) => {
       const hint = document.getElementById("spacebar-hint");
-      if (e.code === "Space" && !hint?.classList.contains("visible")) {
+      if (isSpaceLike && !hint?.classList.contains("visible")) {
         return;
       }
       const floater = document.getElementById("activeFloater");
@@ -1797,7 +1797,6 @@ const ArxInterface: React.FC = () => {
       if (!floater) return;
 
       if (floater.dataset.mode === "mode-x") {
-        e.preventDefault();
         if (!floater.classList.contains("mode-x-collapsed")) {
           floater.classList.add("mode-x-collapsed");
           floater.classList.remove("centered-massive-word");
@@ -1838,8 +1837,7 @@ const ArxInterface: React.FC = () => {
             document.getElementById("spacebar-hint")?.classList.add("visible");
           }
         }, 1200);
-      } else if (floater.classList.contains("centered-contained") && e.code === "Space") {
-        e.preventDefault();
+      } else if (floater.classList.contains("centered-contained") && isSpaceLike) {
         document.getElementById("spacebar-hint")?.classList.remove("visible");
         initiateArcSequence(floater);
       } else if (floater.classList.contains("centered-massive-word")) {
@@ -1858,7 +1856,28 @@ const ArxInterface: React.FC = () => {
           });
         }
       }
+    };
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        handleGlobalInput(true);
+        return;
+      }
+      handleGlobalInput(false);
     });
+
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest("input, textarea, button, .dob-calendar, .dropdown-menu")) {
+          return;
+        }
+        handleGlobalInput(true);
+      },
+      true
+    );
 
     const resetDashboard = () => {
       document.documentElement.style.setProperty("--grid-color", "0, 243, 255");

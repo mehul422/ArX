@@ -1871,7 +1871,11 @@ const ArxInterface: React.FC = () => {
       "pointerdown",
       (event) => {
         const target = event.target as HTMLElement | null;
-        if (target?.closest("input, textarea, button, .dob-calendar, .dropdown-menu")) {
+        if (
+          target?.closest(
+            "input, textarea, button, .dob-calendar, .dropdown-menu, #holo-container"
+          )
+        ) {
           return;
         }
         handleGlobalInput(true);
@@ -2267,6 +2271,12 @@ const ArxInterface: React.FC = () => {
 
     let rocketAngle = 0;
     let rocketAnimationId: number | null = null;
+    let holoZoom = 1;
+
+    const applyHoloTransform = () => {
+      if (!holoContainer) return;
+      holoContainer.style.transform = `scale(${holoZoom})`;
+    };
 
     const updateRocketSize = () => {
       if (!rocketCanvasEl || !rocketCtx || !holoContainer) return;
@@ -2321,6 +2331,16 @@ const ArxInterface: React.FC = () => {
 
     initRocketModel();
     renderRocket();
+    applyHoloTransform();
+
+    if (holoContainer) {
+      holoContainer.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const delta = event.deltaY > 0 ? -0.06 : 0.06;
+        holoZoom = Math.max(0.6, Math.min(1.6, holoZoom + delta));
+        applyHoloTransform();
+      });
+    }
 
     return () => {
       window.removeEventListener("resize", resize);

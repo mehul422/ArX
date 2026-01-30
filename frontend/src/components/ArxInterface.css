@@ -1141,6 +1141,8 @@ body.dashboard-mode::after {
   min-height: 300px;
   perspective: 1000px;
   overflow: hidden;
+  cursor: zoom-in;
+  touch-action: none;
 }
 #rocketCanvas {
   display: block;

@@ -1441,7 +1441,9 @@ const ArxInterface: React.FC = () => {
             const onFadeEnd = () => {
               overlay?.removeEventListener("transitionend", onFadeEnd);
               showSuccessLayer("WELCOME. YOU HAVE BEEN REGISTERED TO A.R.X.", 5000, () => {
-                showSuccessLayer("YOU CAN GO TO LOGIN NOW.", 4000);
+                showSuccessLayer("YOU CAN GO TO LOGIN NOW.", 4000, () => {
+                  resetDashboard();
+                });
               });
             };
             if (overlay) {
@@ -1604,20 +1606,6 @@ const ArxInterface: React.FC = () => {
           sound.volume = 0.5;
           sound.play().catch(() => {});
         });
-      });
-      container.addEventListener("click", (event) => {
-        const target = event.target as HTMLElement | null;
-        if (!target) return;
-        if (target.closest(".form-success")) return;
-        const clear = target.closest("#login-clear, #newuser-clear, #proto-clear");
-        const authorize = target.closest("button[type='submit']");
-        if (clear) {
-          event.preventDefault();
-          handleClear();
-        } else if (authorize) {
-          event.preventDefault();
-          handleSubmit();
-        }
       });
 
       const resetButton = document.getElementById("subPageBtn");

@@ -1,4 +1,9 @@
 import React, { useEffect } from "react";
+import {
+  MissionTargetPayload,
+  pollMissionTargetJob,
+  submitMissionTarget,
+} from "../services/missionTarget";
 import "./ArxInterface.css";
 
 const ArxInterface: React.FC = () => {
@@ -586,6 +591,51 @@ const ArxInterface: React.FC = () => {
       }, 800);
     };
 
+    const getMissionTargetPayload = (): MissionTargetPayload | null => {
+      const globalPayload = (window as unknown as { ARX_MISSION_TARGET_PAYLOAD?: MissionTargetPayload })
+        .ARX_MISSION_TARGET_PAYLOAD;
+      if (globalPayload) return globalPayload;
+      const stored = window.localStorage.getItem("arx_mission_target_payload");
+      if (!stored) return null;
+      try {
+        return JSON.parse(stored) as MissionTargetPayload;
+      } catch (error) {
+        console.warn("Invalid arx_mission_target_payload JSON", error);
+        return null;
+      }
+    };
+
+    const runMissionTarget = async () => {
+      const payload = getMissionTargetPayload();
+      if (!payload) {
+        console.warn("Mission target payload missing; set window.ARX_MISSION_TARGET_PAYLOAD");
+        window.dispatchEvent(
+          new CustomEvent("arx:mission-target:error", {
+            detail: { message: "Mission target payload missing" },
+          })
+        );
+        return;
+      }
+      window.dispatchEvent(new CustomEvent("arx:mission-target:status", { detail: { status: "start" } }));
+      try {
+        const job = await submitMissionTarget(payload);
+        window.dispatchEvent(
+          new CustomEvent("arx:mission-target:status", { detail: { status: "submitted", jobId: job.id } })
+        );
+        const finished = await pollMissionTargetJob(job.id);
+        window.dispatchEvent(
+          new CustomEvent("arx:mission-target:status", { detail: { status: finished.status, job: finished } })
+        );
+      } catch (error) {
+        console.error("Mission target flow failed", error);
+        window.dispatchEvent(
+          new CustomEvent("arx:mission-target:error", {
+            detail: { message: "Mission target flow failed", error },
+          })
+        );
+      }
+    };
+
     const initiateArcSequence = (floater: HTMLElement) => {
       document.getElementById("backBtnContainer")?.classList.add("hidden-fast");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
@@ -610,6 +660,9 @@ const ArxInterface: React.FC = () => {
           overlay?.classList.add("arc-reactor-corner");
           document.body.classList.add("grid-mat-active");
           document.getElementById("activeFloater")?.remove();
+          if (activeModuleId === "SYSTEM") {
+            void runMissionTarget();
+          }
         }, 4000);
       }
     };

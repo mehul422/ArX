@@ -41,7 +41,7 @@ const ArxInterface: React.FC = () => {
 
     let hasLaunched = false;
     let landingAudioStarted = false;
-    let enableAudio: (() => void) | null = null;
+    let enableAudio: () => void = () => {};
     let loggedInEmail: string | null = null;
 
     const showPressAnyKey = () => {

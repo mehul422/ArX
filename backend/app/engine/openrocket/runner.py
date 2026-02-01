@@ -41,20 +41,106 @@ def _ensure_openrocket_initialized() -> None:
         # If injector access fails, attempt to reinitialize below.
         pass
     Guice = jpype.JClass("com.google.inject.Guice")
-    Modules = jpype.JClass("com.google.inject.util.Modules")
     CoreServicesModule = jpype.JClass("net.sf.openrocket.utils.CoreServicesModule")
     PluginModule = jpype.JClass("net.sf.openrocket.plugin.PluginModule")
-    GuiModule = jpype.JClass("net.sf.openrocket.startup.GuiModule")
-    gui_module = GuiModule()
-    overridden_builder = Modules.override(CoreServicesModule())
-    overridden = getattr(overridden_builder, "with_")(gui_module)
-    injector = Guice.createInjector(overridden, PluginModule())
+    headless = os.getenv("JAVA_TOOL_OPTIONS", "")
+    if "java.awt.headless=true" in headless:
+        modules = [CoreServicesModule(), PluginModule()]
+        try:
+            DatabaseModule = jpype.JClass("net.sf.openrocket.database.DatabaseModule")
+            modules.insert(1, DatabaseModule())
+        except Exception:
+            pass
+        try:
+            ComponentPresetDao = jpype.JClass("net.sf.openrocket.database.ComponentPresetDao")
+            ComponentPresetDatabase = jpype.JClass("net.sf.openrocket.database.ComponentPresetDatabase")
+            ComponentPresetDatabaseLoader = jpype.JClass(
+                "net.sf.openrocket.database.ComponentPresetDatabaseLoader"
+            )
+            MotorDatabase = jpype.JClass("net.sf.openrocket.database.motor.MotorDatabase")
+            ThrustCurveMotorSetDatabase = jpype.JClass(
+                "net.sf.openrocket.database.motor.ThrustCurveMotorSetDatabase"
+            )
+
+            preset_loader = ComponentPresetDatabaseLoader()
+            try:
+                preset_db = preset_loader.getDatabase()
+            except Exception:
+                preset_db = ComponentPresetDatabase()
+            motor_db = ThrustCurveMotorSetDatabase()
+
+            class _PresetModule:
+                def configure(self, binder):
+                    binder.bind(ComponentPresetDao).toInstance(preset_db)
+                    binder.bind(ComponentPresetDatabase).toInstance(preset_db)
+                    binder.bind(MotorDatabase).toInstance(motor_db)
+
+            preset_module = jpype.JProxy("com.google.inject.Module", inst=_PresetModule())
+            modules.append(preset_module)
+        except Exception:
+            pass
+        injector = Guice.createInjector(*modules)
+    else:
+        Modules = jpype.JClass("com.google.inject.util.Modules")
+        GuiModule = jpype.JClass("net.sf.openrocket.startup.GuiModule")
+        gui_module = GuiModule()
+        overridden_builder = Modules.override(CoreServicesModule())
+        overridden = getattr(overridden_builder, "with_")(gui_module)
+        injector = Guice.createInjector(overridden, PluginModule())
     Application.setInjector(injector)
     try:
-        gui_module.startLoader()
+        if "java.awt.headless=true" not in headless:
+            gui_module.startLoader()
     except Exception:
         # Loader may attempt UI; ignore for headless mode.
         pass
+
+
+def _ensure_openrocket_core_initialized() -> None:
+    Application = jpype.JClass("info.openrocket.core.startup.Application")
+    try:
+        if Application.getInjector() is not None:
+            return
+    except Exception:
+        pass
+
+    Guice = jpype.JClass("com.google.inject.Guice")
+    CoreServicesModule = jpype.JClass("info.openrocket.swing.utils.CoreServicesModule")
+    PluginModule = jpype.JClass("info.openrocket.core.plugin.PluginModule")
+    modules = [CoreServicesModule(), PluginModule()]
+
+    try:
+        ComponentPresetDao = jpype.JClass("info.openrocket.core.database.ComponentPresetDao")
+        ComponentPresetDatabase = jpype.JClass("info.openrocket.core.database.ComponentPresetDatabase")
+        ComponentPresetDatabaseLoader = jpype.JClass(
+            "info.openrocket.core.database.ComponentPresetDatabaseLoader"
+        )
+        MotorDatabase = jpype.JClass("info.openrocket.core.database.motor.MotorDatabase")
+        ThrustCurveMotorSetDatabase = jpype.JClass(
+            "info.openrocket.core.database.motor.ThrustCurveMotorSetDatabase"
+        )
+
+        preset_loader = ComponentPresetDatabaseLoader()
+        try:
+            preset_db = preset_loader.getDatabase()
+        except Exception:
+            preset_db = ComponentPresetDatabase()
+
+        motor_db = ThrustCurveMotorSetDatabase()
+
+        class _PresetModule:
+            def configure(self, binder):
+                binder.bind(ComponentPresetDao).toInstance(preset_db)
+                binder.bind(ComponentPresetDatabase).toInstance(preset_db)
+                binder.bind(MotorDatabase).toInstance(motor_db)
+
+        preset_module = jpype.JProxy("com.google.inject.Module", inst=_PresetModule())
+        modules.append(preset_module)
+    except Exception:
+        pass
+
+    injector = Guice.createInjector(*modules)
+    Application.setInjector(injector)
 
 
 def _get_motor_config(component, config_id):
@@ -678,6 +764,50 @@ def _motor_mount_component_ids(rocket_path: str) -> set[str]:
     return mount_ids
 
 
+def _select_core_configuration(document, flight_config_id: str | None, use_all_stages: bool):
+    rocket = document.getRocket()
+    try:
+        configuration = document.getDefaultConfiguration()
+    except Exception:
+        try:
+            configuration = document.getSelectedConfiguration()
+        except Exception:
+            configuration = rocket.getSelectedConfiguration()
+
+    if flight_config_id:
+        try:
+            configuration.setFlightConfigurationID(flight_config_id)
+        except Exception:
+            try:
+                FlightConfigurationId = jpype.JClass(
+                    "info.openrocket.core.rocketcomponent.FlightConfigurationId"
+                )
+                config_id = FlightConfigurationId(flight_config_id)
+                config_candidate = rocket.getFlightConfiguration(config_id)
+                if config_candidate is not None:
+                    configuration = config_candidate
+                    try:
+                        rocket.setSelectedConfiguration(config_candidate)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    if use_all_stages:
+        try:
+            configuration.setAllStages()
+        except Exception:
+            pass
+    else:
+        try:
+            active_ids = list(rocket.getFlightConfigurationIDs())
+            if active_ids:
+                configuration.setFlightConfigurationID(active_ids[0])
+        except Exception:
+            pass
+    return configuration
+
+
 def _xml_position_value(element) -> tuple[float | None, str | None]:
     pos_node = element.find("position")
     if pos_node is None:
@@ -1077,6 +1207,110 @@ def run_openrocket_simulation(params: dict[str, Any]) -> dict[str, Any]:
         "motors_included": motors_included,
         "flight_config_id": str(config_id) if config_id is not None else None,
         "use_all_stages": bool(params.get("use_all_stages", True)),
+    }
+
+
+def run_openrocket_core_masscalc(params: dict[str, Any]) -> dict[str, Any]:
+    settings = get_settings()
+    jar_path = params.get("openrocket_jar") or settings.openrocket_jar
+    if not jar_path:
+        raise RuntimeError("OPENROCKET_JAR not configured")
+    if not os.path.exists(jar_path):
+        raise FileNotFoundError(f"OpenRocket jar not found: {jar_path}")
+
+    classpath = _build_classpath(jar_path)
+    _ensure_jvm(classpath)
+
+    rocket_path = params.get("rocket_path")
+    if not rocket_path or not os.path.exists(rocket_path):
+        raise FileNotFoundError("rocket_path not found")
+
+    motor_path = params.get("motor_path")
+    if motor_path and not os.path.exists(motor_path):
+        raise FileNotFoundError("motor_path not found")
+
+    try:
+        jpype.JClass("info.openrocket.core.startup.Application")
+        core_api = True
+    except Exception:
+        core_api = False
+
+    if core_api:
+        _ensure_openrocket_core_initialized()
+
+        Application = jpype.JClass("info.openrocket.core.startup.Application")
+        GeneralRocketLoader = jpype.JClass("info.openrocket.core.file.GeneralRocketLoader")
+        GeneralMotorLoader = jpype.JClass("info.openrocket.core.file.motor.GeneralMotorLoader")
+        FileInputStream = jpype.JClass("java.io.FileInputStream")
+        File = jpype.JClass("java.io.File")
+        MotorDatabase = jpype.JClass("info.openrocket.core.database.motor.MotorDatabase")
+
+        if motor_path:
+            motor_loader = GeneralMotorLoader()
+            stream = FileInputStream(motor_path)
+            try:
+                motors = motor_loader.load(stream, os.path.basename(motor_path))
+            finally:
+                stream.close()
+            if motors.size() == 0:
+                raise RuntimeError("No motors found in .eng file")
+            motor_db = Application.getInjector().getInstance(MotorDatabase)
+            for index in range(int(motors.size())):
+                motor_db.addMotor(motors.get(index))
+
+        document = GeneralRocketLoader(File(rocket_path)).load()
+        configuration = _select_core_configuration(
+            document,
+            params.get("flight_config_id"),
+            bool(params.get("use_all_stages", True)),
+        )
+
+        MassCalculator = jpype.JClass("info.openrocket.core.masscalc.MassCalculator")
+        MassCalculationType = jpype.JClass("info.openrocket.core.masscalc.MassCalculation$Type")
+        rigid_body = MassCalculator.calculate(MassCalculationType.LAUNCH, configuration, 0.0)
+        center = rigid_body.getCM()
+        mass_kg = float(rigid_body.getMass())
+    else:
+        _ensure_openrocket_initialized()
+
+        Application = jpype.JClass("net.sf.openrocket.startup.Application")
+        GeneralRocketLoader = jpype.JClass("net.sf.openrocket.file.GeneralRocketLoader")
+        GeneralMotorLoader = jpype.JClass("net.sf.openrocket.file.motor.GeneralMotorLoader")
+        FileInputStream = jpype.JClass("java.io.FileInputStream")
+        File = jpype.JClass("java.io.File")
+        MotorDatabase = jpype.JClass("net.sf.openrocket.database.motor.MotorDatabase")
+
+        if motor_path:
+            motor_loader = GeneralMotorLoader()
+            stream = FileInputStream(motor_path)
+            try:
+                motors = motor_loader.load(stream, os.path.basename(motor_path))
+            finally:
+                stream.close()
+            if motors.size() == 0:
+                raise RuntimeError("No motors found in .eng file")
+            motor_db = Application.getInjector().getInstance(MotorDatabase)
+            for index in range(int(motors.size())):
+                motor_db.addMotor(motors.get(index))
+
+        document = GeneralRocketLoader(File(rocket_path)).load()
+        configuration = _select_configuration(
+            document,
+            params.get("flight_config_id"),
+            bool(params.get("use_all_stages", True)),
+        )
+
+        MassCalculator = jpype.JClass("net.sf.openrocket.masscalc.MassCalculator")
+        MassCalculationType = jpype.JClass("net.sf.openrocket.masscalc.MassCalculation$Type")
+        rigid_body = MassCalculator.calculate(MassCalculationType.LAUNCH, configuration, 0.0)
+        center = rigid_body.getCM()
+        mass_kg = float(rigid_body.getMass())
+
+    return {
+        "mass_kg": mass_kg,
+        "mass_lb": _to_pounds(mass_kg),
+        "cg_m": float(center.x),
+        "cg_in": _to_inches(float(center.x)),
     }
 
 

@@ -19,7 +19,9 @@ def _ensure_dir(path: str) -> None:
 def _safe_filename(filename: str) -> str:
     base = os.path.basename(filename)
     sanitized = "".join(ch for ch in base if ch.isalnum() or ch in ("-", "_", "."))
-    return sanitized or "motor.eng"
+    if not sanitized:
+        return "motor.eng"
+    return sanitized
 
 
 def _legacy_upload_dir(settings) -> str:
@@ -34,7 +36,7 @@ def list_bundled_motors() -> list[MotorInfo]:
         return []
     motors = []
     for name in sorted(os.listdir(bundled_dir)):
-        if name.lower().endswith(".eng"):
+        if name.lower().endswith((".eng", ".rse")):
             motors.append(MotorInfo(motor_id=name, filename=name, source="bundled"))
     return motors
 
@@ -50,7 +52,7 @@ def list_uploaded_motors() -> list[MotorInfo]:
         if not os.path.isdir(directory):
             continue
         for name in sorted(os.listdir(directory)):
-            if name.lower().endswith(".eng"):
+            if name.lower().endswith((".eng", ".rse")):
                 motors.append(MotorInfo(motor_id=name, filename=name, source="uploaded"))
     return motors
 

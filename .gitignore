@@ -194,3 +194,15 @@ __marimo__/
 
 # Project-specific
 # JARs are managed via Git LFS (see .gitattributes)
+#
+# Generated test artifacts
+backend/tests/*.eng
+backend/tests/*.ric
+backend/tests/*.ork
+backend/tests/*.rkt
+backend/tests/*_metrics.json
+backend/tests/*.CDX1
+backend/resources/motors/uploads/*.eng
+backend/backend/resources/motors/uploads/*.eng
+backend/backend/tests/
+backend/tests/*snapshot.json

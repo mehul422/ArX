@@ -3,7 +3,10 @@ fastapi
 uvicorn
 jpype1
 numpy
+scipy
+scikit-fmm
 celery
 redis
 psycopg2-binary
 python-multipart
+pyyaml

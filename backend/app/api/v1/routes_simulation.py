@@ -2,16 +2,37 @@ import os
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.v1.schemas import JobResponse, MetricsSummaryRequest, PipelineRequest, SimulationRequest
+from app.api.v1.schemas import (
+    CoreMassCalcRequest,
+    MetricsSummaryRequest,
+    PipelineRequest,
+    V1JobResponse,
+    V1SimulateRequest,
+)
+from app.api.v1.schemas_openrocket_like import OpenRocketLikeSimRequestSchema
+from app.api.v1.v1_mappers import build_v1_job_response
 from app.db.queries import fetch_job, insert_job
-from app.engine.openrocket.runner import run_openrocket_pipeline, run_openrocket_simulation
+from app.engine.openrocket.runner import (
+    run_openrocket_core_masscalc,
+    run_openrocket_pipeline,
+    run_openrocket_simulation,
+)
+from app.engine.openrocket_like.models import (
+    ConstraintSet,
+    GrainGeometry,
+    GrainGeometryType,
+    MotorStageDefinition,
+    NozzleConfig,
+    PropellantLabel,
+)
+from app.engine.openrocket_like.sim_pipeline import simulate_two_stage
 from app.motors.storage import resolve_motor_path
 from app.workers.tasks import run_simulation_task
 
 router = APIRouter(tags=["simulation"])
 
 
-def _build_simulation_params(request: SimulationRequest) -> dict:
+def _build_simulation_params(request: V1SimulateRequest) -> dict:
     if not os.path.isabs(request.rocket_path):
         raise HTTPException(status_code=400, detail="rocket_path must be absolute")
     if not os.path.exists(request.rocket_path):
@@ -117,17 +138,42 @@ def _build_pipeline_params(request: PipelineRequest) -> dict:
     }
 
 
-@router.post("/simulate", response_model=JobResponse)
-def enqueue_simulation(request: SimulationRequest):
+def _build_core_masscalc_params(request: CoreMassCalcRequest) -> dict:
+    if not os.path.isabs(request.rocket_path):
+        raise HTTPException(status_code=400, detail="rocket_path must be absolute")
+    if not os.path.exists(request.rocket_path):
+        raise HTTPException(status_code=404, detail="rocket file not found")
+
+    motor_path = None
+    if request.motor_source and request.motor_id:
+        try:
+            motor_path = resolve_motor_path(request.motor_source, request.motor_id)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="motor file not found")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    params = dict(request.params)
+    params["rocket_path"] = request.rocket_path
+    params["motor_path"] = motor_path
+    params["motor_source"] = request.motor_source
+    params["motor_id"] = request.motor_id
+    params["flight_config_id"] = request.flight_config_id
+    params["use_all_stages"] = request.use_all_stages
+    return params
+
+
+@router.post("/simulate", response_model=V1JobResponse)
+def enqueue_simulation(request: V1SimulateRequest):
     params = _build_simulation_params(request)
 
     job_id = insert_job(job_type="simulate", params=params)
     run_simulation_task.delay(job_id, params)
-    return fetch_job(job_id)
+    return build_v1_job_response(fetch_job(job_id), job_kind="simulate")
 
 
 @router.post("/simulate/metrics")
-def simulate_metrics(request: SimulationRequest):
+def simulate_metrics(request: V1SimulateRequest):
     params = _build_simulation_params(request)
     try:
         return run_openrocket_simulation(params)
@@ -173,9 +219,76 @@ def simulate_pipeline(request: PipelineRequest):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-@router.get("/simulate/{job_id}", response_model=JobResponse)
+
+@router.post("/simulate/openrocket-like")
+def simulate_openrocket_like(request: OpenRocketLikeSimRequestSchema):
+    try:
+        stage0 = MotorStageDefinition(
+            stage_id=request.stage0.stage_id,
+            grain_geometry=GrainGeometry(
+                type=GrainGeometryType(request.stage0.grain_geometry.type),
+                params=request.stage0.grain_geometry.params,
+            ),
+            nozzle=NozzleConfig(**request.stage0.nozzle.model_dump()),
+            propellant_label=PropellantLabel(
+                name=request.stage0.propellant_label.name,
+                family=request.stage0.propellant_label.family,
+                source=request.stage0.propellant_label.source,
+            ),
+            propellant_physics=request.stage0.propellant_physics,
+        )
+        stage1 = MotorStageDefinition(
+            stage_id=request.stage1.stage_id,
+            grain_geometry=GrainGeometry(
+                type=GrainGeometryType(request.stage1.grain_geometry.type),
+                params=request.stage1.grain_geometry.params,
+            ),
+            nozzle=NozzleConfig(**request.stage1.nozzle.model_dump()),
+            propellant_label=PropellantLabel(
+                name=request.stage1.propellant_label.name,
+                family=request.stage1.propellant_label.family,
+                source=request.stage1.propellant_label.source,
+            ),
+            propellant_physics=request.stage1.propellant_physics,
+        )
+        constraints = ConstraintSet(**request.constraints.model_dump())
+        return simulate_two_stage(
+            stage0=stage0,
+            stage1=stage1,
+            rkt_path=request.rkt_path,
+            out_dir=request.output_dir,
+            constraints=constraints,
+            cd_max=request.cd_max,
+            mach_max=request.mach_max,
+            cd_ramp=request.cd_ramp,
+            separation_delay_s=request.separation_delay_s,
+            ignition_delay_s=request.ignition_delay_s,
+            target_apogee_ft=request.target_apogee_ft,
+            target_max_velocity_m_s=request.target_max_velocity_m_s,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/simulate/core-masscalc")
+def simulate_core_masscalc(request: CoreMassCalcRequest):
+    params = _build_core_masscalc_params(request)
+    try:
+        return run_openrocket_core_masscalc(params)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@router.get("/simulate/{job_id}", response_model=V1JobResponse)
 def get_simulation(job_id: str):
     job = fetch_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
-    return job
+    return build_v1_job_response(job, job_kind="simulate")

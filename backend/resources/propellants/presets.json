@@ -1,0 +1,491 @@
+[
+  {
+    "name": "KNSB",
+    "family": "Sugar Propellant",
+    "source": "preset",
+    "physical_properties": {
+      "density": { "value": 1800, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 3.5e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.32, "units": "dimensionless" }
+      },
+      "c_star": { "value": 950, "units": "m/s" },
+      "gamma": { "value": 1.20, "units": "dimensionless" },
+      "combustion_temperature": { "value": 1700, "units": "K" },
+      "molecular_weight": { "value": 28.0, "units": "kg/kmol" }
+    }
+  },
+  {
+    "name": "KNSU",
+    "family": "Sugar Propellant",
+    "source": "preset",
+    "physical_properties": {
+      "density": { "value": 1750, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 4.2e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.35, "units": "dimensionless" }
+      },
+      "c_star": { "value": 900, "units": "m/s" },
+      "gamma": { "value": 1.19, "units": "dimensionless" },
+      "combustion_temperature": { "value": 1650, "units": "K" }
+    }
+  },
+  {
+    "name": "KNDX",
+    "family": "Sugar Propellant",
+    "source": "preset",
+    "physical_properties": {
+      "density": { "value": 1780, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 3.8e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.34, "units": "dimensionless" }
+      },
+      "c_star": { "value": 920, "units": "m/s" },
+      "gamma": { "value": 1.20, "units": "dimensionless" },
+      "combustion_temperature": { "value": 1680, "units": "K" }
+    }
+  },
+  {
+    "name": "APCP",
+    "family": "Composite Propellant",
+    "source": "preset",
+    "physical_properties": {
+      "density": { "value": 1700, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 5.0e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.35, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1550, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3300, "units": "K" }
+    }
+  },
+  {
+    "name": "ANCP",
+    "family": "Composite Propellant",
+    "source": "preset",
+    "physical_properties": {
+      "density": { "value": 1650, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 2.8e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.30, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1200, "units": "m/s" },
+      "gamma": { "value": 1.18, "units": "dimensionless" },
+      "combustion_temperature": { "value": 2500, "units": "K" }
+    }
+  },
+  {
+    "name": "Black Powder",
+    "family": "Low-energy Propellant",
+    "source": "preset",
+    "physical_properties": {
+      "density": { "value": 1700, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 1.5e-4, "units": "m/s/Pa^n" },
+        "n": { "value": 0.20, "units": "dimensionless" }
+      },
+      "c_star": { "value": 700, "units": "m/s" },
+      "gamma": { "value": 1.15, "units": "dimensionless" },
+      "combustion_temperature": { "value": 1400, "units": "K" }
+    }
+  },
+  {
+    "name": "AP/HTPB",
+    "family": "Composite Propellant",
+    "source": "preset",
+    "description": "Generic AP/HTPB baseline values; calibrate for specific formulations.",
+    "physical_properties": {
+      "density": { "value": 1700, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 4.8e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.34, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3200, "units": "K" }
+    }
+  },
+  {
+    "name": "AP/Al/HTPB",
+    "family": "Composite Propellant",
+    "source": "preset",
+    "description": "Generic AP/Al/HTPB baseline values; calibrate for specific formulations.",
+    "physical_properties": {
+      "density": { "value": 1750, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 4.5e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.33, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1550, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3300, "units": "K" }
+    }
+  },
+  {
+    "name": "Double-base",
+    "family": "Composite Propellant",
+    "source": "preset",
+    "description": "Generic double-base baseline values; calibrate for specific formulations.",
+    "physical_properties": {
+      "density": { "value": 1600, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 7.0e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.30, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1200, "units": "m/s" },
+      "gamma": { "value": 1.20, "units": "dimensionless" },
+      "combustion_temperature": { "value": 2800, "units": "K" }
+    }
+  },
+  {
+    "name": "Smokeless Powder",
+    "family": "Composite Propellant",
+    "source": "preset",
+    "description": "Generic smokeless powder baseline values; calibrate for specific formulations.",
+    "physical_properties": {
+      "density": { "value": 1650, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 1.2e-4, "units": "m/s/Pa^n" },
+        "n": { "value": 0.20, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1000, "units": "m/s" },
+      "gamma": { "value": 1.20, "units": "dimensionless" },
+      "combustion_temperature": { "value": 2500, "units": "K" }
+    }
+  },
+  {
+    "name": "KNER",
+    "family": "Sugar Propellant",
+    "source": "preset",
+    "description": "Generic KNER baseline values; calibrate for specific formulations.",
+    "physical_properties": {
+      "density": { "value": 1750, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 3.9e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.33, "units": "dimensionless" }
+      },
+      "c_star": { "value": 900, "units": "m/s" },
+      "gamma": { "value": 1.20, "units": "dimensionless" },
+      "combustion_temperature": { "value": 1650, "units": "K" }
+    }
+  },
+  {
+    "name": "ANSB",
+    "family": "Alternative Nitrate Propellant",
+    "source": "preset",
+    "description": "Generic ANSB baseline values; calibrate for specific formulations.",
+    "physical_properties": {
+      "density": { "value": 1680, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 3.0e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.30, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1150, "units": "m/s" },
+      "gamma": { "value": 1.18, "units": "dimensionless" },
+      "combustion_temperature": { "value": 2400, "units": "K" }
+    }
+  },
+  {
+    "name": "ANSU",
+    "family": "Alternative Nitrate Propellant",
+    "source": "preset",
+    "description": "Generic ANSU baseline values; calibrate for specific formulations.",
+    "physical_properties": {
+      "density": { "value": 1670, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 3.2e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.31, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1180, "units": "m/s" },
+      "gamma": { "value": 1.18, "units": "dimensionless" },
+      "combustion_temperature": { "value": 2450, "units": "K" }
+    }
+  },
+  {
+    "name": "HTPB (hybrid fuel grain)",
+    "family": "Hybrid Fuel",
+    "source": "preset",
+    "description": "Hybrid fuel baseline values; burn law differs from true solid motors.",
+    "physical_properties": {
+      "density": { "value": 930, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 1.2e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.50, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3000, "units": "K" }
+    }
+  },
+  {
+    "name": "Paraffin Wax",
+    "family": "Hybrid Fuel",
+    "source": "preset",
+    "description": "Hybrid fuel baseline values; burn law differs from true solid motors.",
+    "physical_properties": {
+      "density": { "value": 900, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 1.0e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.55, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1400, "units": "m/s" },
+      "gamma": { "value": 1.20, "units": "dimensionless" },
+      "combustion_temperature": { "value": 2900, "units": "K" }
+    }
+  },
+  {
+    "name": "Polyethylene",
+    "family": "Hybrid Fuel",
+    "source": "preset",
+    "description": "Hybrid fuel baseline values; burn law differs from true solid motors.",
+    "physical_properties": {
+      "density": { "value": 950, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 1.1e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.52, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1450, "units": "m/s" },
+      "gamma": { "value": 1.20, "units": "dimensionless" },
+      "combustion_temperature": { "value": 2950, "units": "K" }
+    }
+  },
+  {
+    "name": "Sugar Propellant",
+    "family": "Generic",
+    "source": "preset",
+    "description": "Generic sugar propellant category for UI compatibility.",
+    "physical_properties": {
+      "density": { "value": 1780, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 3.7e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.33, "units": "dimensionless" }
+      },
+      "c_star": { "value": 920, "units": "m/s" },
+      "gamma": { "value": 1.20, "units": "dimensionless" },
+      "combustion_temperature": { "value": 1680, "units": "K" }
+    }
+  },
+  {
+    "name": "Composite Propellant",
+    "family": "Generic",
+    "source": "preset",
+    "description": "Generic composite propellant category for UI compatibility.",
+    "physical_properties": {
+      "density": { "value": 1700, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 4.8e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.34, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3200, "units": "K" }
+    }
+  },
+  {
+    "name": "Experimental Propellant",
+    "family": "Generic",
+    "source": "preset",
+    "description": "Generic experimental category; replace with validated data.",
+    "physical_properties": {
+      "density": { "value": 1500, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 3.0e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.30, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1100, "units": "m/s" },
+      "gamma": { "value": 1.18, "units": "dimensionless" },
+      "combustion_temperature": { "value": 2400, "units": "K" }
+    }
+  },
+  {
+    "name": "White Lightning",
+    "family": "Composite Propellant",
+    "source": "external_db",
+    "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
+    "physical_properties": {
+      "density": { "value": 1700, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 5.0e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.35, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1550, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3300, "units": "K" }
+    }
+  },
+  {
+    "name": "Blue Thunder",
+    "family": "Composite Propellant",
+    "source": "external_db",
+    "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
+    "physical_properties": {
+      "density": { "value": 1700, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 5.2e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.36, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1550, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3300, "units": "K" }
+    }
+  },
+  {
+    "name": "Black Jack",
+    "family": "Composite Propellant",
+    "source": "external_db",
+    "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
+    "physical_properties": {
+      "density": { "value": 1680, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 4.6e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.34, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.21, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3200, "units": "K" }
+    }
+  },
+  {
+    "name": "Redline",
+    "family": "Composite Propellant",
+    "source": "external_db",
+    "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
+    "physical_properties": {
+      "density": { "value": 1700, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 5.1e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.35, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1550, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3300, "units": "K" }
+    }
+  },
+  {
+    "name": "Green Gorilla",
+    "family": "Composite Propellant",
+    "source": "external_db",
+    "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
+    "physical_properties": {
+      "density": { "value": 1680, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 4.7e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.34, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.21, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3200, "units": "K" }
+    }
+  },
+  {
+    "name": "Warp 9",
+    "family": "Composite Propellant",
+    "source": "external_db",
+    "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
+    "physical_properties": {
+      "density": { "value": 1700, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 5.4e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.36, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1550, "units": "m/s" },
+      "gamma": { "value": 1.22, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3300, "units": "K" }
+    }
+  },
+  {
+    "name": "Skidmark",
+    "family": "Composite Propellant",
+    "source": "external_db",
+    "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
+    "physical_properties": {
+      "density": { "value": 1680, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 4.8e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.34, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.21, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3200, "units": "K" }
+    }
+  }
+]

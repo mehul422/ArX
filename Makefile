@@ -1,4 +1,4 @@
-OPENROCKET_JAR ?= /Users/mehulverma422/Desktop/ArX/arx-os/backend/resources/jars/OpenRocket-15.03.jar
+OPENROCKET_JAR ?= /Users/mehulverma422/Desktop/ArX/arx-os/backend/resources/jars/OpenRocket-23.09.jar
 ORK_PATH ?= /Users/mehulverma422/Desktop/ArX/arx-os/backend/tests/testforai/rocket.ork
 ENG_PATH ?= /Users/mehulverma422/Desktop/ArX/arx-os/backend/tests/power1us.eng
 OPENROCKET_LOGBACK_CONFIG ?= /Users/mehulverma422/Desktop/ArX/arx-os/backend/tests/logback-test.xml

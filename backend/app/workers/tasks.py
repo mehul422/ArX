@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from app.api.v1.v1_mappers import compute_inputs_hash
 from app.db.queries import update_job
 from app.engine.openmotor_ai.engine_versions import openmotor_motorlib_version, trajectory_engine_version
 from app.engine.optimizer.evolutionary import run_evolutionary_optimization
@@ -31,6 +32,41 @@ def run_optimization_task(self, job_id: str, params: dict[str, Any]) -> None:
         update_job(job_id, status="completed", result=result)
     except Exception as exc:
         logger.exception("optimization failed: %s", exc)
+        update_job(job_id, status="failed", error=str(exc))
+        raise
+
+
+@celery_app.task(bind=True, name="run_motor_first")
+def run_motor_first_task(self, job_id: str, params: dict[str, Any]) -> None:
+    update_job(job_id, status="running")
+    try:
+        from app.engine.openmotor_ai.motor_first import run_motor_first_design
+
+        objectives = {obj["name"]: obj["target"] for obj in params.get("objectives") or []}
+        result = run_motor_first_design(
+            motor_ric_path=params.get("motor_ric_path"),
+            motor_spec_payload=params.get("motor_spec"),
+            objectives=objectives,
+            constraints=params.get("constraints", {}),
+            design_space=params.get("design_space"),
+            output_dir=params.get("output_dir", "backend/tests"),
+            cd_max=params.get("cd_max", 0.5),
+            mach_max=params.get("mach_max", 2.0),
+            cd_ramp=params.get("cd_ramp", False),
+            tolerance_pct=params.get("tolerance_pct", 0.02),
+            ai_prompt=params.get("ai_prompt"),
+        )
+        result = {
+            "inputs_hash": compute_inputs_hash(params),
+            "engine_versions": {
+                "trajectory_engine": trajectory_engine_version(),
+                "openmotor_motorlib": openmotor_motorlib_version(),
+            },
+            "motor_first_result": result,
+        }
+        update_job(job_id, status="completed", result=result)
+    except Exception as exc:
+        logger.exception("motor-first failed: %s", exc)
         update_job(job_id, status="failed", error=str(exc))
         raise
 

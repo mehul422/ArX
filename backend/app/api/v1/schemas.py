@@ -140,7 +140,7 @@ class V1Error(BaseModel):
 
 class V1JobResponse(BaseModel):
     api_version: Literal["v1"] = "v1"
-    job_kind: Literal["simulate", "mission_target"]
+    job_kind: Literal["simulate", "mission_target", "motor_first"]
     id: str
     status: Literal["queued", "running", "completed", "failed"]
     params: dict[str, Any] = Field(default_factory=dict)
@@ -148,7 +148,7 @@ class V1JobResponse(BaseModel):
     error: V1Error | None = None
     created_at: datetime
     updated_at: datetime
-    type: Literal["simulate", "mission_target"] | None = Field(
+    type: Literal["simulate", "mission_target", "motor_first"] | None = Field(
         default=None, description="Deprecated alias for job_kind"
     )
 
@@ -296,6 +296,55 @@ class V1TargetOnlyMissionRequest(BaseModel):
         if self.objectives:
             return self
         raise ValueError("Provide at least one objective")
+
+
+class V1MotorSpecPayload(BaseModel):
+    propellant: dict[str, Any]
+    grains: list[dict[str, Any]]
+    nozzle: dict[str, Any]
+    config: dict[str, Any]
+
+
+class V1MotorFirstConstraints(BaseModel):
+    max_vehicle_length_in: float = Field(..., gt=0)
+    max_vehicle_diameter_in: float = Field(..., gt=0)
+    max_total_mass_lb: float = Field(..., gt=0)
+    max_pressure_psi: float | None = Field(default=None, gt=0)
+    max_kn: float | None = Field(default=None, gt=0)
+
+
+class V1MotorFirstDesignSpace(BaseModel):
+    diameter_scales: list[float] | None = None
+    length_scales: list[float] | None = None
+    mass_scales: list[float] | None = None
+
+
+class V1MotorFirstRequest(BaseModel):
+    objectives: list[V1Objective]
+    constraints: V1MotorFirstConstraints
+    motor_ric_path: str | None = None
+    motor_spec: V1MotorSpecPayload | None = None
+    design_space: V1MotorFirstDesignSpace | None = None
+    output_dir: str = "backend/tests"
+    cd_max: float = Field(default=0.5, gt=0)
+    mach_max: float = Field(default=2.0, gt=0)
+    cd_ramp: bool = False
+    tolerance_pct: float = Field(default=0.02, gt=0)
+    ai_prompt: str | None = None
+
+    @model_validator(mode="after")
+    def validate_motor_source(self):
+        if not self.motor_ric_path and not self.motor_spec:
+            raise ValueError("Provide motor_ric_path or motor_spec")
+        return self
+
+
+class V1MotorFirstResult(BaseModel):
+    inputs_hash: str
+    engine_versions: dict[str, Any]
+    summary: dict[str, Any]
+    candidates: list[dict[str, Any]]
+    ranked: list[dict[str, Any]]
 
 
 class V1MissionTargetResult(BaseModel):

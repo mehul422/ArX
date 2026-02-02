@@ -8,6 +8,7 @@ from app.api.v1.schemas import (
     OptimizationRequest,
     V1JobResponse,
     V1ManualTestReport,
+    V1MotorFirstRequest,
     V1MissionTargetRequest,
     V1TargetOnlyMissionRequest,
 )
@@ -15,7 +16,12 @@ from app.api.v1.units import in_to_m, lb_to_kg
 from app.api.v1.v1_mappers import build_v1_job_response
 from app.api.v1.units import convert_mass_length_payload
 from app.db.queries import fetch_job, insert_job
-from app.workers.tasks import run_input_optimization_task, run_mission_target_task, run_optimization_task
+from app.workers.tasks import (
+    run_input_optimization_task,
+    run_mission_target_task,
+    run_motor_first_task,
+    run_optimization_task,
+)
 
 router = APIRouter(tags=["optimization"])
 # v1 mission-target mapping helpers
@@ -302,6 +308,44 @@ def enqueue_mission_target_target_only(request: V1TargetOnlyMissionRequest):
     job_id = insert_job(job_type="mission_target", params=params)
     run_mission_target_task.delay(job_id, params)
     return build_v1_job_response(fetch_job(job_id), job_kind="mission_target")
+
+
+def _build_motor_first_params(request: V1MotorFirstRequest) -> dict:
+    objectives_payload = [
+        {"name": obj.name, "target": obj.target, "units": obj.units}
+        for obj in request.objectives
+    ]
+    return {
+        "objectives": objectives_payload,
+        "constraints": request.constraints.model_dump(),
+        "motor_ric_path": request.motor_ric_path,
+        "motor_spec": request.motor_spec.model_dump() if request.motor_spec else None,
+        "design_space": request.design_space.model_dump() if request.design_space else None,
+        "output_dir": request.output_dir,
+        "cd_max": request.cd_max,
+        "mach_max": request.mach_max,
+        "cd_ramp": request.cd_ramp,
+        "tolerance_pct": request.tolerance_pct,
+        "ai_prompt": request.ai_prompt,
+    }
+
+
+@router.post("/optimize/motor-first", response_model=V1JobResponse)
+def enqueue_motor_first(request: V1MotorFirstRequest):
+    params = _build_motor_first_params(request)
+    job_id = insert_job(job_type="motor_first", params=params)
+    run_motor_first_task.delay(job_id, params)
+    return build_v1_job_response(fetch_job(job_id), job_kind="motor_first")
+
+
+@router.get("/optimize/motor-first/{job_id}", response_model=V1JobResponse)
+def get_motor_first(job_id: str):
+    job = fetch_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    if job.get("type") != "motor_first":
+        raise HTTPException(status_code=400, detail="job is not motor_first")
+    return build_v1_job_response(job, job_kind="motor_first")
 
 
 @router.get("/optimize/mission-target/{job_id}", response_model=V1JobResponse)

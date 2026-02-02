@@ -15,14 +15,14 @@ def compute_inputs_hash(payload: dict[str, Any]) -> str:
 
 def build_v1_job_response(
     job: dict[str, Any],
-    job_kind: Literal["simulate", "mission_target"],
+    job_kind: Literal["simulate", "mission_target", "motor_first"],
 ) -> V1JobResponse:
     error = None
     if job.get("error"):
         error = V1Error(code="job_failed", message=str(job["error"]))
     params = job.get("params", {})
     result = job.get("result")
-    if job_kind == "mission_target":
+    if job_kind in ("mission_target", "motor_first"):
         params = convert_mass_length_payload(params)
         result = convert_mass_length_payload(result) if result is not None else None
     return V1JobResponse(

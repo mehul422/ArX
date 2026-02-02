@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 from app.api.v1.routes_inputs import router as inputs_router
 from app.api.v1.routes_motors import router as motors_router
 from app.api.v1.routes_optimization import router as optimization_router
-from app.api.v1.routes_simulation import router as simulation_router
 from app.core.config import get_settings
 from app.db.queries import create_jobs_table, create_user_inputs_table
 
@@ -56,7 +55,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "internal server error"})
 
 
-app.include_router(simulation_router, prefix="/api/v1")
 app.include_router(optimization_router, prefix="/api/v1")
 app.include_router(motors_router, prefix="/api/v1")
 app.include_router(inputs_router, prefix="/api/v1")

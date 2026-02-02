@@ -357,13 +357,6 @@ def _build_manual_report(job: dict[str, object]) -> V1ManualTestReport:
                     "peak_pressure_psi": None,
                     "peak_kn": None,
                 },
-                "manual_openrocket": {
-                    "status": "pending",
-                    "notes": None,
-                    "apogee_ft": None,
-                    "max_velocity_m_s": None,
-                    "max_accel_m_s2": None,
-                },
             }
         )
     return V1ManualTestReport(

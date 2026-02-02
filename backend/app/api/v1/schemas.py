@@ -10,81 +10,6 @@ class MaterialSpec(BaseModel):
     type: Literal["BULK", "SURFACE", "LINE"] = "BULK"
 
 
-class SimulationRequest(BaseModel):
-    rocket_path: str
-    motor_source: Literal["bundled", "uploaded"]
-    motor_id: str | None = None
-    flight_config_id: str | None = None
-    use_all_stages: bool = True
-    material_mode: Literal["auto", "custom"] = "auto"
-    material_default: MaterialSpec | None = None
-    material_overrides: dict[str, MaterialSpec] | None = None
-    pressure_pa: float | None = None
-    params: dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def validate_motor_selection(self):
-        if not self.motor_id:
-            raise ValueError("motor_id is required for bundled or uploaded motors")
-        return self
-
-
-class MetricsSummaryRequest(BaseModel):
-    rocket_path: str
-    motor_source: Literal["bundled", "uploaded"] | None = None
-    motor_id: str | None = None
-    motor_mass_kg: float | None = Field(default=None, gt=0)
-    motor_length_m: float | None = Field(default=None, gt=0)
-    flight_config_id: str | None = None
-    use_all_stages: bool = True
-    material_mode: Literal["auto", "custom"] = "auto"
-    material_default: MaterialSpec | None = None
-    material_overrides: dict[str, MaterialSpec] | None = None
-    pressure_pa: float | None = None
-    params: dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def validate_motor_selection(self):
-        if self.motor_source and not self.motor_id:
-            raise ValueError("motor_id is required when motor_source is provided")
-        if self.motor_id and not self.motor_source:
-            raise ValueError("motor_source is required when motor_id is provided")
-        return self
-
-
-class PipelineRequest(BaseModel):
-    rocket_path: str
-    motor_source: Literal["bundled", "uploaded"]
-    motor_id: str
-    motor_mass_kg: float | None = Field(None, gt=0)
-    motor_length_m: float | None = Field(None, gt=0)
-    flight_config_id: str | None = None
-    use_all_stages: bool = True
-    material_mode: Literal["auto", "custom"] = "auto"
-    material_default: MaterialSpec | None = None
-    material_overrides: dict[str, MaterialSpec] | None = None
-    pressure_pa: float | None = None
-    include_geometry: bool = False
-    apply_materials: bool | None = None
-
-
-class CoreMassCalcRequest(BaseModel):
-    rocket_path: str
-    motor_source: Literal["bundled", "uploaded"] | None = None
-    motor_id: str | None = None
-    flight_config_id: str | None = None
-    use_all_stages: bool = True
-    params: dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def validate_motor_selection(self):
-        if self.motor_source and not self.motor_id:
-            raise ValueError("motor_id is required when motor_source is provided")
-        if self.motor_id and not self.motor_source:
-            raise ValueError("motor_source is required when motor_id is provided")
-        return self
-
-
 class OptimizationRequest(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -373,36 +298,6 @@ class V1TargetOnlyMissionRequest(BaseModel):
         raise ValueError("Provide at least one objective")
 
 
-class V1SimulateRequest(BaseModel):
-    rocket_path: str = Field(..., description="absolute path to .ork file")
-    motor_source: Literal["bundled", "uploaded"]
-    motor_id: str | None = None
-    flight_config_id: str | None = None
-    use_all_stages: bool = True
-    material_mode: Literal["auto", "custom"] = "auto"
-    material_default: MaterialSpec | None = None
-    material_overrides: dict[str, MaterialSpec] | None = None
-    pressure_pa: float | None = Field(default=None, gt=0, description="Pa")
-    params: dict[str, Any] = Field(
-        default_factory=dict,
-        description="internal ballistics estimate inputs: chamber_pressure Pa, burn_time s, throat_area m^2, c_star m/s",
-    )
-
-    @model_validator(mode="after")
-    def validate_motor_selection(self):
-        if not self.motor_id:
-            raise ValueError("motor_id is required for bundled or uploaded motors")
-        return self
-
-
-class V1SimulateResult(BaseModel):
-    openrocket: dict[str, Any] | None = None
-    internal_ballistics_estimate: dict[str, Any] | None = None
-    deprecated_aliases: dict[str, Any] | None = None
-    inputs_hash: str
-    engine_versions: dict[str, Any]
-
-
 class V1MissionTargetResult(BaseModel):
     openmotor_motorlib_result: dict[str, Any]
     inputs_hash: str
@@ -416,9 +311,6 @@ class V1ManualTestCandidate(BaseModel):
     artifacts: dict[str, str]
     objective_reports: list[V1ObjectiveReport] | None = None
     manual_openmotor: dict[str, Any] = Field(
-        default_factory=lambda: {"status": "pending", "notes": None}
-    )
-    manual_openrocket: dict[str, Any] = Field(
         default_factory=lambda: {"status": "pending", "notes": None}
     )
 

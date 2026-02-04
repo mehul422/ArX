@@ -1,9 +1,15 @@
 import React, { useEffect } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import {
   MissionTargetPayload,
   pollMissionTargetJob,
   submitMissionTarget,
 } from "../services/missionTarget";
+import { FlightTelemetryGraph } from "./telemetry/FlightTelemetryGraph";
 import "./ArxInterface.css";
 
 const ArxInterface: React.FC = () => {
@@ -19,6 +25,18 @@ const ArxInterface: React.FC = () => {
     let warpInterval: number | null = null;
     let modeXHoverTimer: number | null = null;
     let arxHoverTimer: number | null = null;
+    let hasInitializedGrid = false;
+    let engineRenderer: any = null;
+    let engineComposer: any = null;
+    let engineControls: any = null;
+    let engineScene: any = null;
+    let engineCamera: any = null;
+    let engineAnimationId: number | null = null;
+    let engineResizeObserver: ResizeObserver | null = null;
+    let engineHighlight = 0;
+    let engineGlowMaterial: any = null;
+    let engineBandMaterial: any = null;
+    let telemetryGraph: FlightTelemetryGraph | null = null;
     let hasBooted = false;
     let isTransitioning = false;
     let activeModuleId: string | null = null;
@@ -424,6 +442,19 @@ const ArxInterface: React.FC = () => {
                 window.setTimeout(() => {
                   bootText?.classList.remove("boot-text-visible");
                   document.body.classList.add("dashboard-mode");
+                  if (!hasInitializedGrid) {
+                    hasInitializedGrid = true;
+                    document.body.classList.add("grid-init-collapse");
+                    window.setTimeout(() => {
+                      document.body.classList.add("grid-init-directional");
+                    }, 300);
+                    window.setTimeout(() => {
+                      document.body.classList.add("grid-init-holograms");
+                    }, 650);
+                    window.setTimeout(() => {
+                      document.body.classList.add("grid-init-final");
+                    }, 900);
+                  }
                   if (dashboardContainer) dashboardContainer.style.display = "block";
                   if (flash) {
                     flash.style.transition = "opacity 1s ease";
@@ -660,8 +691,10 @@ const ArxInterface: React.FC = () => {
           overlay?.classList.add("arc-reactor-corner");
           document.body.classList.add("grid-mat-active");
           document.getElementById("activeFloater")?.remove();
-          if (activeModuleId === "SYSTEM") {
-            void runMissionTarget();
+          if (activeModuleId === "SYSTEM" || activeModuleId === "ARMOR" || activeModuleId === "NETWORK") {
+            document.body.classList.add("grid-only");
+            document.body.classList.remove("panel-active");
+            awaitSubPageKey(activeModuleId);
           }
         }, 4000);
       }
@@ -671,6 +704,7 @@ const ArxInterface: React.FC = () => {
       document.getElementById("arc-reactor-overlay")?.classList.remove("active");
       document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
       document.body.classList.remove("grid-mat-active");
+      document.body.classList.remove("holo-active");
       document.querySelector(".close-x-btn")?.classList.remove("active");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
       hidePressAnyKey();
@@ -1802,6 +1836,806 @@ const ArxInterface: React.FC = () => {
             </div>
           </form>
         `;
+      } else if (type === "SYSTEM" || type === "VEHICLE") {
+        const isVehiclePage = type === "VEHICLE";
+        let hasLockedTarget = false;
+        document.body.classList.add("holo-active");
+        document.body.classList.add("grid-only");
+        subPageContent.innerHTML = isVehiclePage
+          ? `
+          <form class="subpage-form" data-form="vehicle-info" novalidate>
+            <div class="arx-step active" id="mission-step-2">
+              <div class="form-title">VEHICLE INFO</div>
+              <div class="form-subtitle">DEFINE THE CURRENT VEHICLE PARAMETERS</div>
+              <div class="arx-field">
+                <input type="number" name="total_mass_lb" placeholder=" " min="0" step="any" required />
+                <label>TOTAL MASS (LB)</label>
+                <div class="field-hint">Example: 120</div>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="rocket_length_in" placeholder=" " min="0" step="any" required />
+                <label>ROCKET LENGTH (IN)</label>
+                <div class="field-hint">Example: 96</div>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="stage_count" placeholder=" " min="1" step="1" required />
+                <label>STAGE COUNT</label>
+                <div class="field-hint">Example: 2</div>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="separation_delay_s" placeholder=" " min="0" step="any" required />
+                <label>SEPARATION DELAY (S)</label>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="ignition_delay_s" placeholder=" " min="0" step="any" required />
+                <label>IGNITION DELAY (S)</label>
+              </div>
+              <div class="form-status" id="mission-status-2"></div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" id="mission-continue-2">Continue</button>
+              </div>
+            </div>
+
+            <div class="arx-step" id="mission-step-3">
+              <div class="form-title">ROCKET CONSTRAINTS</div>
+              <div class="form-subtitle">DEFINE MAXIMUM CONSTRAINTS</div>
+              <div class="arx-field">
+                <input type="number" name="max_pressure_psi" placeholder=" " min="0" step="any" required />
+                <label>MAX PRESSURE (PSI)</label>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="max_kn" placeholder=" " min="0" step="any" required />
+                <label>MAX K_N</label>
+                <div class="field-hint">Ratio of burning area to throat area</div>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="max_vehicle_length_in" placeholder=" " min="0" step="any" required />
+                <label>MAX VEHICLE LENGTH (IN)</label>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="ref_diameter_in" placeholder=" " min="0" step="any" required />
+                <label>REFERENCE DIAMETER (IN)</label>
+              </div>
+              <div id="stage-lengths"></div>
+              <div class="form-status" id="mission-status-3"></div>
+              <div class="arx-form-actions" id="mission-actions">
+                <button type="button" class="arx-btn" id="mission-continue-3">Continue</button>
+                <div class="mini-reactor-loader" id="mission-loader" aria-hidden="true"></div>
+              </div>
+              <div class="mission-results" id="mission-results"></div>
+            </div>
+          </form>
+        `
+          : `
+          <form class="subpage-form" data-form="mission-target" novalidate>
+            <div class="arx-step active" id="mission-step-1">
+              <div class="form-title">TARGET PROFILE</div>
+              <div class="form-subtitle">
+                WHAT IS THE MAXIMUM APOGEE AND VELOCITY THAT YOU WANT YOUR ROCKET TO ACHIEVE?
+              </div>
+              <div class="arx-field">
+                <input type="number" name="max_apogee_ft" placeholder=" " min="0" step="any" required />
+                <label>MAX APOGEE (FT)</label>
+                <div class="field-hint">Example: 30000</div>
+              </div>
+              <div class="mission-helper" id="apogee-helper">≈ 0 ft</div>
+              <div class="mission-warning" id="apogee-warning"></div>
+              <div class="arx-field">
+                <input type="number" name="max_velocity_m_s" placeholder=" " min="0" step="any" required />
+                <label>MAX VELOCITY (M/S)</label>
+                <div class="field-hint">Example: 700</div>
+              </div>
+              <div class="mission-helper" id="velocity-helper">≈ Mach 0.00</div>
+              <div class="mission-warning" id="velocity-warning"></div>
+              <div class="confidence-meter" id="confidence-meter">
+                SYSTEM CONFIDENCE:
+                <span class="meter-bar ok" id="confidence-bar">██████░░░</span>
+                <span class="meter-value" id="confidence-value">78%</span>
+              </div>
+              <div class="mission-presets">
+                <button type="button" class="preset-btn" data-preset="low">LOW-ALT TEST</button>
+                <button type="button" class="preset-btn" data-preset="sound">SOUNDING ROCKET</button>
+                <button type="button" class="preset-btn" data-preset="sub">SUB-ORBITAL</button>
+                <button type="button" class="preset-btn" data-preset="maxq">MAX-Q STRESS</button>
+              </div>
+              <div class="preset-status" id="preset-status"></div>
+              <div class="ambient-text" id="ambient-text">Analyzing ascent envelope…</div>
+              <div class="form-status" id="mission-status-1"></div>
+              <div class="panel-footer">
+                <div class="arx-form-actions">
+                  <button type="button" class="arx-btn mission-continue" id="mission-continue-1">
+                    AWAITING TARGET LOCK
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        `;
+
+        const step1 = subPageContent.querySelector("#mission-step-1") as HTMLElement | null;
+        const step2 = subPageContent.querySelector("#mission-step-2") as HTMLElement | null;
+        const step3 = subPageContent.querySelector("#mission-step-3") as HTMLElement | null;
+        const status1 = subPageContent.querySelector("#mission-status-1") as HTMLElement | null;
+        const status2 = subPageContent.querySelector("#mission-status-2") as HTMLElement | null;
+        const status3 = subPageContent.querySelector("#mission-status-3") as HTMLElement | null;
+        const loader = subPageContent.querySelector("#mission-loader") as HTMLElement | null;
+        const resultsSlot = subPageContent.querySelector("#mission-results") as HTMLElement | null;
+        const actions = subPageContent.querySelector("#mission-actions") as HTMLElement | null;
+
+        const showStep = (step: number) => {
+          [step1, step2, step3].forEach((el, index) => {
+            if (!el) return;
+            if (index === step) {
+              el.classList.add("active");
+            } else {
+              el.classList.remove("active");
+            }
+          });
+        };
+
+        const updateConstraintsContinue = () => {
+          if (!continue3) return;
+          const maxPressure = getNumberValue("max_pressure_psi");
+          const maxKn = getNumberValue("max_kn");
+          const maxVehicleLength = getNumberValue("max_vehicle_length_in");
+          const refDiameter = getNumberValue("ref_diameter_in");
+          const stageCount = Math.floor(getNumberValue("stage_count"));
+          const count = Math.max(1, Math.min(6, Math.floor(Number(stageCount) || 1)));
+
+          const hasBasics =
+            Number.isFinite(maxPressure) &&
+            maxPressure > 0 &&
+            Number.isFinite(maxKn) &&
+            maxKn > 0 &&
+            Number.isFinite(maxVehicleLength) &&
+            maxVehicleLength > 0 &&
+            Number.isFinite(refDiameter) &&
+            refDiameter > 0;
+
+          let hasStageLengths = true;
+          for (let i = 1; i <= count; i += 1) {
+            const value = getNumberValue(`stage_length_${i}`);
+            if (!Number.isFinite(value) || value <= 0) {
+              hasStageLengths = false;
+              break;
+            }
+          }
+
+          const isValid = hasBasics && hasStageLengths;
+          continue3.style.display = isValid ? "" : "none";
+          continue3.disabled = !isValid;
+        };
+
+        window.setTimeout(() => {
+          document.body.classList.remove("grid-only");
+          document.body.classList.add("panel-active");
+        }, 1000);
+
+        const goToVehicleInfo = () => {
+          const apogee = getNumberValue("max_apogee_ft");
+          const velocity = getNumberValue("max_velocity_m_s");
+          if (Number.isFinite(apogee) && apogee > 0 && Number.isFinite(velocity) && velocity > 0) {
+            window.localStorage.setItem(
+              "arx_target_profile",
+              JSON.stringify({ apogee, velocity })
+            );
+          }
+          if (window.location.hash !== "#vehicle-info") {
+            window.location.hash = "vehicle-info";
+          }
+          pendingSubPageType = "VEHICLE";
+          revealPendingSubPage();
+        };
+
+        const getInputValue = (name: string) => {
+          const input = subPageContent.querySelector(
+            `input[name="${name}"]`
+          ) as HTMLInputElement | null;
+          return input ? input.value.trim() : "";
+        };
+
+        const getNumberValue = (name: string) => {
+          const raw = getInputValue(name);
+          if (!raw) return NaN;
+          const value = Number(raw);
+          return Number.isFinite(value) ? value : NaN;
+        };
+
+        const stageCountInput = subPageContent.querySelector(
+          'input[name="stage_count"]'
+        ) as HTMLInputElement | null;
+        const stageLengthsContainer = subPageContent.querySelector(
+          "#stage-lengths"
+        ) as HTMLElement | null;
+
+        const updateStageLengths = () => {
+          if (!stageCountInput || !stageLengthsContainer) return;
+          const count = Math.max(1, Math.min(6, Math.floor(Number(stageCountInput.value) || 1)));
+          stageLengthsContainer.innerHTML = "";
+          for (let i = 1; i <= count; i += 1) {
+            const field = document.createElement("div");
+            field.className = "arx-field";
+            field.innerHTML = `
+              <input type="number" name="stage_length_${i}" placeholder=" " min="0" step="any" required />
+              <label>STAGE ${i} MAX LENGTH (IN)</label>
+              <div class="field-hint">Example: 48</div>
+            `;
+            stageLengthsContainer.appendChild(field);
+          }
+        };
+
+        stageCountInput?.addEventListener("input", () => {
+          updateStageLengths();
+          updateConstraintsContinue();
+        });
+        updateStageLengths();
+
+        const continue1 = subPageContent.querySelector("#mission-continue-1") as HTMLButtonElement | null;
+        const continue2 = subPageContent.querySelector("#mission-continue-2") as HTMLButtonElement | null;
+        const continue3 = subPageContent.querySelector("#mission-continue-3") as HTMLButtonElement | null;
+
+        // Target profile enhancements (step 1 only)
+        const apogeeInput = subPageContent.querySelector(
+          'input[name="max_apogee_ft"]'
+        ) as HTMLInputElement | null;
+        const velocityInput = subPageContent.querySelector(
+          'input[name="max_velocity_m_s"]'
+        ) as HTMLInputElement | null;
+        const apogeeHelper = subPageContent.querySelector("#apogee-helper") as HTMLElement | null;
+        const velocityHelper = subPageContent.querySelector("#velocity-helper") as HTMLElement | null;
+        const rightHolo = document.getElementById("holo-side-right") as HTMLElement | null;
+        const engineContainer = document.getElementById("engine-holo-container") as HTMLElement | null;
+        const apogeeWarning = subPageContent.querySelector("#apogee-warning") as HTMLElement | null;
+        const velocityWarning = subPageContent.querySelector("#velocity-warning") as HTMLElement | null;
+        const confidenceBar = subPageContent.querySelector("#confidence-bar") as HTMLElement | null;
+        const confidenceValue = subPageContent.querySelector("#confidence-value") as HTMLElement | null;
+        const ambientText = subPageContent.querySelector("#ambient-text") as HTMLElement | null;
+        const presetButtons = subPageContent.querySelectorAll(".preset-btn");
+        const presetStatus = subPageContent.querySelector("#preset-status") as HTMLElement | null;
+        const telemetryContainer = document.getElementById(
+          "telemetry-graph-left"
+        ) as HTMLElement | null;
+
+        const systemMessages = [
+          "Analyzing ascent envelope…",
+          "Cross-checking aerodynamic limits…",
+          "Trajectory within recoverable bounds.",
+        ];
+        let systemMessageIndex = 0;
+        let systemMessageInterval: number | null = null;
+
+        const clamp = (value: number, min: number, max: number) =>
+          Math.max(min, Math.min(max, value));
+        const toMach = (velocity: number) => velocity / 343;
+
+        const formatNumber = (value: number) =>
+          Number.isFinite(value) ? value.toLocaleString("en-US") : "0";
+
+        let sideHoloAnimId: number | null = null;
+        let currentPreset: string | null = null;
+        let holoPulse = 0;
+
+        const animateSideHolograms = () => {
+          holoPulse += 0.02;
+          sideHoloAnimId = requestAnimationFrame(animateSideHolograms);
+        };
+
+        const initEngineHologram = () => {
+          if (!engineContainer || engineRenderer) return;
+          const rect = engineContainer.getBoundingClientRect();
+          const width = Math.max(260, Math.floor(rect.width));
+          const height = Math.max(260, Math.floor(rect.height));
+
+          engineScene = new THREE.Scene();
+          engineCamera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+          engineCamera.position.set(0, 1, 8);
+
+          engineRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+          engineRenderer.setSize(width, height);
+          engineRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          engineRenderer.setClearColor(0x000000, 0);
+          engineRenderer.domElement.style.background = "transparent";
+          engineContainer.appendChild(engineRenderer.domElement);
+
+          const holoMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+              time: { value: 0.0 },
+              glowColor: { value: new THREE.Color(0x00e6a8) },
+            },
+            vertexShader: `
+              varying vec3 vNormal;
+              varying vec3 vPosition;
+              void main() {
+                vNormal = normalize(normalMatrix * normal);
+                vPosition = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform float time;
+              uniform vec3 glowColor;
+              varying vec3 vNormal;
+              varying vec3 vPosition;
+              void main() {
+                float viewLine = dot(vNormal, vec3(0.0, 0.0, 1.0));
+                float fresnel = pow(1.0 - abs(viewLine), 2.0);
+                float scanline = sin(vPosition.y * 10.0 + time * 5.0) * 0.05 + 0.95;
+                float depthFade = smoothstep(-1.5, 1.5, vPosition.y);
+                float opacity = fresnel * scanline * depthFade * 0.18;
+                gl_FragColor = vec4(glowColor, opacity);
+              }
+            `,
+            transparent: true,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          });
+
+          const wireMaterial = new THREE.LineBasicMaterial({
+            color: 0x00e6a8,
+            transparent: true,
+            opacity: 0.35,
+          });
+
+          const engineGroup = new THREE.Group();
+          const addPart = (geo: any, yPos: number) => {
+            const mesh = new THREE.Mesh(geo, holoMaterial);
+            const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo), wireMaterial);
+            mesh.position.y = yPos;
+            mesh.add(wire);
+            engineGroup.add(mesh);
+          };
+
+          addPart(new THREE.CylinderGeometry(0.7, 1.6, 2.5, 32, 12, true), -1.5);
+          addPart(new THREE.CylinderGeometry(0.7, 0.7, 1.2, 32, 6), 0.35);
+          addPart(new THREE.TorusGeometry(0.8, 0.15, 16, 100), 1.0);
+          addPart(new THREE.CylinderGeometry(1.0, 1.0, 0.2, 32), 1.3);
+
+          engineScene.add(engineGroup);
+
+          const renderTarget = new THREE.WebGLRenderTarget(width, height, {
+            type: THREE.HalfFloatType,
+            format: THREE.RGBAFormat,
+            encoding: THREE.sRGBEncoding,
+          });
+
+          engineComposer = new EffectComposer(engineRenderer, renderTarget);
+          const renderPass = new RenderPass(engineScene, engineCamera);
+          renderPass.clearColor = new THREE.Color(0, 0, 0);
+          renderPass.clearAlpha = 0;
+          engineComposer.addPass(renderPass);
+
+          const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(width, height),
+            1.5,
+            0.4,
+            0.85
+          );
+          bloomPass.threshold = 0;
+          bloomPass.strength = 0.35;
+          bloomPass.radius = 0.15;
+          engineComposer.addPass(bloomPass);
+
+          engineControls = new OrbitControls(engineCamera, engineRenderer.domElement);
+          engineControls.enableDamping = true;
+          engineControls.autoRotate = false;
+          engineControls.autoRotateSpeed = 0.0;
+          engineControls.enableRotate = true;
+          engineControls.enableZoom = false;
+          engineControls.enablePan = false;
+          engineControls.enabled = true;
+          engineRenderer.domElement.style.pointerEvents = "auto";
+
+          const clock = new THREE.Clock();
+          const renderEngine = () => {
+            engineAnimationId = requestAnimationFrame(renderEngine);
+            const delta = clock.getElapsedTime();
+            holoMaterial.uniforms.time.value = delta;
+            engineGroup.position.y = Math.sin(delta * 0.5) * 0.1;
+            engineControls?.update();
+            engineComposer?.render();
+          };
+          renderEngine();
+
+          engineResizeObserver = new ResizeObserver(() => {
+            if (!engineContainer || !engineRenderer || !engineComposer || !engineCamera) return;
+            const nextRect = engineContainer.getBoundingClientRect();
+            const nextWidth = Math.max(260, Math.floor(nextRect.width));
+            const nextHeight = Math.max(260, Math.floor(nextRect.height));
+            engineRenderer.setSize(nextWidth, nextHeight);
+            engineComposer.setSize(nextWidth, nextHeight);
+            engineCamera.aspect = nextWidth / nextHeight;
+            engineCamera.updateProjectionMatrix();
+          });
+          engineResizeObserver.observe(engineContainer);
+
+        };
+
+        if (telemetryContainer) {
+          telemetryGraph?.dispose();
+          telemetryGraph = new FlightTelemetryGraph(telemetryContainer);
+          const stored = window.localStorage.getItem("arx_target_profile");
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored) as { apogee?: number; velocity?: number };
+              if (Number.isFinite(parsed.apogee) && Number.isFinite(parsed.velocity)) {
+                telemetryGraph.setInputs(Number(parsed.apogee), Number(parsed.velocity));
+              }
+            } catch {
+              // ignore malformed storage
+            }
+          }
+        }
+
+        const computePresetConfidence = (
+          apogee: number,
+          velocity: number,
+          preset: { apogee: number; velocity: number; apogeeTol: number; velocityTol: number }
+        ) => {
+          const apogeeDelta = Math.abs(apogee - preset.apogee);
+          const velocityDelta = Math.abs(velocity - preset.velocity);
+          const apogeeScore = clamp(1 - apogeeDelta / preset.apogeeTol, 0, 1);
+          const velocityScore = clamp(1 - velocityDelta / preset.velocityTol, 0, 1);
+          const blended = (apogeeScore * 0.6 + velocityScore * 0.4) * 100;
+          return Math.round(clamp(blended, 5, 99));
+        };
+
+        const updateConfidence = (apogee: number, velocity: number) => {
+          const missingValues = !Number.isFinite(apogee) || apogee <= 0 || !Number.isFinite(velocity) || velocity <= 0;
+          let confidence = 0;
+          if (!missingValues && currentPreset && presets[currentPreset]) {
+            confidence = computePresetConfidence(apogee, velocity, presets[currentPreset]);
+          } else if (!missingValues) {
+            let base = 100;
+            if (apogee > 300000 || velocity > 2400) base -= 35;
+            if (apogee < 1000 || velocity < 80) base -= 25;
+            if (apogee > 200000 && velocity > 1800) base -= 15;
+            confidence = Math.round(clamp(base, 10, 99));
+          }
+
+          if (confidenceValue) confidenceValue.textContent = `${confidence}%`;
+          if (confidenceBar) {
+            const blocks = Math.round((confidence / 100) * 9);
+            confidenceBar.textContent = "█".repeat(blocks) + "░".repeat(9 - blocks);
+            confidenceBar.classList.remove("ok", "warn", "bad");
+            if (confidence > 70) confidenceBar.classList.add("ok");
+            else if (confidence > 40) confidenceBar.classList.add("warn");
+            else confidenceBar.classList.add("bad");
+          }
+        };
+
+        const updateTargetProfileUI = () => {
+          const apogee = Number(apogeeInput?.value || 0);
+          const velocity = Number(velocityInput?.value || 0);
+          if (!Number.isFinite(apogee) || apogee <= 0 || !Number.isFinite(velocity) || velocity <= 0) {
+            currentPreset = null;
+          }
+
+          if (apogeeHelper) {
+            apogeeHelper.textContent = `≈ ${formatNumber(apogee)} ft`;
+          }
+          if (velocityHelper) {
+            velocityHelper.textContent = `≈ Mach ${toMach(velocity).toFixed(2)}`;
+          }
+
+          if (apogeeWarning) {
+            apogeeWarning.textContent =
+              apogee > 300000 ? "⚠ TRAJECTORY INSTABILITY DETECTED" : "";
+            apogeeWarning.classList.toggle("visible", Boolean(apogeeWarning.textContent));
+          }
+          if (velocityWarning) {
+            velocityWarning.textContent =
+              velocity > 2200 ? "Recommend reducing velocity by ~10%" : "";
+            velocityWarning.classList.toggle("visible", Boolean(velocityWarning.textContent));
+          }
+
+          updateConfidence(apogee, velocity);
+          engineHighlight = 1;
+          telemetryGraph?.setInputs(apogee, velocity);
+
+          const valid =
+            Number.isFinite(apogee) &&
+            apogee > 0 &&
+            Number.isFinite(velocity) &&
+            velocity > 0;
+          if (continue1) {
+            continue1.textContent = valid ? "TARGET LOCKED → CONTINUE" : "AWAITING TARGET LOCK";
+            continue1.classList.toggle("ready", valid);
+          }
+        };
+
+        if (apogeeInput || velocityInput) {
+          apogeeInput?.addEventListener("input", updateTargetProfileUI);
+          velocityInput?.addEventListener("input", updateTargetProfileUI);
+          updateTargetProfileUI();
+        }
+
+        if (isVehiclePage) {
+          hasLockedTarget = true;
+        }
+        if (window.location.hash === "#vehicle-info" && !isVehiclePage && hasLockedTarget) {
+          goToVehicleInfo();
+        }
+        window.addEventListener("hashchange", () => {
+          if (window.location.hash === "#vehicle-info" && !isVehiclePage && hasLockedTarget) {
+            goToVehicleInfo();
+          }
+        });
+
+        if (!sideHoloAnimId) {
+          sideHoloAnimId = requestAnimationFrame(animateSideHolograms);
+        }
+        requestAnimationFrame(() => initEngineHologram());
+
+        rightHolo?.addEventListener("mouseenter", () => {
+          rightHolo.classList.add("holo-focus");
+        });
+        rightHolo?.addEventListener("mouseleave", () => {
+          rightHolo.classList.remove("holo-focus");
+        });
+
+        if (ambientText) {
+          if (systemMessageInterval) window.clearInterval(systemMessageInterval);
+          systemMessageInterval = window.setInterval(() => {
+            systemMessageIndex = (systemMessageIndex + 1) % systemMessages.length;
+            ambientText.textContent = systemMessages[systemMessageIndex];
+          }, 3500);
+        }
+
+        const presets: Record<
+          string,
+          { apogee: number; velocity: number; apogeeTol: number; velocityTol: number }
+        > = {
+          low: { apogee: 12000, velocity: 320, apogeeTol: 5000, velocityTol: 150 },
+          sound: { apogee: 60000, velocity: 720, apogeeTol: 15000, velocityTol: 250 },
+          sub: { apogee: 250000, velocity: 1300, apogeeTol: 50000, velocityTol: 400 },
+          maxq: { apogee: 40000, velocity: 1800, apogeeTol: 10000, velocityTol: 300 },
+        };
+        presetButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const key = (button as HTMLElement).dataset.preset || "";
+            const preset = presets[key];
+            if (!preset) return;
+            currentPreset = key;
+            if (presetStatus) {
+              presetStatus.textContent = `LOADING ${button.textContent} PROFILE…`;
+              presetStatus.classList.add("active");
+            }
+            window.setTimeout(() => {
+              if (apogeeInput) apogeeInput.value = String(preset.apogee);
+              if (velocityInput) velocityInput.value = String(preset.velocity);
+              updateTargetProfileUI();
+              if (presetStatus) {
+                presetStatus.textContent = "";
+                presetStatus.classList.remove("active");
+              }
+            }, 600);
+          });
+        });
+
+        continue1?.addEventListener("click", () => {
+          if (status1) status1.textContent = "";
+          const apogee = getNumberValue("max_apogee_ft");
+          const velocity = getNumberValue("max_velocity_m_s");
+          if (!Number.isFinite(apogee) || apogee <= 0 || !Number.isFinite(velocity) || velocity <= 0) {
+            if (status1) status1.textContent = "ENTER MAX APOGEE AND MAX VELOCITY.";
+            return;
+          }
+          hasLockedTarget = true;
+          goToVehicleInfo();
+        });
+
+        continue2?.addEventListener("click", () => {
+          if (status2) status2.textContent = "";
+          const totalMass = getNumberValue("total_mass_lb");
+          const rocketLength = getNumberValue("rocket_length_in");
+          const stageCount = Math.floor(getNumberValue("stage_count"));
+          const separationDelay = getNumberValue("separation_delay_s");
+          const ignitionDelay = getNumberValue("ignition_delay_s");
+          if (
+            !Number.isFinite(totalMass) ||
+            totalMass <= 0 ||
+            !Number.isFinite(rocketLength) ||
+            rocketLength <= 0 ||
+            !Number.isFinite(stageCount) ||
+            stageCount <= 0 ||
+            !Number.isFinite(separationDelay) ||
+            separationDelay < 0 ||
+            !Number.isFinite(ignitionDelay) ||
+            ignitionDelay < 0
+          ) {
+            if (status2) status2.textContent = "COMPLETE ALL VEHICLE FIELDS.";
+            return;
+          }
+          updateStageLengths();
+          showStep(2);
+          updateConstraintsContinue();
+        });
+
+        const renderResults = (candidate: Record<string, unknown>) => {
+          if (!resultsSlot) return;
+          const apogee = Number(candidate.apogee_ft);
+          const velocity = Number(candidate.max_velocity_m_s);
+          const nmax = Number(candidate.max_accel_m_s2);
+          const pressure = Number(candidate.peak_pressure_psi);
+          const kn = Number(candidate.peak_kn);
+          const thrust = Number(candidate.average_thrust);
+          const artifacts = candidate.artifact_urls as Record<string, string> | undefined;
+
+          const format = (value: number, unit: string) =>
+            Number.isFinite(value) ? `${value.toFixed(2)} ${unit}` : "N/A";
+
+          const downloadLinks = artifacts
+            ? `
+              <a class="download-link" href="${artifacts.stage0_ric}" download>.ric (stage 0)</a>
+              <a class="download-link" href="${artifacts.stage0_eng}" download>.eng (stage 0)</a>
+              <a class="download-link" href="${artifacts.stage1_ric}" download>.ric (stage 1)</a>
+              <a class="download-link" href="${artifacts.stage1_eng}" download>.eng (stage 1)</a>
+            `
+            : `<div class="download-muted">Download links unavailable.</div>`;
+
+          resultsSlot.innerHTML = `
+            <div class="results-grid">
+              <div class="result-item"><span>APOGEE</span><strong>${format(apogee, "ft")}</strong></div>
+              <div class="result-item"><span>MAX VELOCITY</span><strong>${format(velocity, "m/s")}</strong></div>
+              <div class="result-item"><span>NMAX</span><strong>${format(nmax, "m/s²")}</strong></div>
+              <div class="result-item"><span>PRESSURE</span><strong>${format(pressure, "psi")}</strong></div>
+              <div class="result-item"><span>K_N</span><strong>${format(kn, "")}</strong></div>
+              <div class="result-item"><span>THRUST</span><strong>${format(thrust, "N")}</strong></div>
+            </div>
+            <div class="download-box">
+              <div class="download-title">DOWNLOAD FILES</div>
+              <div class="download-links">${downloadLinks}</div>
+            </div>
+          `;
+          resultsSlot.classList.add("visible");
+        };
+
+        const handleMissionStatus = (event: Event) => {
+          const detail = (event as CustomEvent).detail as
+            | { status: string; job?: { result?: Record<string, unknown> } }
+            | undefined;
+          if (!detail) return;
+          if (detail.status === "completed" && detail.job?.result) {
+            const result = detail.job.result as Record<string, unknown>;
+            const motorlib = result.openmotor_motorlib_result as Record<string, unknown> | undefined;
+            const candidate = (motorlib?.candidates as Record<string, unknown>[] | undefined)?.[0];
+            if (candidate) {
+              renderResults(candidate);
+            }
+            if (loader) loader.classList.remove("active");
+            if (actions) actions.classList.add("hidden");
+            document.body.classList.remove("grid-mat-active");
+            document.getElementById("grid-mat-layer")?.classList.add("grid-mat-hidden");
+            window.removeEventListener("arx:mission-target:status", handleMissionStatus as EventListener);
+            window.removeEventListener("arx:mission-target:error", handleMissionError as EventListener);
+          }
+        };
+
+        const handleMissionError = (event: Event) => {
+          const detail = (event as CustomEvent).detail as { message?: string } | undefined;
+          if (status3) status3.textContent = detail?.message || "MISSION TARGET FAILED.";
+          if (loader) loader.classList.remove("active");
+          if (continue3) continue3.disabled = false;
+          if (continue3) continue3.style.display = "";
+          window.removeEventListener("arx:mission-target:status", handleMissionStatus as EventListener);
+          window.removeEventListener("arx:mission-target:error", handleMissionError as EventListener);
+        };
+
+        continue3?.addEventListener("click", () => {
+          if (status3) status3.textContent = "";
+          const apogee = getNumberValue("max_apogee_ft");
+          const velocity = getNumberValue("max_velocity_m_s");
+          const totalMass = getNumberValue("total_mass_lb");
+          const rocketLength = getNumberValue("rocket_length_in");
+          const stageCount = Math.floor(getNumberValue("stage_count"));
+          const separationDelay = getNumberValue("separation_delay_s");
+          const ignitionDelay = getNumberValue("ignition_delay_s");
+          const maxPressure = getNumberValue("max_pressure_psi");
+          const maxKn = getNumberValue("max_kn");
+          const maxVehicleLength = getNumberValue("max_vehicle_length_in");
+          const refDiameter = getNumberValue("ref_diameter_in");
+
+          if (
+            !Number.isFinite(maxPressure) ||
+            maxPressure <= 0 ||
+            !Number.isFinite(maxKn) ||
+            maxKn <= 0 ||
+            !Number.isFinite(maxVehicleLength) ||
+            maxVehicleLength <= 0 ||
+            !Number.isFinite(refDiameter) ||
+            refDiameter <= 0
+          ) {
+            if (status3) status3.textContent = "COMPLETE ALL CONSTRAINT FIELDS.";
+            return;
+          }
+
+          const stageLengths: number[] = [];
+          if (stageLengthsContainer) {
+            const count = Math.max(1, Math.min(6, Math.floor(Number(stageCount) || 1)));
+            for (let i = 1; i <= count; i += 1) {
+              const value = getNumberValue(`stage_length_${i}`);
+              if (!Number.isFinite(value) || value <= 0) {
+                if (status3) status3.textContent = "ENTER MAX LENGTH FOR EACH STAGE.";
+                return;
+              }
+              stageLengths.push(value);
+            }
+          }
+
+          const maxStageLength = stageLengths.length ? Math.max(...stageLengths) : 0;
+          const maxStageLengthRatio =
+            rocketLength > 0 && maxStageLength > 0 ? maxStageLength / rocketLength : 1.15;
+
+          const objectives = [
+            { name: "apogee_ft" as const, target: apogee, units: "ft" },
+            { name: "max_velocity_m_s" as const, target: velocity, units: "m/s" },
+          ];
+
+          const payload: MissionTargetPayload = {
+            objectives,
+            constraints: {
+              max_pressure_psi: maxPressure,
+              max_kn: maxKn,
+              max_vehicle_length_in: maxVehicleLength,
+              max_stage_length_ratio: maxStageLengthRatio,
+            },
+            vehicle: {
+              ref_diameter_in: refDiameter,
+              rocket_length_in: rocketLength,
+              total_mass_lb: totalMass,
+            },
+            separation_delay_s: separationDelay,
+            ignition_delay_s: ignitionDelay,
+          };
+
+          if (stageCount === 1 || stageCount === 2) {
+            payload.stage_count = stageCount;
+          }
+
+          (window as unknown as { ARX_MISSION_TARGET_PAYLOAD?: MissionTargetPayload }).ARX_MISSION_TARGET_PAYLOAD =
+            payload;
+          window.localStorage.setItem("arx_mission_target_payload", JSON.stringify(payload));
+          if (stageLengths.length) {
+            window.localStorage.setItem("arx_mission_target_stage_lengths", JSON.stringify(stageLengths));
+          }
+
+          if (continue3) {
+            continue3.disabled = true;
+            continue3.style.display = "none";
+          }
+          if (loader) loader.classList.add("active");
+          if (resultsSlot) resultsSlot.classList.remove("visible");
+          if (status3) status3.textContent = "TARGETS LOCKED. RUNNING OPTIMIZATION.";
+          window.addEventListener("arx:mission-target:status", handleMissionStatus as EventListener);
+          window.addEventListener("arx:mission-target:error", handleMissionError as EventListener);
+          void runMissionTarget();
+        });
+
+        const handleConstraintsInput = (event: Event) => {
+          const target = event.target as HTMLElement | null;
+          if (!target || !step3 || !step3.contains(target)) return;
+          updateConstraintsContinue();
+        };
+        subPageContent.addEventListener("input", handleConstraintsInput);
+        updateConstraintsContinue();
+      } else if (type === "ARMOR" || type === "NETWORK") {
+        const title = type === "ARMOR" ? "ROCKET DEVELOPMENT" : "SIMULATIONS";
+        document.body.classList.add("holo-active");
+        document.body.classList.add("grid-only");
+        subPageContent.innerHTML = `
+          <div class="subpage-form" data-form="coming-soon">
+            <div class="form-title">${title}</div>
+            <div class="form-subtitle">MODULE INITIALIZATION PENDING</div>
+            <div class="coming-soon-icon" aria-hidden="true"></div>
+            <div class="coming-soon-text">COMING SOON</div>
+            <div class="form-status">GRID MODE ACTIVE • STANDBY</div>
+          </div>
+        `;
+        window.setTimeout(() => {
+          document.body.classList.remove("grid-only");
+          document.body.classList.add("panel-active");
+        }, 1000);
       } else if (type === "PROTO") {
         subPageContent.innerHTML = `
           <form class="subpage-form" data-form="proto" novalidate>
@@ -1947,6 +2781,7 @@ const ArxInterface: React.FC = () => {
       document.getElementById("arc-reactor-overlay")?.classList.remove("active");
       document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
       document.body.classList.remove("grid-mat-active");
+      document.body.classList.remove("holo-active");
       document.getElementById("ring1")?.classList.remove("hidden-fast");
       document.getElementById("ring2")?.classList.remove("hidden-fast");
       document.querySelector(".close-x-btn")?.classList.remove("active");
@@ -1960,6 +2795,10 @@ const ArxInterface: React.FC = () => {
         ?.classList.remove("active", "form-mode");
       const subPageContent = document.getElementById("subPageContent");
       if (subPageContent) subPageContent.innerHTML = "";
+      if (telemetryGraph) {
+        telemetryGraph.dispose();
+        telemetryGraph = null;
+      }
       isSubPageLocked = false;
       pendingSubPageType = null;
       const floaters = document.querySelectorAll(".floating-letter");
@@ -2401,6 +3240,15 @@ const ArxInterface: React.FC = () => {
       if (rocketAnimationId) cancelAnimationFrame(rocketAnimationId);
       if (warpInterval) clearInterval(warpInterval);
       if (resizeObserver) resizeObserver.disconnect();
+      if (engineAnimationId) cancelAnimationFrame(engineAnimationId);
+      if (engineResizeObserver) engineResizeObserver.disconnect();
+      if (engineControls) engineControls.dispose();
+      if (engineComposer) engineComposer.dispose();
+      if (engineRenderer) {
+        engineRenderer.dispose();
+        const dom = engineRenderer.domElement;
+        dom?.parentElement?.removeChild(dom);
+      }
       bootTimeouts.forEach((id) => clearTimeout(id));
       modeXTimeouts.forEach((id) => clearTimeout(id));
       landingAudio.pause();
@@ -2420,6 +3268,23 @@ const ArxInterface: React.FC = () => {
       </div>
       <div id="grid-mat-layer" aria-hidden="true">
         <div id="grid-mat"></div>
+        <div id="holo-layer" aria-hidden="true">
+          <svg className="holo-arc" viewBox="0 0 360 160" preserveAspectRatio="none">
+            <path
+              d="M10 140 Q180 10 350 140"
+              fill="none"
+              stroke="rgba(0, 243, 255, 0.45)"
+              strokeWidth="2"
+            />
+          </svg>
+        </div>
+      </div>
+      <div id="holo-side-layer" aria-hidden="true"></div>
+      <div id="telemetry-graph-layer" aria-hidden="true">
+        <div id="telemetry-graph-left" role="img" aria-label="Telemetry graph"></div>
+      </div>
+      <div id="holo-orbit-layer" aria-hidden="true">
+        <div id="engine-holo-container"></div>
       </div>
       <div id="login-layer"></div>
       <div id="success-layer"></div>

@@ -1,9 +1,11 @@
 import logging
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.routes_inputs import router as inputs_router
 from app.api.v1.routes_motors import router as motors_router
@@ -15,6 +17,8 @@ logger = logging.getLogger("arx.backend")
 
 app = FastAPI(title="ArX Backend", version="0.1.0")
 settings = get_settings()
+downloads_dir = Path(__file__).resolve().parent.parent / "tests"
+app.mount("/downloads", StaticFiles(directory=downloads_dir), name="downloads")
 
 app.add_middleware(
     CORSMiddleware,

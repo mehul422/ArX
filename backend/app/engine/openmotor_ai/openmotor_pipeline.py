@@ -1480,6 +1480,12 @@ def mission_targeted_design(
             stage_len = stage0_len + stage1_len
             stage_diameter = _stage_diameter_in(stage0.spec)
             name = f"{prop.name} split {split:.2f}"
+            peak_pressure_pa = metrics.get("peak_chamber_pressure")
+            peak_pressure_psi = (
+                peak_pressure_pa / 6894.757 if peak_pressure_pa is not None else None
+            )
+            peak_kn = metrics.get("peak_kn")
+            average_thrust = metrics.get("average_thrust")
             candidate = Candidate(
                 name=name,
                 metrics=metrics,
@@ -1499,6 +1505,9 @@ def mission_targeted_design(
                     "apogee_ft": apogee.apogee_m * 3.28084,
                     "max_velocity_m_s": apogee.max_velocity_m_s,
                     "max_accel_m_s2": apogee.max_accel_m_s2,
+                    "peak_pressure_psi": peak_pressure_psi,
+                    "peak_kn": peak_kn,
+                    "average_thrust": average_thrust,
                     "objective_reports": _objective_reports(
                         apogee.apogee_m * 3.28084,
                         apogee.max_velocity_m_s,
@@ -1513,6 +1522,12 @@ def mission_targeted_design(
                         "stage1_ric": str(Path(output_dir) / f"{prefix}_stage1.ric"),
                         "stage0_eng": str(Path(output_dir) / f"{prefix}_stage0.eng"),
                         "stage1_eng": str(Path(output_dir) / f"{prefix}_stage1.eng"),
+                    },
+                    "artifact_urls": {
+                        "stage0_ric": f"/downloads/{(Path(output_dir) / f'{prefix}_stage0.ric').name}",
+                        "stage1_ric": f"/downloads/{(Path(output_dir) / f'{prefix}_stage1.ric').name}",
+                        "stage0_eng": f"/downloads/{(Path(output_dir) / f'{prefix}_stage0.eng').name}",
+                        "stage1_eng": f"/downloads/{(Path(output_dir) / f'{prefix}_stage1.eng').name}",
                     },
                 }
             )

@@ -14,6 +14,60 @@ import "./ArxInterface.css";
 
 const ArxInterface: React.FC = () => {
   useEffect(() => {
+    const API_BASE =
+      (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || "";
+    const resolveDownloadUrl = (path?: string) => {
+      if (!path) return "";
+      if (path.startsWith("http://") || path.startsWith("https://")) return path;
+      const normalized = path.replace(/\\/g, "/");
+      if (normalized.startsWith("/downloads/")) return `${API_BASE}/api/v1${normalized}`;
+      if (normalized.startsWith("downloads/")) return `${API_BASE}/api/v1/${normalized}`;
+      if (normalized.startsWith("backend/tests/")) {
+        return `${API_BASE}/api/v1/downloads/${normalized.slice("backend/tests/".length)}`;
+      }
+      const testsIndex = normalized.indexOf("/backend/tests/");
+      if (testsIndex !== -1) {
+        return `${API_BASE}/api/v1/downloads/${normalized.slice(
+          testsIndex + "/backend/tests/".length
+        )}`;
+      }
+      if (normalized.startsWith("backend/")) {
+        const parts = normalized.split("/");
+        const filename = parts[parts.length - 1];
+        return filename ? `${API_BASE}/api/v1/downloads/${filename}` : "";
+      }
+      if (normalized.startsWith("/")) return `${API_BASE}${normalized}`;
+      return `${API_BASE}/${normalized}`;
+    };
+    const getFilenameFromUrl = (url: string) => {
+      try {
+        const parsed = new URL(url, window.location.href);
+        const name = parsed.pathname.split("/").pop();
+        return name || "download";
+      } catch {
+        const parts = url.split("/");
+        return parts[parts.length - 1] || "download";
+      }
+    };
+    const triggerDownload = async (url: string, filename?: string) => {
+      if (!url) return;
+      try {
+        const response = await fetch(url, { credentials: "include" });
+        if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = filename || getFilenameFromUrl(url);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(objectUrl);
+      } catch (error) {
+        console.error(error);
+        window.open(url, "_blank");
+      }
+    };
     const audioCtx = new (window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext)();
@@ -1702,7 +1756,7 @@ const ArxInterface: React.FC = () => {
     };
 
     const awaitSubPageKey = (type: string) => {
-      pendingSubPageType = type;
+      pendingSubPageType = type === "SYSTEM" ? "A_PRECHECK" : type;
       isSubPageLocked = false;
       document.getElementById("subPage")?.classList.remove("locked");
       showPressAnyKeyHint();
@@ -1836,6 +1890,208 @@ const ArxInterface: React.FC = () => {
             </div>
           </form>
         `;
+      } else if (type === "A_PRECHECK") {
+        document.body.classList.add("grid-only");
+        document.body.classList.add("panel-active");
+        document.body.classList.remove("holo-active");
+        subPageContent.innerHTML = `
+          <div class="subpage-form" data-form="ork-precheck">
+            <div class="form-title">UPLOAD ORK?</div>
+            <div class="form-subtitle">DO YOU WANT TO UPLOAD AN ORK FILE?</div>
+            <div class="arx-field">
+              <a class="link-button" id="ork-upload-link" href="#">upload .ork</a>
+              <input id="ork-upload-input" type="file" accept=".ork" hidden />
+            </div>
+            <div class="field-hint">
+              If you just want to make a motor and use the A module we need you to upload an .ork file for the most accurate results.
+            </div>
+            <div class="form-status" id="ork-upload-status"></div>
+            <div class="arx-form-actions">
+              <button type="button" class="arx-btn" id="ork-no-btn">No</button>
+              <button type="button" class="arx-btn" id="ork-continue-btn" disabled>Continue</button>
+            </div>
+          </div>
+        `;
+
+        const uploadLink = subPageContent.querySelector("#ork-upload-link") as HTMLAnchorElement | null;
+        const uploadInput = subPageContent.querySelector("#ork-upload-input") as HTMLInputElement | null;
+        const status = subPageContent.querySelector("#ork-upload-status") as HTMLElement | null;
+        const noBtn = subPageContent.querySelector("#ork-no-btn") as HTMLButtonElement | null;
+        const continueBtn = subPageContent.querySelector("#ork-continue-btn") as HTMLButtonElement | null;
+
+        const parseOrkFile = async (file: File) => {
+          const text = await file.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(text, "application/xml");
+          const rocket = doc.querySelector("rocket");
+          if (!rocket) {
+            throw new Error("Invalid ORK file");
+          }
+          const stageNodes = Array.from(doc.querySelectorAll("rocket > subcomponents > stage"));
+          const stageLengths = stageNodes.map((stage) => {
+            let total = 0;
+            stage.querySelectorAll("nosecone, bodytube, transition").forEach((node) => {
+              const length = node.querySelector("length");
+              if (length?.textContent) {
+                const value = Number(length.textContent);
+                if (Number.isFinite(value)) total += value;
+              }
+            });
+            return total;
+          });
+          const rocketLengthM = Math.max(...stageLengths, 0);
+
+          let maxRadius = 0;
+          doc.querySelectorAll("nosecone, bodytube, transition").forEach((node) => {
+            ["radius", "outerradius", "aftradius"].forEach((tag) => {
+              const radius = node.querySelector(tag);
+              if (radius?.textContent) {
+                const value = Number(radius.textContent);
+                if (Number.isFinite(value)) maxRadius = Math.max(maxRadius, value);
+              }
+            });
+          });
+          const diameterM = maxRadius > 0 ? maxRadius * 2 : 0;
+
+          let massKg = 0;
+          doc.querySelectorAll("mass").forEach((node) => {
+            const value = Number(node.textContent);
+            if (Number.isFinite(value)) massKg += value;
+          });
+
+          const toInches = (meters: number) => meters * 39.3701;
+          const toPounds = (kg: number) => kg * 2.20462;
+
+          return {
+            rocket_length_in: toInches(rocketLengthM),
+            ref_diameter_in: toInches(diameterM),
+            total_mass_lb: toPounds(massKg),
+            file_name: file.name,
+          };
+        };
+
+        uploadLink?.addEventListener("click", (event) => {
+          event.preventDefault();
+          uploadInput?.click();
+        });
+        uploadInput?.addEventListener("change", async () => {
+          const file = uploadInput.files?.[0];
+          if (!file) return;
+          try {
+            const profile = await parseOrkFile(file);
+            window.localStorage.setItem("arx_use_ork", "true");
+            window.localStorage.setItem("arx_ork_vehicle_profile", JSON.stringify(profile));
+            if (status) status.textContent = `Loaded ${profile.file_name}`;
+            if (continueBtn) continueBtn.disabled = false;
+          } catch (error) {
+            console.error(error);
+            if (status) status.textContent = "Failed to read ORK file.";
+          }
+        });
+        noBtn?.addEventListener("click", () => {
+          window.localStorage.removeItem("arx_use_ork");
+          window.localStorage.removeItem("arx_ork_vehicle_profile");
+          pendingSubPageType = "SYSTEM";
+          revealPendingSubPage();
+        });
+        continueBtn?.addEventListener("click", () => {
+          pendingSubPageType = "SYSTEM";
+          revealPendingSubPage();
+        });
+      } else if (type === "RESULTS") {
+        const stored = window.localStorage.getItem("arx_mission_target_result");
+        let result: Record<string, unknown> | null = null;
+        if (stored) {
+          try {
+            result = JSON.parse(stored) as Record<string, unknown>;
+          } catch (error) {
+            console.warn("Invalid arx_mission_target_result JSON", error);
+          }
+        }
+        const candidate = (result?.candidate as Record<string, unknown> | undefined) || undefined;
+        const artifacts = (candidate?.artifacts as Record<string, string> | undefined) || undefined;
+        const format = (value: number | null | undefined, unit: string) =>
+          Number.isFinite(value) ? `${Number(value).toFixed(2)} ${unit}` : "N/A";
+        const apogee = Number(candidate?.apogee_ft);
+        const velocity = Number(candidate?.max_velocity_m_s);
+        const metrics = (candidate?.metrics as Record<string, unknown> | undefined) || {};
+        const rawPressure = Number(
+          metrics.peak_pressure_psi ??
+            metrics.peak_chamber_pressure ??
+            metrics.max_pressure ??
+            metrics.max_pressure_pa
+        );
+        const pressure =
+          Number.isFinite(rawPressure) && rawPressure > 10000
+            ? rawPressure / 6894.757
+            : rawPressure;
+        const kn = Number(metrics.peak_kn ?? metrics.max_kn);
+        const thrust = Number(metrics.average_thrust ?? metrics.max_thrust ?? 0);
+        const stage0Ric = resolveDownloadUrl(artifacts?.stage0_ric || artifacts?.ric);
+        const stage0Eng = resolveDownloadUrl(artifacts?.stage0_eng || artifacts?.eng);
+        const stage1Ric = resolveDownloadUrl(artifacts?.stage1_ric);
+        const stage1Eng = resolveDownloadUrl(artifacts?.stage1_eng);
+        const downloadLinks = artifacts
+          ? `
+            ${
+              stage0Ric
+                ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>`
+                : ""
+            }
+            ${
+              stage0Eng
+                ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>`
+                : ""
+            }
+            ${
+              stage1Ric
+                ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>`
+                : ""
+            }
+            ${
+              stage1Eng
+                ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>`
+                : ""
+            }
+          `
+          : `<div class="download-muted">Download links unavailable.</div>`;
+        const withinTolerance = Boolean((candidate as { within_tolerance?: boolean }).within_tolerance);
+        const objectiveError = Number((candidate as { objective_error_pct?: number }).objective_error_pct);
+        const outcomeNote =
+          withinTolerance || !Number.isFinite(objectiveError)
+            ? ""
+            : `<div class="download-muted">Best effort: objective error ${objectiveError.toFixed(
+                1
+              )}%</div>`;
+        subPageContent.innerHTML = `
+          <div class="subpage-form" data-form="mission-results">
+            <div class="form-title">RESULTS</div>
+            <div class="form-subtitle">MISSION TARGET OUTPUT</div>
+            <div class="results-grid">
+              <div class="result-item"><span>APOGEE</span><strong>${format(apogee, "ft")}</strong></div>
+              <div class="result-item"><span>MAX VELOCITY</span><strong>${format(velocity, "m/s")}</strong></div>
+              <div class="result-item"><span>PRESSURE</span><strong>${format(pressure, "psi")}</strong></div>
+              <div class="result-item"><span>K_N</span><strong>${format(kn, "")}</strong></div>
+              <div class="result-item"><span>THRUST</span><strong>${format(thrust, "N")}</strong></div>
+            </div>
+            <div class="download-box">
+              <div class="download-title">DOWNLOAD FILES</div>
+              <div class="download-links">${downloadLinks}</div>
+              ${outcomeNote}
+            </div>
+          </div>
+        `;
+        const downloadsContainer = subPageContent.querySelector(".download-links");
+        if (downloadsContainer) {
+          downloadsContainer.addEventListener("click", (event) => {
+            const target = event.target as HTMLElement | null;
+            const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
+            if (!anchor) return;
+            event.preventDefault();
+            const href = anchor.getAttribute("data-download") || "";
+            triggerDownload(href);
+          });
+        }
       } else if (type === "SYSTEM" || type === "VEHICLE") {
         const isVehiclePage = type === "VEHICLE";
         let hasLockedTarget = false;
@@ -1856,6 +2112,11 @@ const ArxInterface: React.FC = () => {
                 <input type="number" name="rocket_length_in" placeholder=" " min="0" step="any" required />
                 <label>ROCKET LENGTH (IN)</label>
                 <div class="field-hint">Example: 96</div>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="ref_diameter_in" placeholder=" " min="0" step="any" required />
+                <label>REFERENCE DIAMETER (IN)</label>
+                <div class="field-hint">Example: 6.5</div>
               </div>
               <div class="arx-field">
                 <input type="number" name="stage_count" placeholder=" " min="1" step="1" required />
@@ -1883,20 +2144,23 @@ const ArxInterface: React.FC = () => {
                 <input type="number" name="max_pressure_psi" placeholder=" " min="0" step="any" required />
                 <label>MAX PRESSURE (PSI)</label>
               </div>
-              <div class="arx-field">
-                <input type="number" name="max_kn" placeholder=" " min="0" step="any" required />
-                <label>MAX K_N</label>
-                <div class="field-hint">Ratio of burning area to throat area</div>
-              </div>
-              <div class="arx-field">
-                <input type="number" name="max_vehicle_length_in" placeholder=" " min="0" step="any" required />
-                <label>MAX VEHICLE LENGTH (IN)</label>
-              </div>
-              <div class="arx-field">
-                <input type="number" name="ref_diameter_in" placeholder=" " min="0" step="any" required />
-                <label>REFERENCE DIAMETER (IN)</label>
-              </div>
-              <div id="stage-lengths"></div>
+            <div class="arx-field">
+              <input type="number" name="max_kn" placeholder=" " min="0" step="any" required />
+              <label>MAX K_N</label>
+              <div class="field-hint">Ratio of burning area to throat area</div>
+            </div>
+            <div class="arx-field">
+              <input
+                type="number"
+                name="stage_count_constraints"
+                placeholder=" "
+                min="1"
+                step="1"
+                required
+              />
+              <label>STAGE COUNT</label>
+              <div class="field-hint">Example: 2</div>
+            </div>
               <div class="form-status" id="mission-status-3"></div>
               <div class="arx-form-actions" id="mission-actions">
                 <button type="button" class="arx-btn" id="mission-continue-3">Continue</button>
@@ -1977,31 +2241,26 @@ const ArxInterface: React.FC = () => {
           if (!continue3) return;
           const maxPressure = getNumberValue("max_pressure_psi");
           const maxKn = getNumberValue("max_kn");
-          const maxVehicleLength = getNumberValue("max_vehicle_length_in");
           const refDiameter = getNumberValue("ref_diameter_in");
-          const stageCount = Math.floor(getNumberValue("stage_count"));
-          const count = Math.max(1, Math.min(6, Math.floor(Number(stageCount) || 1)));
+          const rocketLength = getNumberValue("rocket_length_in");
+          const totalMass = getNumberValue("total_mass_lb");
+          const stageCount = getStageCountValue();
 
           const hasBasics =
             Number.isFinite(maxPressure) &&
             maxPressure > 0 &&
             Number.isFinite(maxKn) &&
             maxKn > 0 &&
-            Number.isFinite(maxVehicleLength) &&
-            maxVehicleLength > 0 &&
             Number.isFinite(refDiameter) &&
-            refDiameter > 0;
+            refDiameter > 0 &&
+            Number.isFinite(rocketLength) &&
+            rocketLength > 0 &&
+            Number.isFinite(totalMass) &&
+            totalMass > 0 &&
+            Number.isFinite(stageCount) &&
+            stageCount > 0;
 
-          let hasStageLengths = true;
-          for (let i = 1; i <= count; i += 1) {
-            const value = getNumberValue(`stage_length_${i}`);
-            if (!Number.isFinite(value) || value <= 0) {
-              hasStageLengths = false;
-              break;
-            }
-          }
-
-          const isValid = hasBasics && hasStageLengths;
+          const isValid = hasBasics;
           continue3.style.display = isValid ? "" : "none";
           continue3.disabled = !isValid;
         };
@@ -2019,6 +2278,18 @@ const ArxInterface: React.FC = () => {
               "arx_target_profile",
               JSON.stringify({ apogee, velocity })
             );
+          }
+          const useOrk =
+            window.localStorage.getItem("arx_use_ork") === "true" ||
+            Boolean(window.localStorage.getItem("arx_ork_vehicle_profile"));
+          if (useOrk) {
+            window.localStorage.setItem("arx_skip_vehicle", "true");
+            if (window.location.hash !== "#rocket-constraints") {
+              window.location.hash = "rocket-constraints";
+            }
+            pendingSubPageType = "VEHICLE";
+            revealPendingSubPage();
+            return;
           }
           if (window.location.hash !== "#vehicle-info") {
             window.location.hash = "vehicle-info";
@@ -2040,35 +2311,18 @@ const ArxInterface: React.FC = () => {
           const value = Number(raw);
           return Number.isFinite(value) ? value : NaN;
         };
+        const getStageCountValue = () => {
+          const override = Math.floor(getNumberValue("stage_count_constraints"));
+          if (Number.isFinite(override) && override > 0) return override;
+          return Math.floor(getNumberValue("stage_count"));
+        };
 
         const stageCountInput = subPageContent.querySelector(
           'input[name="stage_count"]'
         ) as HTMLInputElement | null;
-        const stageLengthsContainer = subPageContent.querySelector(
-          "#stage-lengths"
-        ) as HTMLElement | null;
-
-        const updateStageLengths = () => {
-          if (!stageCountInput || !stageLengthsContainer) return;
-          const count = Math.max(1, Math.min(6, Math.floor(Number(stageCountInput.value) || 1)));
-          stageLengthsContainer.innerHTML = "";
-          for (let i = 1; i <= count; i += 1) {
-            const field = document.createElement("div");
-            field.className = "arx-field";
-            field.innerHTML = `
-              <input type="number" name="stage_length_${i}" placeholder=" " min="0" step="any" required />
-              <label>STAGE ${i} MAX LENGTH (IN)</label>
-              <div class="field-hint">Example: 48</div>
-            `;
-            stageLengthsContainer.appendChild(field);
-          }
-        };
-
         stageCountInput?.addEventListener("input", () => {
-          updateStageLengths();
           updateConstraintsContinue();
         });
-        updateStageLengths();
 
         const continue1 = subPageContent.querySelector("#mission-continue-1") as HTMLButtonElement | null;
         const continue2 = subPageContent.querySelector("#mission-continue-2") as HTMLButtonElement | null;
@@ -2095,6 +2349,50 @@ const ArxInterface: React.FC = () => {
         const telemetryContainer = document.getElementById(
           "telemetry-graph-left"
         ) as HTMLElement | null;
+
+        const applyOrkProfile = () => {
+          const stored = window.localStorage.getItem("arx_ork_vehicle_profile");
+          if (!stored) return;
+          try {
+            const profile = JSON.parse(stored) as {
+              rocket_length_in?: number;
+              ref_diameter_in?: number;
+              total_mass_lb?: number;
+            };
+            const massInput = subPageContent.querySelector(
+              'input[name="total_mass_lb"]'
+            ) as HTMLInputElement | null;
+            const lengthInput = subPageContent.querySelector(
+              'input[name="rocket_length_in"]'
+            ) as HTMLInputElement | null;
+            const diameterInput = subPageContent.querySelector(
+              'input[name="ref_diameter_in"]'
+            ) as HTMLInputElement | null;
+            const stageCountInputEl = subPageContent.querySelector(
+              'input[name="stage_count"]'
+            ) as HTMLInputElement | null;
+            const stageCountOverrideEl = subPageContent.querySelector(
+              'input[name="stage_count_constraints"]'
+            ) as HTMLInputElement | null;
+            if (massInput && Number.isFinite(profile.total_mass_lb)) {
+              massInput.value = String(profile.total_mass_lb);
+            }
+            if (lengthInput && Number.isFinite(profile.rocket_length_in)) {
+              lengthInput.value = String(profile.rocket_length_in);
+            }
+            if (diameterInput && Number.isFinite(profile.ref_diameter_in)) {
+              diameterInput.value = String(profile.ref_diameter_in);
+            }
+            if (stageCountInputEl && !stageCountInputEl.value) {
+              stageCountInputEl.value = "2";
+            }
+            if (stageCountOverrideEl && !stageCountOverrideEl.value) {
+              stageCountOverrideEl.value = "2";
+            }
+          } catch (error) {
+            console.warn("Invalid arx_ork_vehicle_profile JSON", error);
+          }
+        };
 
         const systemMessages = [
           "Analyzing ascent envelope…",
@@ -2349,9 +2647,16 @@ const ArxInterface: React.FC = () => {
           velocityInput?.addEventListener("input", updateTargetProfileUI);
           updateTargetProfileUI();
         }
+        applyOrkProfile();
 
         if (isVehiclePage) {
           hasLockedTarget = true;
+        }
+        const skipVehicle = window.localStorage.getItem("arx_skip_vehicle") === "true";
+        if (skipVehicle && isVehiclePage) {
+          window.localStorage.removeItem("arx_skip_vehicle");
+          showStep(2);
+          updateConstraintsContinue();
         }
         if (window.location.hash === "#vehicle-info" && !isVehiclePage && hasLockedTarget) {
           goToVehicleInfo();
@@ -2413,7 +2718,7 @@ const ArxInterface: React.FC = () => {
           });
         });
 
-        continue1?.addEventListener("click", () => {
+        const handleTargetContinue = () => {
           if (status1) status1.textContent = "";
           const apogee = getNumberValue("max_apogee_ft");
           const velocity = getNumberValue("max_velocity_m_s");
@@ -2423,13 +2728,28 @@ const ArxInterface: React.FC = () => {
           }
           hasLockedTarget = true;
           goToVehicleInfo();
-        });
+        };
+
+        continue1?.addEventListener("click", handleTargetContinue);
+        const subPageEl = subPageContent as HTMLElement;
+        if (subPageEl && subPageEl.dataset.missionContinueBound !== "true") {
+          subPageEl.dataset.missionContinueBound = "true";
+          subPageEl.addEventListener("click", (event) => {
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+            const button = target.closest("#mission-continue-1");
+            if (!button) return;
+            event.preventDefault();
+            handleTargetContinue();
+          });
+        }
 
         continue2?.addEventListener("click", () => {
           if (status2) status2.textContent = "";
           const totalMass = getNumberValue("total_mass_lb");
           const rocketLength = getNumberValue("rocket_length_in");
-          const stageCount = Math.floor(getNumberValue("stage_count"));
+          const refDiameter = getNumberValue("ref_diameter_in");
+          const stageCount = getStageCountValue();
           const separationDelay = getNumberValue("separation_delay_s");
           const ignitionDelay = getNumberValue("ignition_delay_s");
           if (
@@ -2437,6 +2757,8 @@ const ArxInterface: React.FC = () => {
             totalMass <= 0 ||
             !Number.isFinite(rocketLength) ||
             rocketLength <= 0 ||
+            !Number.isFinite(refDiameter) ||
+            refDiameter <= 0 ||
             !Number.isFinite(stageCount) ||
             stageCount <= 0 ||
             !Number.isFinite(separationDelay) ||
@@ -2447,7 +2769,6 @@ const ArxInterface: React.FC = () => {
             if (status2) status2.textContent = "COMPLETE ALL VEHICLE FIELDS.";
             return;
           }
-          updateStageLengths();
           showStep(2);
           updateConstraintsContinue();
         });
@@ -2457,22 +2778,63 @@ const ArxInterface: React.FC = () => {
           const apogee = Number(candidate.apogee_ft);
           const velocity = Number(candidate.max_velocity_m_s);
           const nmax = Number(candidate.max_accel_m_s2);
-          const pressure = Number(candidate.peak_pressure_psi);
+          const metrics = (candidate.metrics as Record<string, unknown> | undefined) || {};
+          const rawPressure = Number(
+            (candidate as { peak_pressure_psi?: number }).peak_pressure_psi ??
+              metrics.peak_pressure_psi ??
+              metrics.peak_chamber_pressure ??
+              metrics.max_pressure ??
+              metrics.max_pressure_pa
+          );
+          const pressure =
+            Number.isFinite(rawPressure) && rawPressure > 10000
+              ? rawPressure / 6894.757
+              : rawPressure;
           const kn = Number(candidate.peak_kn);
           const thrust = Number(candidate.average_thrust);
-          const artifacts = candidate.artifact_urls as Record<string, string> | undefined;
+          const artifacts =
+            (candidate.artifact_urls as Record<string, string> | undefined) ||
+            (candidate.artifacts as Record<string, string> | undefined);
+          const withinTolerance = Boolean((candidate as { within_tolerance?: boolean }).within_tolerance);
+          const objectiveError = Number((candidate as { objective_error_pct?: number }).objective_error_pct);
 
           const format = (value: number, unit: string) =>
             Number.isFinite(value) ? `${value.toFixed(2)} ${unit}` : "N/A";
 
+          const stage0Ric = resolveDownloadUrl(artifacts?.stage0_ric || artifacts?.ric);
+          const stage0Eng = resolveDownloadUrl(artifacts?.stage0_eng || artifacts?.eng);
+          const stage1Ric = resolveDownloadUrl(artifacts?.stage1_ric);
+          const stage1Eng = resolveDownloadUrl(artifacts?.stage1_eng);
           const downloadLinks = artifacts
             ? `
-              <a class="download-link" href="${artifacts.stage0_ric}" download>.ric (stage 0)</a>
-              <a class="download-link" href="${artifacts.stage0_eng}" download>.eng (stage 0)</a>
-              <a class="download-link" href="${artifacts.stage1_ric}" download>.ric (stage 1)</a>
-              <a class="download-link" href="${artifacts.stage1_eng}" download>.eng (stage 1)</a>
+              ${
+                stage0Ric
+                  ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>`
+                  : ""
+              }
+              ${
+                stage0Eng
+                  ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>`
+                  : ""
+              }
+              ${
+                stage1Ric
+                  ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>`
+                  : ""
+              }
+              ${
+                stage1Eng
+                  ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>`
+                  : ""
+              }
             `
             : `<div class="download-muted">Download links unavailable.</div>`;
+          const outcomeNote =
+            withinTolerance || !Number.isFinite(objectiveError)
+              ? ""
+              : `<div class="download-muted">Best effort: objective error ${objectiveError.toFixed(
+                  1
+                )}%</div>`;
 
           resultsSlot.innerHTML = `
             <div class="results-grid">
@@ -2486,9 +2848,21 @@ const ArxInterface: React.FC = () => {
             <div class="download-box">
               <div class="download-title">DOWNLOAD FILES</div>
               <div class="download-links">${downloadLinks}</div>
+              ${outcomeNote}
             </div>
           `;
           resultsSlot.classList.add("visible");
+          const downloadsContainer = resultsSlot.querySelector(".download-links");
+          if (downloadsContainer) {
+            downloadsContainer.addEventListener("click", (event) => {
+              const target = event.target as HTMLElement | null;
+              const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
+              if (!anchor) return;
+              event.preventDefault();
+              const href = anchor.getAttribute("data-download") || "";
+            triggerDownload(href);
+            });
+          }
         };
 
         const handleMissionStatus = (event: Event) => {
@@ -2502,13 +2876,24 @@ const ArxInterface: React.FC = () => {
             const candidate = (motorlib?.candidates as Record<string, unknown>[] | undefined)?.[0];
             if (candidate) {
               renderResults(candidate);
+              window.localStorage.setItem(
+                "arx_mission_target_result",
+                JSON.stringify({ candidate, job: detail.job })
+              );
             }
-            if (loader) loader.classList.remove("active");
+            if (status3) status3.textContent = "THIS IS DONE.";
+            if (loader) loader.classList.add("active");
             if (actions) actions.classList.add("hidden");
             document.body.classList.remove("grid-mat-active");
             document.getElementById("grid-mat-layer")?.classList.add("grid-mat-hidden");
             window.removeEventListener("arx:mission-target:status", handleMissionStatus as EventListener);
             window.removeEventListener("arx:mission-target:error", handleMissionError as EventListener);
+            window.setTimeout(() => {
+              pendingSubPageType = "RESULTS";
+              window.location.hash = "mission-results";
+              if (loader) loader.classList.remove("active");
+              revealPendingSubPage();
+            }, 800);
           }
         };
 
@@ -2524,48 +2909,66 @@ const ArxInterface: React.FC = () => {
 
         continue3?.addEventListener("click", () => {
           if (status3) status3.textContent = "";
-          const apogee = getNumberValue("max_apogee_ft");
-          const velocity = getNumberValue("max_velocity_m_s");
+          let apogee = getNumberValue("max_apogee_ft");
+          let velocity = getNumberValue("max_velocity_m_s");
+          if (!Number.isFinite(apogee) || apogee <= 0 || !Number.isFinite(velocity) || velocity <= 0) {
+            try {
+              const stored = window.localStorage.getItem("arx_target_profile");
+              if (stored) {
+                const parsed = JSON.parse(stored) as { apogee?: number; velocity?: number };
+                if (Number.isFinite(parsed.apogee) && parsed.apogee && apogeeInput) {
+                  apogeeInput.value = String(parsed.apogee);
+                }
+                if (Number.isFinite(parsed.velocity) && parsed.velocity && velocityInput) {
+                  velocityInput.value = String(parsed.velocity);
+                }
+                if (Number.isFinite(parsed.apogee) && parsed.apogee) {
+                  apogee = parsed.apogee;
+                }
+                if (Number.isFinite(parsed.velocity) && parsed.velocity) {
+                  velocity = parsed.velocity;
+                }
+              }
+            } catch (error) {
+              console.warn("Invalid arx_target_profile JSON", error);
+            }
+            if (!Number.isFinite(apogee) || apogee <= 0) {
+              apogee = getNumberValue("max_apogee_ft");
+            }
+            if (!Number.isFinite(velocity) || velocity <= 0) {
+              velocity = getNumberValue("max_velocity_m_s");
+            }
+          }
+          if (!Number.isFinite(apogee) || apogee <= 0 || !Number.isFinite(velocity) || velocity <= 0) {
+            if (status3) status3.textContent = "TARGET PROFILE REQUIRED.";
+            return;
+          }
           const totalMass = getNumberValue("total_mass_lb");
           const rocketLength = getNumberValue("rocket_length_in");
-          const stageCount = Math.floor(getNumberValue("stage_count"));
+          const stageCount = getStageCountValue();
           const separationDelay = getNumberValue("separation_delay_s");
           const ignitionDelay = getNumberValue("ignition_delay_s");
           const maxPressure = getNumberValue("max_pressure_psi");
           const maxKn = getNumberValue("max_kn");
-          const maxVehicleLength = getNumberValue("max_vehicle_length_in");
           const refDiameter = getNumberValue("ref_diameter_in");
 
           if (
+            !Number.isFinite(totalMass) ||
+            totalMass <= 0 ||
+            !Number.isFinite(rocketLength) ||
+            rocketLength <= 0 ||
             !Number.isFinite(maxPressure) ||
             maxPressure <= 0 ||
             !Number.isFinite(maxKn) ||
             maxKn <= 0 ||
-            !Number.isFinite(maxVehicleLength) ||
-            maxVehicleLength <= 0 ||
             !Number.isFinite(refDiameter) ||
             refDiameter <= 0
           ) {
-            if (status3) status3.textContent = "COMPLETE ALL CONSTRAINT FIELDS.";
+            if (status3) status3.textContent = "COMPLETE ALL VEHICLE + CONSTRAINT FIELDS.";
             return;
           }
 
-          const stageLengths: number[] = [];
-          if (stageLengthsContainer) {
-            const count = Math.max(1, Math.min(6, Math.floor(Number(stageCount) || 1)));
-            for (let i = 1; i <= count; i += 1) {
-              const value = getNumberValue(`stage_length_${i}`);
-              if (!Number.isFinite(value) || value <= 0) {
-                if (status3) status3.textContent = "ENTER MAX LENGTH FOR EACH STAGE.";
-                return;
-              }
-              stageLengths.push(value);
-            }
-          }
-
-          const maxStageLength = stageLengths.length ? Math.max(...stageLengths) : 0;
-          const maxStageLengthRatio =
-            rocketLength > 0 && maxStageLength > 0 ? maxStageLength / rocketLength : 1.15;
+          const maxStageLengthRatio = 1.15;
 
           const objectives = [
             { name: "apogee_ft" as const, target: apogee, units: "ft" },
@@ -2577,7 +2980,7 @@ const ArxInterface: React.FC = () => {
             constraints: {
               max_pressure_psi: maxPressure,
               max_kn: maxKn,
-              max_vehicle_length_in: maxVehicleLength,
+              max_vehicle_length_in: rocketLength,
               max_stage_length_ratio: maxStageLengthRatio,
             },
             vehicle: {
@@ -2596,9 +2999,6 @@ const ArxInterface: React.FC = () => {
           (window as unknown as { ARX_MISSION_TARGET_PAYLOAD?: MissionTargetPayload }).ARX_MISSION_TARGET_PAYLOAD =
             payload;
           window.localStorage.setItem("arx_mission_target_payload", JSON.stringify(payload));
-          if (stageLengths.length) {
-            window.localStorage.setItem("arx_mission_target_stage_lengths", JSON.stringify(stageLengths));
-          }
 
           if (continue3) {
             continue3.disabled = true;

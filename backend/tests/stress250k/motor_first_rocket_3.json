@@ -1,0 +1,16 @@
+{
+  "rocket": {
+    "diameter_in": 5.787992125984252,
+    "length_in": 55.28622047244095,
+    "total_mass_lb": 122.76977625
+  },
+  "motor_metrics": {
+    "burn_time": 4.0,
+    "total_impulse": 37782.25,
+    "average_thrust": 9445.5625,
+    "propellant_mass": 16.5,
+    "total_mass": 16.5,
+    "diameter_mm": 148.5,
+    "length_mm": 743.0
+  }
+}

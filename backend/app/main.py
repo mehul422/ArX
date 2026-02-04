@@ -2,9 +2,9 @@ import logging
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.routes_inputs import router as inputs_router
@@ -40,6 +40,21 @@ async def add_request_id(request: Request, call_next):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/api/v1/downloads/{file_path:path}")
+def download_artifact(file_path: str):
+    candidate = (downloads_dir / file_path).resolve()
+    downloads_root = downloads_dir.resolve()
+    if not str(candidate).startswith(str(downloads_root)):
+        raise HTTPException(status_code=400, detail="invalid download path")
+    if not candidate.exists() or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="file not found")
+    return FileResponse(
+        candidate,
+        filename=candidate.name,
+        media_type="application/octet-stream",
+    )
 
 
 @app.on_event("startup")

@@ -265,6 +265,10 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
     wind_speed_m_s = (
         mph_to_m_s(request.wind_speed_mph) if request.wind_speed_mph is not None else 0.0
     )
+    rod_length_m = (
+        ft_to_m(request.rod_length_ft) if request.rod_length_ft is not None else 0.0
+    )
+    launch_angle_deg = request.launch_angle_deg
 
     return {
         "target_only": True,
@@ -298,6 +302,8 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         "launch_altitude_m": launch_altitude_m,
         "temperature_k": temperature_k,
         "wind_speed_m_s": wind_speed_m_s,
+        "rod_length_m": rod_length_m,
+        "launch_angle_deg": launch_angle_deg,
     }
 
 

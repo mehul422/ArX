@@ -26,6 +26,7 @@ export type MissionTargetPayload = {
   rod_length_ft?: number;
   temperature_f?: number;
   wind_speed_mph?: number;
+  launch_angle_deg?: number;
   fast_mode?: boolean;
   split_ratios?: number[];
   allowed_propellants?: {

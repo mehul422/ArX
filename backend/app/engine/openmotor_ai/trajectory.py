@@ -135,6 +135,7 @@ def _simulate_stage(
     v0_m_s: float,
     wind_speed_m_s: float = 0.0,
     sea_level_temp_k: float | None = None,
+    launch_angle_deg: float = 0.0,
 ) -> tuple[ApogeeResult, float, float, float]:
     steps, sim = simulate_motorlib_with_result(spec)
     times = sim.channels["time"].getData()
@@ -148,6 +149,7 @@ def _simulate_stage(
     mass = start_mass_kg
     max_v = v
     max_a = 0.0
+    angle_rad = math.radians(max(min(launch_angle_deg, 89.0), -89.0))
 
     burn_end = times[-1]
     t = 0.0
@@ -163,7 +165,8 @@ def _simulate_stage(
         drag = 0.5 * rho * v_rel * v_rel * cd * ref_area_m2
         drag = drag if v_rel >= 0 else -drag
         g = G0 * (R_EARTH_M / (R_EARTH_M + h)) ** 2
-        accel = (thrust_t - drag) / mass - g
+        thrust_vert = thrust_t * math.cos(angle_rad)
+        accel = (thrust_vert - drag) / mass - g
         v += accel * dt
         h += v * dt
         mass = max(mass - mf_t * dt, 1e-6)
@@ -230,6 +233,8 @@ def _simulate_two_stage_with_params(
     launch_altitude_m: float = 0.0,
     wind_speed_m_s: float = 0.0,
     temperature_k: float | None = None,
+    rod_length_m: float = 0.0,
+    launch_angle_deg: float = 0.0,
 ) -> ApogeeResult:
     ref_area = math.pi * (ref_diameter_m / 2.0) ** 2
 
@@ -247,6 +252,8 @@ def _simulate_two_stage_with_params(
         stage0_dry *= scale
         stage1_dry *= scale
 
+    angle_rad = math.radians(max(min(launch_angle_deg, 89.0), -89.0))
+    start_alt_m = launch_altitude_m + max(rod_length_m, 0.0) * math.cos(angle_rad)
     m0 = stage0_dry + stage1_dry + stage0_prop + stage1_prop
     burn0, h, v, m_after0 = _simulate_stage(
         stage0,
@@ -256,10 +263,11 @@ def _simulate_two_stage_with_params(
         cd_ramp,
         cd_table,
         ref_area,
-        launch_altitude_m,
+        start_alt_m,
         0.0,
         wind_speed_m_s,
         temperature_k,
+        launch_angle_deg,
     )
 
     dt = stage0.config.timestep_s
@@ -306,6 +314,7 @@ def _simulate_two_stage_with_params(
         v,
         wind_speed_m_s,
         temperature_k,
+        launch_angle_deg,
     )
 
     # Coast to apogee
@@ -350,6 +359,8 @@ def simulate_two_stage_apogee(
     launch_altitude_m: float = 0.0,
     wind_speed_m_s: float = 0.0,
     temperature_k: float | None = None,
+    rod_length_m: float = 0.0,
+    launch_angle_deg: float = 0.0,
 ) -> ApogeeResult:
     masses = load_rkt_masses(rkt_path)
     return _simulate_two_stage_with_params(
@@ -368,6 +379,8 @@ def simulate_two_stage_apogee(
         launch_altitude_m=launch_altitude_m,
         wind_speed_m_s=wind_speed_m_s,
         temperature_k=temperature_k,
+        rod_length_m=rod_length_m,
+        launch_angle_deg=launch_angle_deg,
     )
 
 
@@ -388,6 +401,8 @@ def simulate_two_stage_apogee_params(
     launch_altitude_m: float = 0.0,
     wind_speed_m_s: float = 0.0,
     temperature_k: float | None = None,
+    rod_length_m: float = 0.0,
+    launch_angle_deg: float = 0.0,
 ) -> ApogeeResult:
     return _simulate_two_stage_with_params(
         stage0=stage0,
@@ -405,6 +420,8 @@ def simulate_two_stage_apogee_params(
         launch_altitude_m=launch_altitude_m,
         wind_speed_m_s=wind_speed_m_s,
         temperature_k=temperature_k,
+        rod_length_m=rod_length_m,
+        launch_angle_deg=launch_angle_deg,
     )
 
 
@@ -420,6 +437,8 @@ def simulate_single_stage_apogee_params(
     launch_altitude_m: float = 0.0,
     wind_speed_m_s: float = 0.0,
     temperature_k: float | None = None,
+    rod_length_m: float = 0.0,
+    launch_angle_deg: float = 0.0,
 ) -> ApogeeResult:
     if total_mass_kg <= 0:
         raise ValueError("total_mass_kg must be positive")
@@ -430,6 +449,8 @@ def simulate_single_stage_apogee_params(
     dry_mass = max(total_mass_kg - prop_mass, 1e-6)
     start_mass = dry_mass + prop_mass
 
+    angle_rad = math.radians(max(min(launch_angle_deg, 89.0), -89.0))
+    start_alt_m = launch_altitude_m + max(rod_length_m, 0.0) * math.cos(angle_rad)
     burn, h, v, m_after = _simulate_stage(
         stage,
         start_mass,
@@ -438,10 +459,11 @@ def simulate_single_stage_apogee_params(
         cd_ramp,
         cd_table,
         ref_area,
-        launch_altitude_m,
+        start_alt_m,
         0.0,
         wind_speed_m_s,
         temperature_k,
+        launch_angle_deg,
     )
 
     dt = stage.config.timestep_s

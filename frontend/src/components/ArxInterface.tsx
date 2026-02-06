@@ -1985,6 +1985,7 @@ const ArxInterface: React.FC = () => {
           const rodLength = launchSite?.querySelector("RodLength")?.textContent;
           const temperature = launchSite?.querySelector("Temperature")?.textContent;
           const windSpeed = launchSite?.querySelector("WindSpeed")?.textContent;
+          const rodAngle = launchSite?.querySelector("RodAngle")?.textContent;
           const sustainerIgnition = simulation?.querySelector("SustainerIgnitionDelay")?.textContent;
           const boosterSeparation = simulation?.querySelector("Booster1SeparationDelay")?.textContent;
           const boosterIgnition = simulation?.querySelector("Booster1IgnitionDelay")?.textContent;
@@ -1993,6 +1994,7 @@ const ArxInterface: React.FC = () => {
             rod_length_ft: Number(rodLength),
             temperature_f: Number(temperature),
             wind_speed: Number(windSpeed),
+            launch_angle_deg: Number(rodAngle),
             sustainer_ignition_s: Number(sustainerIgnition),
             booster_separation_s: Number(boosterSeparation),
             booster_ignition_s: Number(boosterIgnition),
@@ -3078,6 +3080,7 @@ const ArxInterface: React.FC = () => {
                 rod_length_ft?: number;
                 temperature_f?: number;
                 wind_speed?: number;
+                launch_angle_deg?: number;
               };
               if (Number.isFinite(cdx.altitude_ft as number)) {
                 (payload as MissionTargetPayload & { launch_altitude_ft?: number }).launch_altitude_ft =
@@ -3094,6 +3097,10 @@ const ArxInterface: React.FC = () => {
               if (Number.isFinite(cdx.wind_speed as number)) {
                 (payload as MissionTargetPayload & { wind_speed_mph?: number }).wind_speed_mph =
                   Number(cdx.wind_speed);
+              }
+              if (Number.isFinite(cdx.launch_angle_deg as number)) {
+                (payload as MissionTargetPayload & { launch_angle_deg?: number }).launch_angle_deg =
+                  Number(cdx.launch_angle_deg);
               }
             }
           } catch (error) {

@@ -286,6 +286,7 @@ class V1TargetOnlyMissionRequest(BaseModel):
     rod_length_ft: float | None = Field(default=None, ge=0)
     temperature_f: float | None = None
     wind_speed_mph: float | None = Field(default=None, ge=0)
+    launch_angle_deg: float | None = None
     allowed_propellant_families: list[str] | None = None
     allowed_propellant_names: list[str] | None = None
     preset_path: str | None = None

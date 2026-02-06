@@ -268,7 +268,7 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
     rod_length_m = (
         ft_to_m(request.rod_length_ft) if request.rod_length_ft is not None else 0.0
     )
-    launch_angle_deg = request.launch_angle_deg
+    launch_angle_deg = request.launch_angle_deg if request.launch_angle_deg is not None else 0.0
 
     return {
         "target_only": True,

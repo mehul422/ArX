@@ -135,7 +135,7 @@ def _simulate_stage(
     v0_m_s: float,
     wind_speed_m_s: float = 0.0,
     sea_level_temp_k: float | None = None,
-    launch_angle_deg: float = 0.0,
+    launch_angle_deg: float | None = 0.0,
 ) -> tuple[ApogeeResult, float, float, float]:
     steps, sim = simulate_motorlib_with_result(spec)
     times = sim.channels["time"].getData()
@@ -149,7 +149,8 @@ def _simulate_stage(
     mass = start_mass_kg
     max_v = v
     max_a = 0.0
-    angle_rad = math.radians(max(min(launch_angle_deg, 89.0), -89.0))
+    safe_angle = 0.0 if launch_angle_deg is None else launch_angle_deg
+    angle_rad = math.radians(max(min(safe_angle, 89.0), -89.0))
 
     burn_end = times[-1]
     t = 0.0
@@ -234,7 +235,7 @@ def _simulate_two_stage_with_params(
     wind_speed_m_s: float = 0.0,
     temperature_k: float | None = None,
     rod_length_m: float = 0.0,
-    launch_angle_deg: float = 0.0,
+    launch_angle_deg: float | None = 0.0,
 ) -> ApogeeResult:
     ref_area = math.pi * (ref_diameter_m / 2.0) ** 2
 
@@ -252,7 +253,8 @@ def _simulate_two_stage_with_params(
         stage0_dry *= scale
         stage1_dry *= scale
 
-    angle_rad = math.radians(max(min(launch_angle_deg, 89.0), -89.0))
+    safe_angle = 0.0 if launch_angle_deg is None else launch_angle_deg
+    angle_rad = math.radians(max(min(safe_angle, 89.0), -89.0))
     start_alt_m = launch_altitude_m + max(rod_length_m, 0.0) * math.cos(angle_rad)
     m0 = stage0_dry + stage1_dry + stage0_prop + stage1_prop
     burn0, h, v, m_after0 = _simulate_stage(
@@ -360,7 +362,7 @@ def simulate_two_stage_apogee(
     wind_speed_m_s: float = 0.0,
     temperature_k: float | None = None,
     rod_length_m: float = 0.0,
-    launch_angle_deg: float = 0.0,
+    launch_angle_deg: float | None = 0.0,
 ) -> ApogeeResult:
     masses = load_rkt_masses(rkt_path)
     return _simulate_two_stage_with_params(
@@ -402,7 +404,7 @@ def simulate_two_stage_apogee_params(
     wind_speed_m_s: float = 0.0,
     temperature_k: float | None = None,
     rod_length_m: float = 0.0,
-    launch_angle_deg: float = 0.0,
+    launch_angle_deg: float | None = 0.0,
 ) -> ApogeeResult:
     return _simulate_two_stage_with_params(
         stage0=stage0,
@@ -438,7 +440,7 @@ def simulate_single_stage_apogee_params(
     wind_speed_m_s: float = 0.0,
     temperature_k: float | None = None,
     rod_length_m: float = 0.0,
-    launch_angle_deg: float = 0.0,
+    launch_angle_deg: float | None = 0.0,
 ) -> ApogeeResult:
     if total_mass_kg <= 0:
         raise ValueError("total_mass_kg must be positive")
@@ -449,7 +451,8 @@ def simulate_single_stage_apogee_params(
     dry_mass = max(total_mass_kg - prop_mass, 1e-6)
     start_mass = dry_mass + prop_mass
 
-    angle_rad = math.radians(max(min(launch_angle_deg, 89.0), -89.0))
+    safe_angle = 0.0 if launch_angle_deg is None else launch_angle_deg
+    angle_rad = math.radians(max(min(safe_angle, 89.0), -89.0))
     start_alt_m = launch_altitude_m + max(rod_length_m, 0.0) * math.cos(angle_rad)
     burn, h, v, m_after = _simulate_stage(
         stage,

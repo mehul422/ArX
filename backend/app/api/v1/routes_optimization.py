@@ -12,7 +12,7 @@ from app.api.v1.schemas import (
     V1MissionTargetRequest,
     V1TargetOnlyMissionRequest,
 )
-from app.api.v1.units import in_to_m, lb_to_kg
+from app.api.v1.units import f_to_k, ft_to_m, in_to_m, lb_to_kg, mph_to_m_s
 from app.api.v1.v1_mappers import build_v1_job_response
 from app.api.v1.units import convert_mass_length_payload
 from app.db.queries import fetch_job, insert_job
@@ -258,6 +258,13 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         "ref_diameter_m": in_to_m(vehicle.ref_diameter_in),
         "rocket_length_in": vehicle.rocket_length_in,
     }
+    launch_altitude_m = (
+        ft_to_m(request.launch_altitude_ft) if request.launch_altitude_ft is not None else 0.0
+    )
+    temperature_k = f_to_k(request.temperature_f) if request.temperature_f is not None else None
+    wind_speed_m_s = (
+        mph_to_m_s(request.wind_speed_mph) if request.wind_speed_mph is not None else 0.0
+    )
 
     return {
         "target_only": True,
@@ -288,6 +295,9 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         "weights": weights.model_dump(),
         "objectives": objectives_payload,
         "vehicle_params": vehicle_params,
+        "launch_altitude_m": launch_altitude_m,
+        "temperature_k": temperature_k,
+        "wind_speed_m_s": wind_speed_m_s,
     }
 
 

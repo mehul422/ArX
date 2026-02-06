@@ -64,12 +64,12 @@ def load_rkt_masses(path: str) -> RocketMasses:
     return RocketMasses(stage0_dry_kg=stage0_dry, stage1_dry_kg=stage1_dry, ref_diameter_m=ref_diameter)
 
 
-def _isa_density(alt_m: float) -> float:
+def _isa_density(alt_m: float, sea_level_temp_k: float | None = None) -> float:
     # Simple ISA up to 86 km
     if alt_m < 0:
         alt_m = 0.0
     if alt_m <= 11000.0:
-        t0 = 288.15
+        t0 = sea_level_temp_k if sea_level_temp_k is not None else 288.15
         lapse = -0.0065
         p0 = 101325.0
         r = 287.05287
@@ -84,11 +84,11 @@ def _isa_density(alt_m: float) -> float:
     return p / (r * t)
 
 
-def _isa_speed_of_sound(alt_m: float) -> float:
+def _isa_speed_of_sound(alt_m: float, sea_level_temp_k: float | None = None) -> float:
     if alt_m < 0:
         alt_m = 0.0
     if alt_m <= 11000.0:
-        t0 = 288.15
+        t0 = sea_level_temp_k if sea_level_temp_k is not None else 288.15
         lapse = -0.0065
         t = t0 + lapse * alt_m
     else:
@@ -133,6 +133,8 @@ def _simulate_stage(
     ref_area_m2: float,
     h0_m: float,
     v0_m_s: float,
+    wind_speed_m_s: float = 0.0,
+    sea_level_temp_k: float | None = None,
 ) -> tuple[ApogeeResult, float, float, float]:
     steps, sim = simulate_motorlib_with_result(spec)
     times = sim.channels["time"].getData()
@@ -154,11 +156,12 @@ def _simulate_stage(
     while t <= burn_end and mass > 0.0 and steps <= max_steps:
         thrust_t = _interp(t, times, thrust)
         mf_t = _interp(t, times, mf)
-        rho = _isa_density(h)
-        mach = abs(v) / max(_isa_speed_of_sound(h), 1e-6)
+        v_rel = math.copysign(math.sqrt(v * v + wind_speed_m_s * wind_speed_m_s), v)
+        rho = _isa_density(h, sea_level_temp_k)
+        mach = abs(v_rel) / max(_isa_speed_of_sound(h, sea_level_temp_k), 1e-6)
         cd = _cd_at(mach, cd_table, cd_max, mach_max, cd_ramp)
-        drag = 0.5 * rho * v * v * cd * ref_area_m2
-        drag = drag if v >= 0 else -drag
+        drag = 0.5 * rho * v_rel * v_rel * cd * ref_area_m2
+        drag = drag if v_rel >= 0 else -drag
         g = G0 * (R_EARTH_M / (R_EARTH_M + h)) ** 2
         accel = (thrust_t - drag) / mass - g
         v += accel * dt
@@ -184,6 +187,8 @@ def _coast(
     v0_m_s: float,
     duration_s: float,
     timestep_s: float,
+    wind_speed_m_s: float = 0.0,
+    sea_level_temp_k: float | None = None,
 ) -> tuple[float, float]:
     h = h0_m
     v = v0_m_s
@@ -194,10 +199,11 @@ def _coast(
     max_steps = int(max(1, duration_s / max(dt, 1e-3))) + 1
     steps = 0
     while t <= duration_s and h >= 0 and steps <= max_steps:
-        rho = _isa_density(h)
-        mach = abs(v) / max(_isa_speed_of_sound(h), 1e-6)
+        v_rel = math.copysign(math.sqrt(v * v + wind_speed_m_s * wind_speed_m_s), v)
+        rho = _isa_density(h, sea_level_temp_k)
+        mach = abs(v_rel) / max(_isa_speed_of_sound(h, sea_level_temp_k), 1e-6)
         cd = _cd_at(mach, cd_table, cd_max, mach_max, cd_ramp)
-        drag = 0.5 * rho * v * v * cd * ref_area_m2
+        drag = 0.5 * rho * v_rel * v_rel * cd * ref_area_m2
         g = G0 * (R_EARTH_M / (R_EARTH_M + h)) ** 2
         accel = (-drag / mass_kg) - g
         v += accel * dt
@@ -221,6 +227,9 @@ def _simulate_two_stage_with_params(
     total_mass_kg: float | None,
     separation_delay_s: float,
     ignition_delay_s: float,
+    launch_altitude_m: float = 0.0,
+    wind_speed_m_s: float = 0.0,
+    temperature_k: float | None = None,
 ) -> ApogeeResult:
     ref_area = math.pi * (ref_diameter_m / 2.0) ** 2
 
@@ -240,7 +249,17 @@ def _simulate_two_stage_with_params(
 
     m0 = stage0_dry + stage1_dry + stage0_prop + stage1_prop
     burn0, h, v, m_after0 = _simulate_stage(
-        stage0, m0, cd_max, mach_max, cd_ramp, cd_table, ref_area, 0.0, 0.0
+        stage0,
+        m0,
+        cd_max,
+        mach_max,
+        cd_ramp,
+        cd_table,
+        ref_area,
+        launch_altitude_m,
+        0.0,
+        wind_speed_m_s,
+        temperature_k,
     )
 
     dt = stage0.config.timestep_s
@@ -255,6 +274,8 @@ def _simulate_two_stage_with_params(
         v0_m_s=v,
         duration_s=separation_delay_s,
         timestep_s=dt,
+        wind_speed_m_s=wind_speed_m_s,
+        sea_level_temp_k=temperature_k,
     )
 
     # Stage separation: drop stage0 dry mass
@@ -270,9 +291,21 @@ def _simulate_two_stage_with_params(
         v0_m_s=v,
         duration_s=ignition_delay_s,
         timestep_s=dt,
+        wind_speed_m_s=wind_speed_m_s,
+        sea_level_temp_k=temperature_k,
     )
     burn1, h, v, m_after1 = _simulate_stage(
-        stage1, m_stage1_start, cd_max, mach_max, cd_ramp, cd_table, ref_area, h, v
+        stage1,
+        m_stage1_start,
+        cd_max,
+        mach_max,
+        cd_ramp,
+        cd_table,
+        ref_area,
+        h,
+        v,
+        wind_speed_m_s,
+        temperature_k,
     )
 
     # Coast to apogee
@@ -282,10 +315,11 @@ def _simulate_two_stage_with_params(
     max_coast_steps = int(600.0 / max(dt, 1e-3))
     coast_steps = 0
     while v > 0 and h >= 0 and coast_steps <= max_coast_steps:
-        rho = _isa_density(h)
-        mach = abs(v) / max(_isa_speed_of_sound(h), 1e-6)
+        v_rel = math.copysign(math.sqrt(v * v + wind_speed_m_s * wind_speed_m_s), v)
+        rho = _isa_density(h, temperature_k)
+        mach = abs(v_rel) / max(_isa_speed_of_sound(h, temperature_k), 1e-6)
         cd = _cd_at(mach, cd_table, cd_max, mach_max, cd_ramp)
-        drag = 0.5 * rho * v * v * cd * ref_area
+        drag = 0.5 * rho * v_rel * v_rel * cd * ref_area
         g = G0 * (R_EARTH_M / (R_EARTH_M + h)) ** 2
         accel = (-drag / m_after1) - g
         v += accel * dt
@@ -313,6 +347,9 @@ def simulate_two_stage_apogee(
     total_mass_kg: float | None = None,
     separation_delay_s: float = 0.0,
     ignition_delay_s: float = 0.0,
+    launch_altitude_m: float = 0.0,
+    wind_speed_m_s: float = 0.0,
+    temperature_k: float | None = None,
 ) -> ApogeeResult:
     masses = load_rkt_masses(rkt_path)
     return _simulate_two_stage_with_params(
@@ -328,6 +365,9 @@ def simulate_two_stage_apogee(
         total_mass_kg=total_mass_kg,
         separation_delay_s=separation_delay_s,
         ignition_delay_s=ignition_delay_s,
+        launch_altitude_m=launch_altitude_m,
+        wind_speed_m_s=wind_speed_m_s,
+        temperature_k=temperature_k,
     )
 
 
@@ -345,6 +385,9 @@ def simulate_two_stage_apogee_params(
     total_mass_kg: float | None = None,
     separation_delay_s: float = 0.0,
     ignition_delay_s: float = 0.0,
+    launch_altitude_m: float = 0.0,
+    wind_speed_m_s: float = 0.0,
+    temperature_k: float | None = None,
 ) -> ApogeeResult:
     return _simulate_two_stage_with_params(
         stage0=stage0,
@@ -359,6 +402,9 @@ def simulate_two_stage_apogee_params(
         total_mass_kg=total_mass_kg,
         separation_delay_s=separation_delay_s,
         ignition_delay_s=ignition_delay_s,
+        launch_altitude_m=launch_altitude_m,
+        wind_speed_m_s=wind_speed_m_s,
+        temperature_k=temperature_k,
     )
 
 
@@ -371,6 +417,9 @@ def simulate_single_stage_apogee_params(
     mach_max: float = 2.0,
     cd_ramp: bool = False,
     cd_table: CdTable | None = None,
+    launch_altitude_m: float = 0.0,
+    wind_speed_m_s: float = 0.0,
+    temperature_k: float | None = None,
 ) -> ApogeeResult:
     if total_mass_kg <= 0:
         raise ValueError("total_mass_kg must be positive")
@@ -382,7 +431,17 @@ def simulate_single_stage_apogee_params(
     start_mass = dry_mass + prop_mass
 
     burn, h, v, m_after = _simulate_stage(
-        stage, start_mass, cd_max, mach_max, cd_ramp, cd_table, ref_area, 0.0, 0.0
+        stage,
+        start_mass,
+        cd_max,
+        mach_max,
+        cd_ramp,
+        cd_table,
+        ref_area,
+        launch_altitude_m,
+        0.0,
+        wind_speed_m_s,
+        temperature_k,
     )
 
     dt = stage.config.timestep_s
@@ -390,10 +449,11 @@ def simulate_single_stage_apogee_params(
     max_a = burn.max_accel_m_s2
     coast_steps = 0
     while v > 0 and h >= 0 and coast_steps <= int(600.0 / max(dt, 1e-3)):
-        rho = _isa_density(h)
-        mach = abs(v) / max(_isa_speed_of_sound(h), 1e-6)
+        v_rel = math.copysign(math.sqrt(v * v + wind_speed_m_s * wind_speed_m_s), v)
+        rho = _isa_density(h, temperature_k)
+        mach = abs(v_rel) / max(_isa_speed_of_sound(h, temperature_k), 1e-6)
         cd = _cd_at(mach, cd_table, cd_max, mach_max, cd_ramp)
-        drag = 0.5 * rho * v * v * cd * ref_area
+        drag = 0.5 * rho * v_rel * v_rel * cd * ref_area
         g = G0 * (R_EARTH_M / (R_EARTH_M + h)) ** 2
         accel = (-drag / m_after) - g
         v += accel * dt

@@ -592,6 +592,9 @@ def generate_single_stage_designs(
             cd_max=cd_max,
             mach_max=mach_max,
             cd_ramp=cd_ramp,
+            launch_altitude_m=0.0,
+            wind_speed_m_s=0.0,
+            temperature_k=None,
         )
 
     log = {
@@ -852,6 +855,9 @@ def estimate_total_impulse_ns_two_stage_params(
     cd_ramp: bool,
     separation_delay_s: float,
     ignition_delay_s: float,
+    launch_altitude_m: float = 0.0,
+    wind_speed_m_s: float = 0.0,
+    temperature_k: float | None = None,
 ) -> float:
     base_spec0 = _normalize_spec_for_motorlib(base_spec0)
     base_spec1 = _normalize_spec_for_motorlib(base_spec1)
@@ -881,6 +887,9 @@ def estimate_total_impulse_ns_two_stage_params(
         separation_delay_s=separation_delay_s,
         ignition_delay_s=ignition_delay_s,
         total_mass_kg=total_mass_kg,
+        launch_altitude_m=launch_altitude_m,
+        wind_speed_m_s=wind_speed_m_s,
+        temperature_k=temperature_k,
     )
 
     base_total_impulse = metrics0["total_impulse"] + metrics1["total_impulse"]
@@ -1250,6 +1259,9 @@ def estimate_total_impulse_ns_single_stage(
     cd_max: float,
     mach_max: float,
     cd_ramp: bool,
+    launch_altitude_m: float = 0.0,
+    wind_speed_m_s: float = 0.0,
+    temperature_k: float | None = None,
 ) -> float:
     base_spec = _normalize_spec_for_motorlib(base_spec)
     try:
@@ -1265,6 +1277,9 @@ def estimate_total_impulse_ns_single_stage(
         cd_max=cd_max,
         mach_max=mach_max,
         cd_ramp=cd_ramp,
+        launch_altitude_m=launch_altitude_m,
+        wind_speed_m_s=wind_speed_m_s,
+        temperature_k=temperature_k,
     )
     base_apogee_ft = max(apogee.apogee_m * 3.28084, 1e-6)
     base_max_v = max(apogee.max_velocity_m_s, 1e-6)
@@ -1653,6 +1668,9 @@ def mission_targeted_design_target_only(
     velocity_calibration: float = 1.0,
     fast_mode: bool = False,
     vehicle_params: VehicleParams,
+    launch_altitude_m: float = 0.0,
+    wind_speed_m_s: float = 0.0,
+    temperature_k: float | None = None,
     allowed_propellant_families: list[str] | None = None,
     allowed_propellant_names: list[str] | None = None,
     preset_path: str | None = None,
@@ -1702,6 +1720,9 @@ def mission_targeted_design_target_only(
                 cd_max=cd_max,
                 mach_max=mach_max,
                 cd_ramp=cd_ramp,
+                launch_altitude_m=launch_altitude_m,
+                wind_speed_m_s=wind_speed_m_s,
+                temperature_k=temperature_k,
             )
     else:
         if total_target_impulse_ns is None or total_target_impulse_ns <= 0:
@@ -1721,6 +1742,9 @@ def mission_targeted_design_target_only(
                 cd_ramp=cd_ramp,
                 separation_delay_s=separation_delay_s,
                 ignition_delay_s=ignition_delay_s,
+                launch_altitude_m=launch_altitude_m,
+                wind_speed_m_s=wind_speed_m_s,
+                temperature_k=temperature_k,
             )
 
     viable_candidates: list[Candidate] = []
@@ -1774,6 +1798,9 @@ def mission_targeted_design_target_only(
                         cd_max=cd_max,
                         mach_max=mach_max,
                         cd_ramp=cd_ramp,
+                        launch_altitude_m=launch_altitude_m,
+                        wind_speed_m_s=wind_speed_m_s,
+                        temperature_k=temperature_k,
                     )
                 except Exception as exc:
                     rejected.append(
@@ -1969,6 +1996,9 @@ def mission_targeted_design_target_only(
                             separation_delay_s=separation_delay_s,
                             ignition_delay_s=ignition_delay_s,
                             total_mass_kg=total_mass_kg,
+                            launch_altitude_m=launch_altitude_m,
+                            wind_speed_m_s=wind_speed_m_s,
+                            temperature_k=temperature_k,
                         )
                     except Exception as exc:
                         rejected.append(
@@ -2159,6 +2189,9 @@ def mission_targeted_design_target_only(
                                 separation_delay_s=separation_delay_s,
                                 ignition_delay_s=ignition_delay_s,
                                 total_mass_kg=total_mass_kg,
+                                launch_altitude_m=launch_altitude_m,
+                                wind_speed_m_s=wind_speed_m_s,
+                                temperature_k=temperature_k,
                             )
                         except Exception:
                             continue

@@ -22,6 +22,10 @@ export type MissionTargetPayload = {
   stage_count?: 1 | 2;
   separation_delay_s?: number;
   ignition_delay_s?: number;
+  launch_altitude_ft?: number;
+  rod_length_ft?: number;
+  temperature_f?: number;
+  wind_speed_mph?: number;
   fast_mode?: boolean;
   split_ratios?: number[];
   allowed_propellants?: {

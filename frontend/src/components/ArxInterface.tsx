@@ -1902,6 +1902,10 @@ const ArxInterface: React.FC = () => {
               <a class="link-button" id="ork-upload-link" href="#">upload .ork</a>
               <input id="ork-upload-input" type="file" accept=".ork" hidden />
             </div>
+            <div class="arx-field">
+              <a class="link-button" id="cdx-upload-link" href="#">upload .cdx1 (optional)</a>
+              <input id="cdx-upload-input" type="file" accept=".cdx1" hidden />
+            </div>
             <div class="field-hint">
               If you just want to make a motor and use the A module we need you to upload an .ork file for the most accurate results.
             </div>
@@ -1915,6 +1919,8 @@ const ArxInterface: React.FC = () => {
 
         const uploadLink = subPageContent.querySelector("#ork-upload-link") as HTMLAnchorElement | null;
         const uploadInput = subPageContent.querySelector("#ork-upload-input") as HTMLInputElement | null;
+        const cdxUploadLink = subPageContent.querySelector("#cdx-upload-link") as HTMLAnchorElement | null;
+        const cdxUploadInput = subPageContent.querySelector("#cdx-upload-input") as HTMLInputElement | null;
         const status = subPageContent.querySelector("#ork-upload-status") as HTMLElement | null;
         const noBtn = subPageContent.querySelector("#ork-no-btn") as HTMLButtonElement | null;
         const continueBtn = subPageContent.querySelector("#ork-continue-btn") as HTMLButtonElement | null;
@@ -1969,6 +1975,30 @@ const ArxInterface: React.FC = () => {
             file_name: file.name,
           };
         };
+        const parseCdxFile = async (file: File) => {
+          const text = await file.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(text, "application/xml");
+          const launchSite = doc.querySelector("LaunchSite");
+          const simulation = doc.querySelector("SimulationList > Simulation");
+          const altitude = launchSite?.querySelector("Altitude")?.textContent;
+          const rodLength = launchSite?.querySelector("RodLength")?.textContent;
+          const temperature = launchSite?.querySelector("Temperature")?.textContent;
+          const windSpeed = launchSite?.querySelector("WindSpeed")?.textContent;
+          const sustainerIgnition = simulation?.querySelector("SustainerIgnitionDelay")?.textContent;
+          const boosterSeparation = simulation?.querySelector("Booster1SeparationDelay")?.textContent;
+          const boosterIgnition = simulation?.querySelector("Booster1IgnitionDelay")?.textContent;
+          return {
+            altitude_ft: Number(altitude),
+            rod_length_ft: Number(rodLength),
+            temperature_f: Number(temperature),
+            wind_speed: Number(windSpeed),
+            sustainer_ignition_s: Number(sustainerIgnition),
+            booster_separation_s: Number(boosterSeparation),
+            booster_ignition_s: Number(boosterIgnition),
+            file_name: file.name,
+          };
+        };
 
         uploadLink?.addEventListener("click", (event) => {
           event.preventDefault();
@@ -1988,9 +2018,26 @@ const ArxInterface: React.FC = () => {
             if (status) status.textContent = "Failed to read ORK file.";
           }
         });
+        cdxUploadLink?.addEventListener("click", (event) => {
+          event.preventDefault();
+          cdxUploadInput?.click();
+        });
+        cdxUploadInput?.addEventListener("change", async () => {
+          const file = cdxUploadInput.files?.[0];
+          if (!file) return;
+          try {
+            const profile = await parseCdxFile(file);
+            window.localStorage.setItem("arx_cdx1_profile", JSON.stringify(profile));
+            if (status) status.textContent = `Loaded ${profile.file_name}`;
+          } catch (error) {
+            console.error(error);
+            if (status) status.textContent = "Failed to read CDX1 file.";
+          }
+        });
         noBtn?.addEventListener("click", () => {
           window.localStorage.removeItem("arx_use_ork");
           window.localStorage.removeItem("arx_ork_vehicle_profile");
+          window.localStorage.removeItem("arx_cdx1_profile");
           pendingSubPageType = "SYSTEM";
           revealPendingSubPage();
         });
@@ -2946,8 +2993,38 @@ const ArxInterface: React.FC = () => {
           const totalMass = getNumberValue("total_mass_lb");
           const rocketLength = getNumberValue("rocket_length_in");
           const stageCount = getStageCountValue();
-          const separationDelay = getNumberValue("separation_delay_s");
-          const ignitionDelay = getNumberValue("ignition_delay_s");
+          let separationDelay = getNumberValue("separation_delay_s");
+          let ignitionDelay = getNumberValue("ignition_delay_s");
+          if (!Number.isFinite(separationDelay) || separationDelay < 0) {
+            try {
+              const stored = window.localStorage.getItem("arx_cdx1_profile");
+              if (stored) {
+                const parsed = JSON.parse(stored) as {
+                  booster_separation_s?: number;
+                };
+                if (Number.isFinite(parsed.booster_separation_s as number)) {
+                  separationDelay = Number(parsed.booster_separation_s);
+                }
+              }
+            } catch (error) {
+              console.warn("Invalid arx_cdx1_profile JSON", error);
+            }
+          }
+          if (!Number.isFinite(ignitionDelay) || ignitionDelay < 0) {
+            try {
+              const stored = window.localStorage.getItem("arx_cdx1_profile");
+              if (stored) {
+                const parsed = JSON.parse(stored) as {
+                  sustainer_ignition_s?: number;
+                };
+                if (Number.isFinite(parsed.sustainer_ignition_s as number)) {
+                  ignitionDelay = Number(parsed.sustainer_ignition_s);
+                }
+              }
+            } catch (error) {
+              console.warn("Invalid arx_cdx1_profile JSON", error);
+            }
+          }
           const maxPressure = getNumberValue("max_pressure_psi");
           const maxKn = getNumberValue("max_kn");
           const refDiameter = getNumberValue("ref_diameter_in");
@@ -2967,6 +3044,8 @@ const ArxInterface: React.FC = () => {
             if (status3) status3.textContent = "COMPLETE ALL VEHICLE + CONSTRAINT FIELDS.";
             return;
           }
+          if (!Number.isFinite(separationDelay) || separationDelay < 0) separationDelay = 0;
+          if (!Number.isFinite(ignitionDelay) || ignitionDelay < 0) ignitionDelay = 0;
 
           const maxStageLengthRatio = 1.15;
 
@@ -2991,6 +3070,35 @@ const ArxInterface: React.FC = () => {
             separation_delay_s: separationDelay,
             ignition_delay_s: ignitionDelay,
           };
+          try {
+            const stored = window.localStorage.getItem("arx_cdx1_profile");
+            if (stored) {
+              const cdx = JSON.parse(stored) as {
+                altitude_ft?: number;
+                rod_length_ft?: number;
+                temperature_f?: number;
+                wind_speed?: number;
+              };
+              if (Number.isFinite(cdx.altitude_ft as number)) {
+                (payload as MissionTargetPayload & { launch_altitude_ft?: number }).launch_altitude_ft =
+                  Number(cdx.altitude_ft);
+              }
+              if (Number.isFinite(cdx.rod_length_ft as number)) {
+                (payload as MissionTargetPayload & { rod_length_ft?: number }).rod_length_ft =
+                  Number(cdx.rod_length_ft);
+              }
+              if (Number.isFinite(cdx.temperature_f as number)) {
+                (payload as MissionTargetPayload & { temperature_f?: number }).temperature_f =
+                  Number(cdx.temperature_f);
+              }
+              if (Number.isFinite(cdx.wind_speed as number)) {
+                (payload as MissionTargetPayload & { wind_speed_mph?: number }).wind_speed_mph =
+                  Number(cdx.wind_speed);
+              }
+            }
+          } catch (error) {
+            console.warn("Invalid arx_cdx1_profile JSON", error);
+          }
 
           if (stageCount === 1 || stageCount === 2) {
             payload.stage_count = stageCount;

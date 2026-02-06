@@ -282,6 +282,10 @@ class V1TargetOnlyMissionRequest(BaseModel):
     cd_ramp: bool | None = None
     separation_delay_s: float | None = Field(default=None, ge=0)
     ignition_delay_s: float | None = Field(default=None, ge=0)
+    launch_altitude_ft: float | None = Field(default=None, ge=0)
+    rod_length_ft: float | None = Field(default=None, ge=0)
+    temperature_f: float | None = None
+    wind_speed_mph: float | None = Field(default=None, ge=0)
     allowed_propellant_families: list[str] | None = None
     allowed_propellant_names: list[str] | None = None
     preset_path: str | None = None

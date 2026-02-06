@@ -2,6 +2,8 @@ KG_PER_LB = 0.45359237
 LB_PER_KG = 1.0 / KG_PER_LB
 M_PER_IN = 0.0254
 IN_PER_M = 1.0 / M_PER_IN
+M_PER_FT = 0.3048
+M_PER_MPH = 0.44704
 
 
 def lb_to_kg(value: float) -> float:
@@ -14,6 +16,18 @@ def kg_to_lb(value: float) -> float:
 
 def in_to_m(value: float) -> float:
     return value * M_PER_IN
+
+
+def ft_to_m(value: float) -> float:
+    return value * M_PER_FT
+
+
+def f_to_k(value: float) -> float:
+    return (value - 32.0) * (5.0 / 9.0) + 273.15
+
+
+def mph_to_m_s(value: float) -> float:
+    return value * M_PER_MPH
 
 
 def m_to_in(value: float) -> float:

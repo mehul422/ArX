@@ -10,6 +10,7 @@ class Settings:
     redis_url: str
     motors_dir: str
     motor_upload_dir: str
+    ork_upload_dir: str
     cors_origins: list[str]
     celery_task_soft_time_limit: int
     celery_task_time_limit: int
@@ -39,6 +40,9 @@ def get_settings() -> Settings:
     )
     if not os.path.isabs(motor_upload_dir):
         motor_upload_dir = os.path.join(base_dir, motor_upload_dir)
+    ork_upload_dir = os.getenv("ORK_UPLOAD_DIR", "resources/orks/uploads")
+    if not os.path.isabs(ork_upload_dir):
+        ork_upload_dir = os.path.join(base_dir, ork_upload_dir)
     cors_origins = _split_csv(os.getenv("CORS_ORIGINS"))
     celery_task_soft_time_limit = int(os.getenv("CELERY_TASK_SOFT_TIME_LIMIT", "300"))
     celery_task_time_limit = int(os.getenv("CELERY_TASK_TIME_LIMIT", "600"))
@@ -49,6 +53,7 @@ def get_settings() -> Settings:
         redis_url=redis_url,
         motors_dir=motors_dir,
         motor_upload_dir=motor_upload_dir,
+        ork_upload_dir=ork_upload_dir,
         cors_origins=cors_origins,
         celery_task_soft_time_limit=celery_task_soft_time_limit,
         celery_task_time_limit=celery_task_time_limit,

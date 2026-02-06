@@ -19,6 +19,7 @@ export type MissionTargetPayload = {
     rocket_length_in: number;
     total_mass_lb: number;
   };
+  ork_path?: string;
   stage_count?: 1 | 2;
   separation_delay_s?: number;
   ignition_delay_s?: number;

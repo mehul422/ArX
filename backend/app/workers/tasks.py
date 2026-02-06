@@ -146,6 +146,7 @@ def run_mission_target_task(self, job_id: str, params: dict[str, Any]) -> None:
                 temperature_k=params.get("temperature_k"),
                 rod_length_m=params.get("rod_length_m", 0.0),
                 launch_angle_deg=params.get("launch_angle_deg", 0.0),
+                ork_path=params.get("ork_path"),
                 allowed_propellant_families=params.get("allowed_propellant_families"),
                 allowed_propellant_names=params.get("allowed_propellant_names"),
                 preset_path=params.get("preset_path"),

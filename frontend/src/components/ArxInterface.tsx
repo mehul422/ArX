@@ -4,6 +4,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import JSZip from "jszip";
 import {
   MissionTargetPayload,
   pollMissionTargetJob,
@@ -1986,26 +1987,69 @@ const ArxInterface: React.FC = () => {
         const continueBtn = subPageContent.querySelector("#ork-continue-btn") as HTMLButtonElement | null;
 
         const parseOrkFile = async (file: File) => {
-          const text = await file.text();
+          const readOrkXmlText = async (input: File) => {
+            const buffer = await input.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            const isZip = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+            if (isZip) {
+              const zip = await JSZip.loadAsync(buffer);
+              const xmlName = Object.keys(zip.files).find(
+                (name) => name.endsWith(".ork") || name.endsWith(".xml")
+              );
+              if (!xmlName) {
+                throw new Error("ORK archive missing .ork XML");
+              }
+              return zip.files[xmlName].async("text");
+            }
+            return new TextDecoder().decode(buffer);
+          };
+
+          const parseLength = (node: Element, tag: string) => {
+            for (const child of Array.from(node.children)) {
+              if (child.tagName.toLowerCase() === tag) {
+                const value = Number(child.textContent ?? "");
+                return Number.isFinite(value) ? value : 0;
+              }
+            }
+            return 0;
+          };
+
+          const calculateStackLength = (rootXml: Document) => {
+            let totalStackLength = 0;
+            const stages = Array.from(rootXml.querySelectorAll("stage"));
+            for (const stage of stages) {
+              const stageSubcomponents = stage.querySelector("subcomponents");
+              if (!stageSubcomponents) continue;
+              let stageLen = 0;
+              for (const component of Array.from(stageSubcomponents.children)) {
+                const tag = component.tagName.toLowerCase();
+                if (["nosecone", "bodytube", "transition"].includes(tag)) {
+                  const rawLen =
+                    parseLength(component, "length") || parseLength(component, "len");
+                  let shoulderDeduction = 0;
+                  for (const child of Array.from(component.children)) {
+                    if (child.tagName.toLowerCase().includes("shoulder")) {
+                      shoulderDeduction =
+                        parseLength(child, "length") || parseLength(child, "len");
+                    }
+                  }
+                  const exposedLen = Math.max(0, rawLen - shoulderDeduction);
+                  stageLen += exposedLen;
+                }
+              }
+              totalStackLength += stageLen;
+            }
+            return totalStackLength;
+          };
+
+          const text = await readOrkXmlText(file);
           const parser = new DOMParser();
           const doc = parser.parseFromString(text, "application/xml");
           const rocket = doc.querySelector("rocket");
           if (!rocket) {
             throw new Error("Invalid ORK file");
           }
-          const stageNodes = Array.from(doc.querySelectorAll("rocket > subcomponents > stage"));
-          const stageLengths = stageNodes.map((stage) => {
-            let total = 0;
-            stage.querySelectorAll("nosecone, bodytube, transition").forEach((node) => {
-              const length = node.querySelector("length");
-              if (length?.textContent) {
-                const value = Number(length.textContent);
-                if (Number.isFinite(value)) total += value;
-              }
-            });
-            return total;
-          });
-          const rocketLengthM = Math.max(...stageLengths, 0);
+          const rocketLengthM = calculateStackLength(doc);
 
           let maxRadius = 0;
           doc.querySelectorAll("nosecone, bodytube, transition").forEach((node) => {
@@ -2019,11 +2063,29 @@ const ArxInterface: React.FC = () => {
           });
           const diameterM = maxRadius > 0 ? maxRadius * 2 : 0;
 
-          let massKg = 0;
-          doc.querySelectorAll("mass").forEach((node) => {
-            const value = Number(node.textContent);
-            if (Number.isFinite(value)) massKg += value;
-          });
+          const getMassFromSimulation = (rootXml: Document) => {
+            const flightData = rootXml.querySelector("flightdata");
+            if (!flightData) return 0;
+            const branch = flightData.querySelector("databranch");
+            if (!branch) return 0;
+            const types = (branch.getAttribute("types") || "")
+              .split(",")
+              .map((value) => value.trim());
+            const massIndex = types.indexOf("Mass");
+            const motorIndex = types.indexOf("Motor mass");
+            if (massIndex === -1 || motorIndex === -1) return 0;
+            const firstPoint = branch.querySelector("datapoint");
+            if (!firstPoint?.textContent) return 0;
+            const values = firstPoint.textContent.trim().split(",");
+            if (values.length <= Math.max(massIndex, motorIndex)) return 0;
+            const totalMassKg = Number(values[massIndex]);
+            const motorMassKg = Number(values[motorIndex]);
+            if (!Number.isFinite(totalMassKg) || !Number.isFinite(motorMassKg)) return 0;
+            const dryMassKg = totalMassKg - motorMassKg;
+            return Number.isFinite(dryMassKg) ? totalMassKg : 0;
+          };
+
+          const massKg = getMassFromSimulation(doc);
 
           const toInches = (meters: number) => meters * 39.3701;
           const toPounds = (kg: number) => kg * 2.20462;
@@ -2073,6 +2135,24 @@ const ArxInterface: React.FC = () => {
             const profile = await parseOrkFile(file);
             window.localStorage.setItem("arx_use_ork", "true");
             window.localStorage.setItem("arx_ork_vehicle_profile", JSON.stringify(profile));
+            try {
+              const form = new FormData();
+              form.append("file", file, file.name);
+              const response = await fetch(`${API_BASE}/api/v1/ork/upload`, {
+                method: "POST",
+                body: form,
+              });
+              if (!response.ok) {
+                const detail = await response.text();
+                throw new Error(detail || "ORK upload failed");
+              }
+              const payload = (await response.json()) as { path?: string };
+              if (payload?.path) {
+                window.localStorage.setItem("arx_ork_path", payload.path);
+              }
+            } catch (error) {
+              console.warn("ORK upload failed", error);
+            }
             if (status) status.textContent = `Loaded ${profile.file_name}`;
             if (continueBtn) continueBtn.disabled = false;
           } catch (error) {
@@ -2100,6 +2180,7 @@ const ArxInterface: React.FC = () => {
           window.localStorage.removeItem("arx_use_ork");
           window.localStorage.removeItem("arx_ork_vehicle_profile");
           window.localStorage.removeItem("arx_cdx1_profile");
+          window.localStorage.removeItem("arx_ork_path");
           pendingSubPageType = "SYSTEM";
           revealPendingSubPage();
         });
@@ -2117,90 +2198,167 @@ const ArxInterface: React.FC = () => {
             console.warn("Invalid arx_mission_target_result JSON", error);
           }
         }
-        const candidate = (result?.candidate as Record<string, unknown> | undefined) || undefined;
+        const storedCandidate = (result?.candidate as Record<string, unknown> | undefined) || undefined;
+        const jobResult = (result?.job as { result?: Record<string, unknown> } | undefined)?.result;
+        const jobMotorlib = (jobResult?.openmotor_motorlib_result as Record<string, unknown> | undefined) || undefined;
+        const jobCandidates = (jobMotorlib?.candidates as Record<string, unknown>[] | undefined) || [];
+        const jobRanked = (jobMotorlib?.ranked as Record<string, unknown>[] | undefined) || [];
+        const jobCandidate = jobCandidates[0] || jobRanked[0];
+        const candidate = jobCandidate || (jobResult ? undefined : storedCandidate);
         const artifacts = (candidate?.artifacts as Record<string, string> | undefined) || undefined;
-        const format = (value: number | null | undefined, unit: string) =>
-          Number.isFinite(value) ? `${Number(value).toFixed(2)} ${unit}` : "N/A";
-        const apogee = Number(candidate?.apogee_ft);
-        const velocity = Number(candidate?.max_velocity_m_s);
         const metrics = (candidate?.metrics as Record<string, unknown> | undefined) || {};
-        const rawPressure = Number(
-          metrics.peak_pressure_psi ??
-            metrics.peak_chamber_pressure ??
-            metrics.max_pressure ??
-            metrics.max_pressure_pa
+        const stageMetrics = (candidate?.stage_metrics as Record<string, unknown> | undefined) || {};
+        const estimatedTotalImpulse = Number(
+          (jobResult as { estimated_total_impulse_ns?: number } | undefined)?.estimated_total_impulse_ns ??
+            (candidate as { estimated_total_impulse_ns?: number }).estimated_total_impulse_ns
         );
-        const pressure =
-          Number.isFinite(rawPressure) && rawPressure > 10000
-            ? rawPressure / 6894.757
-            : rawPressure;
-        const kn = Number(metrics.peak_kn ?? metrics.max_kn);
-        const thrust = Number(metrics.average_thrust ?? metrics.max_thrust ?? 0);
+        const withinTolerance = Boolean((candidate as { within_tolerance?: boolean }).within_tolerance);
+        const objectiveError = Number((candidate as { objective_error_pct?: number }).objective_error_pct);
         const stage0Ric = resolveDownloadUrl(artifacts?.stage0_ric || artifacts?.ric);
         const stage0Eng = resolveDownloadUrl(artifacts?.stage0_eng || artifacts?.eng);
         const stage1Ric = resolveDownloadUrl(artifacts?.stage1_ric);
         const stage1Eng = resolveDownloadUrl(artifacts?.stage1_eng);
-        const downloadLinks = artifacts
-          ? `
-            ${
-              stage0Ric
-                ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>`
-                : ""
-            }
-            ${
-              stage0Eng
-                ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>`
-                : ""
-            }
-            ${
-              stage1Ric
-                ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>`
-                : ""
-            }
-            ${
-              stage1Eng
-                ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>`
-                : ""
-            }
-          `
-          : `<div class="download-muted">Download links unavailable.</div>`;
-        const withinTolerance = Boolean((candidate as { within_tolerance?: boolean }).within_tolerance);
-        const objectiveError = Number((candidate as { objective_error_pct?: number }).objective_error_pct);
+        const format = (value: number | null | undefined, unit: string) =>
+          Number.isFinite(value) ? `${Number(value).toFixed(2)} ${unit}` : "N/A";
         const outcomeNote =
           withinTolerance || !Number.isFinite(objectiveError)
             ? ""
             : `<div class="download-muted">Best effort: objective error ${objectiveError.toFixed(
                 1
               )}%</div>`;
-        subPageContent.innerHTML = `
-          <div class="subpage-form" data-form="mission-results">
-            <div class="form-title">RESULTS</div>
-            <div class="form-subtitle">MISSION TARGET OUTPUT</div>
+        let activeStage: "stage0" | "stage1" = "stage0";
+        const getStageMetrics = (stageKey: "stage0" | "stage1") => {
+          const stage = stageMetrics[stageKey] as Record<string, unknown> | undefined;
+          return stage || metrics;
+        };
+        const renderStage = (stageKey: "stage0" | "stage1") => {
+          activeStage = stageKey;
+          const stage = getStageMetrics(stageKey);
+          const rawTotalImpulse = Number(stage.total_impulse);
+          const totalImpulse =
+            Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
+              ? estimatedTotalImpulse
+              : rawTotalImpulse;
+          const peakMassFlux = Number(stage.peak_mass_flux);
+          const rawPressure = Number(
+            (stage as { peak_pressure_psi?: number }).peak_pressure_psi ??
+              stage.peak_chamber_pressure ??
+              stage.max_pressure ??
+              stage.max_pressure_pa
+          );
+          const pressure =
+            Number.isFinite(rawPressure) && rawPressure > 10000
+              ? rawPressure / 6894.757
+              : rawPressure;
+          const kn = Number(stage.peak_kn ?? stage.max_kn);
+          const motorMass = Number(stage.propellant_mass_lb);
+          const hasStageToggle = Boolean(stage1Ric || stage1Eng);
+          const nextStageLabel = stageKey === "stage0" ? "STAGE 1" : "STAGE 0";
+          const missionImpulseRow =
+            Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
+              ? `<div class="result-item"><span>TOTAL IMPULSE (MISSION)</span><strong>${format(
+                  estimatedTotalImpulse,
+                  "N·s"
+                )}</strong></div>`
+              : "";
+          const downloadLinks = artifacts
+            ? `
+              ${
+                stageKey === "stage0" && stage0Ric
+                  ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>`
+                  : ""
+              }
+              ${
+                stageKey === "stage0" && stage0Eng
+                  ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>`
+                  : ""
+              }
+              ${
+                stageKey === "stage1" && stage1Ric
+                  ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>`
+                  : ""
+              }
+              ${
+                stageKey === "stage1" && stage1Eng
+                  ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>`
+                  : ""
+              }
+            `
+            : `<div class="download-muted">Download links unavailable.</div>`;
+          subPageContent.innerHTML = `
+            <div class="subpage-form" data-form="mission-results">
+              <div class="form-title">RESULTS</div>
+              <div class="form-subtitle">MISSION TARGET OUTPUT</div>
+              <div class="results-header">
+                <div></div>
+                <div class="results-stage-label">STAGE ${stageKey === "stage0" ? "0" : "1"}</div>
+              </div>
             <div class="results-grid">
-              <div class="result-item"><span>APOGEE</span><strong>${format(apogee, "ft")}</strong></div>
-              <div class="result-item"><span>MAX VELOCITY</span><strong>${format(velocity, "m/s")}</strong></div>
-              <div class="result-item"><span>PRESSURE</span><strong>${format(pressure, "psi")}</strong></div>
-              <div class="result-item"><span>K_N</span><strong>${format(kn, "")}</strong></div>
-              <div class="result-item"><span>THRUST</span><strong>${format(thrust, "N")}</strong></div>
+              ${missionImpulseRow}
+                <div class="result-item"><span>TOTAL IMPULSE</span><strong>${format(
+                  totalImpulse,
+                  "N·s"
+                )}</strong></div>
+                <div class="result-item"><span>PEAK MASS FLUX</span><strong>${format(
+                  peakMassFlux,
+                  "kg/m²·s"
+                )}</strong></div>
+                <div class="result-item"><span>NMAX</span><strong>${format(
+                  Number(candidate?.max_accel_m_s2),
+                  "m/s²"
+                )}</strong></div>
+                <div class="result-item"><span>PRESSURE</span><strong>${format(
+                  pressure,
+                  "psi"
+                )}</strong></div>
+                <div class="result-item"><span>K_N</span><strong>${format(kn, "")}</strong></div>
+                <div class="result-item"><span>TOTAL MOTOR MASS</span><strong>${format(
+                  motorMass,
+                  "lb"
+                )}</strong></div>
+              </div>
+              <div class="download-box">
+                <div class="download-title">DOWNLOAD FILES</div>
+                <div class="download-links">${downloadLinks}</div>
+                ${outcomeNote}
+                ${
+                  hasStageToggle
+                    ? `<div class="results-stage-action">
+                        <button class="results-stage-next" data-stage="${
+                          stageKey === "stage0" ? "stage1" : "stage0"
+                        }">${nextStageLabel}</button>
+                      </div>`
+                    : ""
+                }
+              </div>
             </div>
-            <div class="download-box">
-              <div class="download-title">DOWNLOAD FILES</div>
-              <div class="download-links">${downloadLinks}</div>
-              ${outcomeNote}
-            </div>
-          </div>
-        `;
-        const downloadsContainer = subPageContent.querySelector(".download-links");
-        if (downloadsContainer) {
-          downloadsContainer.addEventListener("click", (event) => {
-            const target = event.target as HTMLElement | null;
-            const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
-            if (!anchor) return;
-            event.preventDefault();
-            const href = anchor.getAttribute("data-download") || "";
-            triggerDownload(href);
-          });
-        }
+          `;
+          const downloadsContainer = subPageContent.querySelector(".download-links");
+          if (downloadsContainer) {
+            downloadsContainer.addEventListener("click", (event) => {
+              const target = event.target as HTMLElement | null;
+              const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
+              if (!anchor) return;
+              event.preventDefault();
+              const href = anchor.getAttribute("data-download") || "";
+              triggerDownload(href);
+            });
+          }
+          const stageButton = subPageContent.querySelector(
+            ".results-stage-next"
+          ) as HTMLButtonElement | null;
+          if (stageButton) {
+            const stage = stageButton.getAttribute("data-stage") as "stage0" | "stage1" | null;
+            if (stage) {
+              stageButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                if (stage === activeStage) return;
+                renderStage(stage);
+              });
+            }
+          }
+        };
+        renderStage("stage0");
       } else if (type === "SYSTEM" || type === "VEHICLE") {
         const isVehiclePage = type === "VEHICLE";
         let hasLockedTarget = false;
@@ -2257,6 +2415,14 @@ const ArxInterface: React.FC = () => {
               <input type="number" name="max_kn" placeholder=" " min="0" step="any" required />
               <label>MAX K_N</label>
               <div class="field-hint">Ratio of burning area to throat area</div>
+            </div>
+            <div class="arx-field">
+              <input type="number" name="separation_delay_s" placeholder=" " min="0" step="any" required />
+              <label>SEPARATION DELAY (S)</label>
+            </div>
+            <div class="arx-field">
+              <input type="number" name="ignition_delay_s" placeholder=" " min="0" step="any" required />
+              <label>IGNITION DELAY (S)</label>
             </div>
             <div class="arx-field">
               <input
@@ -2354,6 +2520,8 @@ const ArxInterface: React.FC = () => {
           const rocketLength = getNumberValue("rocket_length_in");
           const totalMass = getNumberValue("total_mass_lb");
           const stageCount = getStageCountValue();
+          const separationDelay = getNumberValue("separation_delay_s");
+          const ignitionDelay = getNumberValue("ignition_delay_s");
 
           const hasBasics =
             Number.isFinite(maxPressure) &&
@@ -2367,7 +2535,11 @@ const ArxInterface: React.FC = () => {
             Number.isFinite(totalMass) &&
             totalMass > 0 &&
             Number.isFinite(stageCount) &&
-            stageCount > 0;
+            stageCount > 0 &&
+            Number.isFinite(separationDelay) &&
+            separationDelay >= 0 &&
+            Number.isFinite(ignitionDelay) &&
+            ignitionDelay >= 0;
 
           const isValid = hasBasics;
           continue3.style.display = isValid ? "" : "none";
@@ -2483,6 +2655,12 @@ const ArxInterface: React.FC = () => {
             const stageCountOverrideEl = subPageContent.querySelector(
               'input[name="stage_count_constraints"]'
             ) as HTMLInputElement | null;
+            const separationInput = subPageContent.querySelector(
+              'input[name="separation_delay_s"]'
+            ) as HTMLInputElement | null;
+            const ignitionInput = subPageContent.querySelector(
+              'input[name="ignition_delay_s"]'
+            ) as HTMLInputElement | null;
             if (massInput && Number.isFinite(profile.total_mass_lb)) {
               massInput.value = String(profile.total_mass_lb);
             }
@@ -2497,6 +2675,12 @@ const ArxInterface: React.FC = () => {
             }
             if (stageCountOverrideEl && !stageCountOverrideEl.value) {
               stageCountOverrideEl.value = "2";
+            }
+            if (separationInput && !separationInput.value) {
+              separationInput.value = "5";
+            }
+            if (ignitionInput && !ignitionInput.value) {
+              ignitionInput.value = "5";
             }
           } catch (error) {
             console.warn("Invalid arx_ork_vehicle_profile JSON", error);
@@ -2884,23 +3068,12 @@ const ArxInterface: React.FC = () => {
 
         const renderResults = (candidate: Record<string, unknown>) => {
           if (!resultsSlot) return;
-          const apogee = Number(candidate.apogee_ft);
-          const velocity = Number(candidate.max_velocity_m_s);
           const nmax = Number(candidate.max_accel_m_s2);
           const metrics = (candidate.metrics as Record<string, unknown> | undefined) || {};
-          const rawPressure = Number(
-            (candidate as { peak_pressure_psi?: number }).peak_pressure_psi ??
-              metrics.peak_pressure_psi ??
-              metrics.peak_chamber_pressure ??
-              metrics.max_pressure ??
-              metrics.max_pressure_pa
+          const stageMetrics = (candidate.stage_metrics as Record<string, unknown> | undefined) || {};
+          const estimatedTotalImpulse = Number(
+            (candidate as { estimated_total_impulse_ns?: number }).estimated_total_impulse_ns
           );
-          const pressure =
-            Number.isFinite(rawPressure) && rawPressure > 10000
-              ? rawPressure / 6894.757
-              : rawPressure;
-          const kn = Number(candidate.peak_kn);
-          const thrust = Number(candidate.average_thrust);
           const artifacts =
             (candidate.artifact_urls as Record<string, string> | undefined) ||
             (candidate.artifacts as Record<string, string> | undefined);
@@ -2914,64 +3087,144 @@ const ArxInterface: React.FC = () => {
           const stage0Eng = resolveDownloadUrl(artifacts?.stage0_eng || artifacts?.eng);
           const stage1Ric = resolveDownloadUrl(artifacts?.stage1_ric);
           const stage1Eng = resolveDownloadUrl(artifacts?.stage1_eng);
-          const downloadLinks = artifacts
-            ? `
-              ${
-                stage0Ric
-                  ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>`
-                  : ""
-              }
-              ${
-                stage0Eng
-                  ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>`
-                  : ""
-              }
-              ${
-                stage1Ric
-                  ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>`
-                  : ""
-              }
-              ${
-                stage1Eng
-                  ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>`
-                  : ""
-              }
-            `
-            : `<div class="download-muted">Download links unavailable.</div>`;
-          const outcomeNote =
-            withinTolerance || !Number.isFinite(objectiveError)
-              ? ""
-              : `<div class="download-muted">Best effort: objective error ${objectiveError.toFixed(
-                  1
-                )}%</div>`;
 
-          resultsSlot.innerHTML = `
-            <div class="results-grid">
-              <div class="result-item"><span>APOGEE</span><strong>${format(apogee, "ft")}</strong></div>
-              <div class="result-item"><span>MAX VELOCITY</span><strong>${format(velocity, "m/s")}</strong></div>
-              <div class="result-item"><span>NMAX</span><strong>${format(nmax, "m/s²")}</strong></div>
-              <div class="result-item"><span>PRESSURE</span><strong>${format(pressure, "psi")}</strong></div>
-              <div class="result-item"><span>K_N</span><strong>${format(kn, "")}</strong></div>
-              <div class="result-item"><span>THRUST</span><strong>${format(thrust, "N")}</strong></div>
-            </div>
-            <div class="download-box">
-              <div class="download-title">DOWNLOAD FILES</div>
-              <div class="download-links">${downloadLinks}</div>
-              ${outcomeNote}
-            </div>
-          `;
-          resultsSlot.classList.add("visible");
-          const downloadsContainer = resultsSlot.querySelector(".download-links");
-          if (downloadsContainer) {
-            downloadsContainer.addEventListener("click", (event) => {
-              const target = event.target as HTMLElement | null;
-              const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
-              if (!anchor) return;
-              event.preventDefault();
-              const href = anchor.getAttribute("data-download") || "";
-            triggerDownload(href);
-            });
-          }
+          let activeStage: "stage0" | "stage1" = "stage0";
+
+          const getStageMetrics = (stageKey: "stage0" | "stage1") => {
+            const stage = stageMetrics[stageKey] as Record<string, unknown> | undefined;
+            return stage || metrics;
+          };
+
+          const renderStage = (stageKey: "stage0" | "stage1") => {
+            activeStage = stageKey;
+            const stage = getStageMetrics(stageKey);
+            const rawTotalImpulse = Number(stage.total_impulse);
+            const totalImpulse =
+              Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
+                ? estimatedTotalImpulse
+                : rawTotalImpulse;
+            const peakMassFlux = Number(stage.peak_mass_flux);
+            const rawPressure = Number(
+              (stage as { peak_pressure_psi?: number }).peak_pressure_psi ??
+                stage.peak_chamber_pressure ??
+                stage.max_pressure ??
+                stage.max_pressure_pa
+            );
+            const pressure =
+              Number.isFinite(rawPressure) && rawPressure > 10000
+                ? rawPressure / 6894.757
+                : rawPressure;
+            const kn = Number(stage.peak_kn);
+            const motorMass = Number(stage.propellant_mass_lb);
+            const missionImpulseRow =
+              Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
+                ? `<div class="result-item"><span>TOTAL IMPULSE (MISSION)</span><strong>${format(
+                    estimatedTotalImpulse,
+                    "N·s"
+                  )}</strong></div>`
+                : "";
+            const downloadLinks = artifacts
+              ? `
+                ${
+                  stageKey === "stage0" && stage0Ric
+                    ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>`
+                    : ""
+                }
+                ${
+                  stageKey === "stage0" && stage0Eng
+                    ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>`
+                    : ""
+                }
+                ${
+                  stageKey === "stage1" && stage1Ric
+                    ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>`
+                    : ""
+                }
+                ${
+                  stageKey === "stage1" && stage1Eng
+                    ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>`
+                    : ""
+                }
+              `
+              : `<div class="download-muted">Download links unavailable.</div>`;
+            const outcomeNote =
+              withinTolerance || !Number.isFinite(objectiveError)
+                ? ""
+                : `<div class="download-muted">Best effort: objective error ${objectiveError.toFixed(
+                    1
+                  )}%</div>`;
+
+            const hasStageToggle = Boolean(stage1Ric || stage1Eng);
+            const nextStageLabel = stageKey === "stage0" ? "STAGE 1" : "STAGE 0";
+            resultsSlot.innerHTML = `
+              <div class="results-header">
+                <div></div>
+                <div class="results-stage-label">STAGE ${stageKey === "stage0" ? "0" : "1"}</div>
+              </div>
+              <div class="results-grid">
+                ${missionImpulseRow}
+                <div class="result-item"><span>TOTAL IMPULSE</span><strong>${format(
+                  totalImpulse,
+                  "N·s"
+                )}</strong></div>
+                <div class="result-item"><span>PEAK MASS FLUX</span><strong>${format(
+                  peakMassFlux,
+                  "kg/m²·s"
+                )}</strong></div>
+                <div class="result-item"><span>NMAX</span><strong>${format(nmax, "m/s²")}</strong></div>
+                <div class="result-item"><span>PRESSURE</span><strong>${format(
+                  pressure,
+                  "psi"
+                )}</strong></div>
+                <div class="result-item"><span>K_N</span><strong>${format(kn, "")}</strong></div>
+                <div class="result-item"><span>TOTAL MOTOR MASS</span><strong>${format(
+                  motorMass,
+                  "lb"
+                )}</strong></div>
+              </div>
+              <div class="download-box">
+                <div class="download-title">DOWNLOAD FILES</div>
+                <div class="download-links">${downloadLinks}</div>
+                ${outcomeNote}
+                ${
+                  hasStageToggle
+                    ? `<div class="results-stage-action">
+                        <button class="results-stage-next" data-stage="${
+                          stageKey === "stage0" ? "stage1" : "stage0"
+                        }">${nextStageLabel}</button>
+                      </div>`
+                    : ""
+                }
+              </div>
+            `;
+            resultsSlot.classList.add("visible");
+            const downloadsContainer = resultsSlot.querySelector(".download-links");
+            if (downloadsContainer) {
+              downloadsContainer.addEventListener("click", (event) => {
+                const target = event.target as HTMLElement | null;
+                const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
+                if (!anchor) return;
+                event.preventDefault();
+                const href = anchor.getAttribute("data-download") || "";
+                triggerDownload(href);
+              });
+            }
+            const stageButton = resultsSlot.querySelector(
+              ".results-stage-next"
+            ) as HTMLButtonElement | null;
+            if (stageButton) {
+              const stage = stageButton.getAttribute("data-stage") as "stage0" | "stage1" | null;
+              if (stage) {
+                stageButton.addEventListener("click", (event) => {
+                  event.preventDefault();
+                  if (stage === activeStage) return;
+                  renderStage(stage);
+                });
+              }
+            }
+          };
+
+          renderStage("stage0");
         };
 
         const handleMissionStatus = (event: Event) => {
@@ -2982,14 +3235,23 @@ const ArxInterface: React.FC = () => {
           if (detail.status === "completed" && detail.job?.result) {
             const result = detail.job.result as Record<string, unknown>;
             const motorlib = result.openmotor_motorlib_result as Record<string, unknown> | undefined;
-            const candidate = (motorlib?.candidates as Record<string, unknown>[] | undefined)?.[0];
+            const ranked = (motorlib?.ranked as Record<string, unknown>[] | undefined) || [];
+            const candidates = (motorlib?.candidates as Record<string, unknown>[] | undefined) || [];
+            const candidate = ranked[0] || candidates[0];
+            const estimatedTotalImpulse = Number(
+              (result as { estimated_total_impulse_ns?: number }).estimated_total_impulse_ns
+            );
+            if (candidate && Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0) {
+              (candidate as { estimated_total_impulse_ns?: number }).estimated_total_impulse_ns =
+                estimatedTotalImpulse;
+            }
             if (candidate) {
               renderResults(candidate);
-              window.localStorage.setItem(
-                "arx_mission_target_result",
-                JSON.stringify({ candidate, job: detail.job })
-              );
             }
+            window.localStorage.setItem(
+              "arx_mission_target_result",
+              JSON.stringify({ job: detail.job })
+            );
             if (status3) status3.textContent = "THIS IS DONE.";
             if (loader) loader.classList.add("active");
             if (actions) actions.classList.add("hidden");
@@ -3018,6 +3280,7 @@ const ArxInterface: React.FC = () => {
 
         continue3?.addEventListener("click", () => {
           if (status3) status3.textContent = "";
+          window.localStorage.removeItem("arx_mission_target_result");
           let apogee = getNumberValue("max_apogee_ft");
           let velocity = getNumberValue("max_velocity_m_s");
           if (!Number.isFinite(apogee) || apogee <= 0 || !Number.isFinite(velocity) || velocity <= 0) {
@@ -3087,6 +3350,12 @@ const ArxInterface: React.FC = () => {
               console.warn("Invalid arx_cdx1_profile JSON", error);
             }
           }
+          if (!Number.isFinite(separationDelay) || separationDelay < 0) {
+            separationDelay = 5;
+          }
+          if (!Number.isFinite(ignitionDelay) || ignitionDelay < 0) {
+            ignitionDelay = 5;
+          }
           const maxPressure = getNumberValue("max_pressure_psi");
           const maxKn = getNumberValue("max_kn");
           const refDiameter = getNumberValue("ref_diameter_in");
@@ -3106,8 +3375,6 @@ const ArxInterface: React.FC = () => {
             if (status3) status3.textContent = "COMPLETE ALL VEHICLE + CONSTRAINT FIELDS.";
             return;
           }
-          if (!Number.isFinite(separationDelay) || separationDelay < 0) separationDelay = 0;
-          if (!Number.isFinite(ignitionDelay) || ignitionDelay < 0) ignitionDelay = 0;
 
           const maxStageLengthRatio = 1.15;
 
@@ -3132,6 +3399,10 @@ const ArxInterface: React.FC = () => {
             separation_delay_s: separationDelay,
             ignition_delay_s: ignitionDelay,
           };
+          const orkPath = window.localStorage.getItem("arx_ork_path");
+          if (orkPath) {
+            payload.ork_path = orkPath;
+          }
           try {
             const launchProfile = window.localStorage.getItem("arx_launch_profile");
             if (launchProfile) {

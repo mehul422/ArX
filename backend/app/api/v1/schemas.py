@@ -121,6 +121,12 @@ class MotorUploadResponse(BaseModel):
     source: Literal["uploaded"]
 
 
+class OrkUploadResponse(BaseModel):
+    ork_id: str
+    filename: str
+    path: str
+
+
 class JobResponse(BaseModel):
     id: str
     type: Literal["simulate", "optimize", "optimize_input", "mission_target"]
@@ -144,6 +150,7 @@ class V1JobResponse(BaseModel):
     id: str
     status: Literal["queued", "running", "completed", "failed"]
     params: dict[str, Any] = Field(default_factory=dict)
+    submitted_params: dict[str, Any] | None = None
     result: dict[str, Any] | None = None
     error: V1Error | None = None
     created_at: datetime
@@ -273,6 +280,7 @@ class V1TargetOnlyMissionRequest(BaseModel):
     allowed_propellants: V1AllowedPropellants | None = None
     vehicle: V1TargetOnlyVehicle
     solver_config: V1SolverConfig | None = None
+    ork_path: str | None = Field(default=None, description="absolute path to ORK file")
     stage_count: int = Field(default=1, ge=1, le=2)
     output_dir: str | None = None
     tolerance_pct: float | None = Field(default=None, gt=0)

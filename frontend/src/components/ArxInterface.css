@@ -1974,6 +1974,73 @@ body.panel-active #holo-side-layer {
   letter-spacing: 1px;
   color: rgba(0, 243, 255, 0.4);
 }
+
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.results-stage-label {
+  color: #00ff99;
+  font-size: 0.9rem;
+  letter-spacing: 0.18rem;
+}
+
+.results-stage-toggle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.results-stage-btn {
+  background: rgba(0, 255, 153, 0.08);
+  border: 1px solid rgba(0, 255, 153, 0.5);
+  color: #00ff99;
+  font-size: 0.7rem;
+  letter-spacing: 0.14rem;
+  padding: 0.45rem 0.8rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.results-stage-btn:hover {
+  background: rgba(0, 255, 153, 0.18);
+}
+
+.results-stage-btn.active {
+  background: rgba(0, 255, 153, 0.3);
+  border-color: rgba(0, 255, 153, 0.9);
+}
+
+.results-stage-btn.single {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.results-stage-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.results-stage-next {
+  background: rgba(0, 255, 153, 0.12);
+  border: 1px solid rgba(0, 255, 153, 0.6);
+  color: #00ff99;
+  font-size: 0.7rem;
+  letter-spacing: 0.16rem;
+  padding: 0.5rem 0.9rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.results-stage-next:hover {
+  background: rgba(0, 255, 153, 0.2);
+  border-color: rgba(0, 255, 153, 0.9);
+}
 #mission-actions.hidden {
   display: none;
 }
@@ -2390,8 +2457,6 @@ body.panel-active #holo-side-layer {
   bottom: 50px;
   transition: opacity 0.4s ease;
 }
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap");
 
 :root {
   --bg-deep: #081018;
@@ -3540,10 +3605,6 @@ body.panel-active #holo-side-layer {
 #warp-flash {
   pointer-events: none;
 }
-/* ArxInterface.css */
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap");
-
 /* ================= COMMON RESET ================= */
 .arx-container * {
   margin: 0;

@@ -4,14 +4,16 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.routes_inputs import router as inputs_router
 from app.api.v1.routes_motors import router as motors_router
 from app.api.v1.routes_optimization import router as optimization_router
+from app.api.v1.routes_ork import router as ork_router
 from app.core.config import get_settings
 from app.db.queries import create_jobs_table, create_user_inputs_table
+from app.engine.openmotor_ai.ric_writer import normalize_ric_text
 
 logger = logging.getLogger("arx.backend")
 
@@ -50,10 +52,27 @@ def download_artifact(file_path: str):
         raise HTTPException(status_code=400, detail="invalid download path")
     if not candidate.exists() or not candidate.is_file():
         raise HTTPException(status_code=404, detail="file not found")
+    no_cache_headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+    if candidate.suffix.lower() == ".ric":
+        raw = candidate.read_text(encoding="utf-8")
+        normalized = normalize_ric_text(raw)
+        return Response(
+            content=normalized,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{candidate.name}"',
+                **no_cache_headers,
+            },
+        )
     return FileResponse(
         candidate,
         filename=candidate.name,
         media_type="application/octet-stream",
+        headers=no_cache_headers,
     )
 
 
@@ -77,3 +96,4 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 app.include_router(optimization_router, prefix="/api/v1")
 app.include_router(motors_router, prefix="/api/v1")
 app.include_router(inputs_router, prefix="/api/v1")
+app.include_router(ork_router, prefix="/api/v1")

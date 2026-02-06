@@ -16,6 +16,7 @@ def compute_inputs_hash(payload: dict[str, Any]) -> str:
 def build_v1_job_response(
     job: dict[str, Any],
     job_kind: Literal["simulate", "mission_target", "motor_first"],
+    submitted_params: dict[str, Any] | None = None,
 ) -> V1JobResponse:
     error = None
     if job.get("error"):
@@ -25,12 +26,15 @@ def build_v1_job_response(
     if job_kind in ("mission_target", "motor_first"):
         params = convert_mass_length_payload(params)
         result = convert_mass_length_payload(result) if result is not None else None
+        if submitted_params is not None:
+            submitted_params = convert_mass_length_payload(submitted_params)
     return V1JobResponse(
         api_version="v1",
         job_kind=job_kind,
         id=job["id"],
         status=job["status"],
         params=params,
+        submitted_params=submitted_params,
         result=result,
         error=error,
         created_at=job["created_at"],

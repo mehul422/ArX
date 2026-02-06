@@ -245,8 +245,22 @@ def aggregate_metrics(spec: MotorSpec, steps: list[TimeStep]) -> dict[str, float
 def thrust_curve(steps: list[TimeStep]) -> list[tuple[float, float]]:
     if not steps:
         return []
-    curve = [(step.time_s, step.thrust_n) for step in steps]
-    last_time = curve[-1][0]
-    if curve[-1][1] != 0.0:
-        curve.append((last_time + steps[-1].time_s, 0.0))
-    return curve
+    curve = sorted(((step.time_s, step.thrust_n) for step in steps), key=lambda item: item[0])
+    sanitized: list[tuple[float, float]] = []
+    last_time: float | None = None
+    for time_s, thrust_n in curve:
+        if last_time is None or time_s > last_time:
+            sanitized.append((time_s, thrust_n))
+            last_time = time_s
+    if not sanitized:
+        return []
+    last_time = sanitized[-1][0]
+    if sanitized[-1][1] != 0.0:
+        if len(sanitized) > 1:
+            delta = sanitized[-1][0] - sanitized[-2][0]
+        else:
+            delta = steps[-1].time_s
+        if delta <= 0:
+            delta = 1e-6
+        sanitized.append((last_time + delta, 0.0))
+    return sanitized

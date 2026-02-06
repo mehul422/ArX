@@ -1683,6 +1683,7 @@ def mission_targeted_design_target_only(
     temperature_k: float | None = None,
     rod_length_m: float = 0.0,
     launch_angle_deg: float = 0.0,
+    ork_path: str | None = None,
     allowed_propellant_families: list[str] | None = None,
     allowed_propellant_names: list[str] | None = None,
     preset_path: str | None = None,
@@ -1903,6 +1904,7 @@ def mission_targeted_design_target_only(
                 viable_candidates.append(candidate)
             logs.append(
                 {
+                    "name": name,
                     "propellant": prop.name,
                     "apogee_ft": best_apogee.apogee_m * 3.28084,
                     "max_velocity_m_s": calibrated_velocity,
@@ -1917,6 +1919,7 @@ def mission_targeted_design_target_only(
                     "objective_error_pct": float(best_error * 100.0),
                     "within_tolerance": within_tolerance,
                     "metrics": metrics,
+                    "stage_metrics": {"stage0": metrics},
                     "artifacts": {
                         "ric": str(ric_out),
                         "eng": str(eng_out),
@@ -2121,6 +2124,7 @@ def mission_targeted_design_target_only(
                         }
                     logs.append(
                         {
+                            "name": name,
                             "propellant": prop.name,
                             "split_ratio": split,
                             "apogee_ft": apogee.apogee_m * 3.28084,
@@ -2136,6 +2140,7 @@ def mission_targeted_design_target_only(
                             "objective_error_pct": float(error * 100.0),
                             "within_tolerance": within_tolerance,
                             "metrics": metrics,
+                            "stage_metrics": {"stage0": stage0.metrics, "stage1": stage1.metrics},
                             "artifacts": {
                                 "stage0_ric": str(stage0_ric_out),
                                 "stage1_ric": str(stage1_ric_out),
@@ -2277,6 +2282,7 @@ def mission_targeted_design_target_only(
                             viable_candidates.append(candidate)
                         logs.append(
                             {
+                                "name": name,
                                 "propellant": prop.name,
                                 "split_ratio": split,
                                 "apogee_ft": apogee.apogee_m * 3.28084,
@@ -2292,6 +2298,7 @@ def mission_targeted_design_target_only(
                                 "objective_error_pct": float(error * 100.0),
                                 "within_tolerance": within_tolerance,
                                 "metrics": metrics,
+                                "stage_metrics": {"stage0": stage0.metrics, "stage1": stage1.metrics},
                                 "artifacts": {
                                     "stage0_ric": str(stage0_ric_out),
                                     "stage1_ric": str(stage1_ric_out),
@@ -2320,6 +2327,67 @@ def mission_targeted_design_target_only(
             "rejected": rejected,
         })
 
+    openrocket_ranked = None
+    if ork_path:
+        from app.engine.openrocket.runner import run_openrocket_simulation
+
+        scored_logs = []
+        for log in logs:
+            artifacts = log.get("artifacts") if isinstance(log, dict) else None
+            if not isinstance(artifacts, dict):
+                continue
+            motor_paths: list[str] = []
+            if artifacts.get("eng"):
+                motor_paths.append(artifacts["eng"])
+            else:
+                if artifacts.get("stage0_eng"):
+                    motor_paths.append(artifacts["stage0_eng"])
+                if artifacts.get("stage1_eng"):
+                    motor_paths.append(artifacts["stage1_eng"])
+            if not motor_paths:
+                continue
+            try:
+                or_result = run_openrocket_simulation(
+                    {
+                        "rocket_path": ork_path,
+                        "motor_paths": motor_paths,
+                        "stage_count": stage_count,
+                        "separation_delay_s": separation_delay_s,
+                        "ignition_delay_s": ignition_delay_s,
+                        "launch_altitude_m": launch_altitude_m,
+                        "wind_speed_m_s": wind_speed_m_s,
+                        "temperature_k": temperature_k,
+                        "rod_length_m": rod_length_m,
+                        "launch_angle_deg": launch_angle_deg,
+                    }
+                )
+            except Exception as exc:
+                log["openrocket"] = {"status": "error", "detail": str(exc)}
+                continue
+            apogee_ft = float(or_result.get("apogee_m", 0.0)) * 3.28084
+            max_v = or_result.get("max_velocity_m_s")
+            error = _objective_error_pct_max(
+                apogee_ft,
+                max_v,
+                targets.apogee_ft,
+                targets.max_velocity_m_s,
+            )
+            log["openrocket"] = or_result | {
+                "apogee_ft": apogee_ft,
+                "objective_reports": _objective_reports(
+                    apogee_ft,
+                    max_v,
+                    targets.apogee_ft,
+                    targets.max_velocity_m_s,
+                ),
+                "objective_error_pct": float(error * 100.0) if error is not None else None,
+            }
+            if error is not None:
+                scored_logs.append((error, log))
+        if scored_logs:
+            openrocket_ranked = [item for _, item in sorted(scored_logs, key=lambda item: item[0])]
+            logs = openrocket_ranked
+
     ranked_pool = viable_candidates if viable_candidates else all_candidates
     ranked = []
     for item in sorted(
@@ -2346,6 +2414,60 @@ def mission_targeted_design_target_only(
             }
         )
 
+    if openrocket_ranked:
+        ranked = [
+            {
+                "name": item.get("name"),
+                "apogee_ft": item.get("openrocket", {}).get("apogee_ft"),
+                "metrics": item.get("metrics"),
+                "objective_reports": item.get("openrocket", {}).get("objective_reports"),
+                "openrocket": item.get("openrocket"),
+            }
+            for item in openrocket_ranked
+            if isinstance(item, dict)
+        ]
+
+    openrocket_eval = None
+    if ork_path and ranked:
+        try:
+            best_name = ranked[0]["name"]
+            best_log = next((log for log in logs if log.get("name") == best_name), None)
+            if best_log and best_log.get("artifacts"):
+                artifacts = best_log["artifacts"]
+                motor_paths = []
+                if artifacts.get("eng"):
+                    motor_paths.append(artifacts["eng"])
+                else:
+                    if artifacts.get("stage0_eng"):
+                        motor_paths.append(artifacts["stage0_eng"])
+                    if artifacts.get("stage1_eng"):
+                        motor_paths.append(artifacts["stage1_eng"])
+                if motor_paths:
+                    from app.engine.openrocket.runner import run_openrocket_simulation
+
+                    openrocket_eval = run_openrocket_simulation(
+                        {
+                            "rocket_path": ork_path,
+                            "motor_paths": motor_paths,
+                            "stage_count": stage_count,
+                            "separation_delay_s": separation_delay_s,
+                            "ignition_delay_s": ignition_delay_s,
+                            "launch_altitude_m": launch_altitude_m,
+                            "wind_speed_m_s": wind_speed_m_s,
+                            "temperature_k": temperature_k,
+                            "rod_length_m": rod_length_m,
+                            "launch_angle_deg": launch_angle_deg,
+                        }
+                    )
+                    openrocket_eval["objective_reports"] = _objective_reports(
+                        openrocket_eval.get("apogee_m", 0.0) * 3.28084,
+                        openrocket_eval.get("max_velocity_m_s"),
+                        targets.apogee_ft,
+                        targets.max_velocity_m_s,
+                    )
+        except Exception as exc:
+            openrocket_eval = {"status": "error", "detail": str(exc)}
+
     return _json_safe({
         "targets": {
             "apogee_ft": targets.apogee_ft,
@@ -2361,6 +2483,7 @@ def mission_targeted_design_target_only(
             "viable_count": len(viable_candidates),
             "rejected_count": len(rejected),
         },
+        "openrocket": openrocket_eval,
         "candidates": logs,
         "ranked": ranked,
         "rejected": rejected,

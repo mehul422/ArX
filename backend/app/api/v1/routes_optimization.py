@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from app.api.v1.schemas import (
@@ -12,7 +14,7 @@ from app.api.v1.schemas import (
     V1MissionTargetRequest,
     V1TargetOnlyMissionRequest,
 )
-from app.api.v1.units import f_to_k, ft_to_m, in_to_m, lb_to_kg, mph_to_m_s
+from app.api.v1.units import f_to_k, ft_to_m, in_to_m, lb_to_kg, mph_to_m_s, m_to_in
 from app.api.v1.v1_mappers import build_v1_job_response
 from app.api.v1.units import convert_mass_length_payload
 from app.db.queries import fetch_job, insert_job
@@ -22,8 +24,11 @@ from app.workers.tasks import (
     run_motor_first_task,
     run_optimization_task,
 )
+from app.engine.openrocket.runner import run_openrocket_geometry, run_openrocket_core_masscalc
+from app.engine.integration.ork_rkt import calculate_stack_length_m
 
 router = APIRouter(tags=["optimization"])
+logger = logging.getLogger("arx.backend")
 # v1 mission-target mapping helpers
 
 
@@ -258,6 +263,29 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         "ref_diameter_m": in_to_m(vehicle.ref_diameter_in),
         "rocket_length_in": vehicle.rocket_length_in,
     }
+    constraints_payload = request.constraints.model_dump()
+    if request.ork_path:
+        try:
+            hard_length_m = calculate_stack_length_m(request.ork_path)
+            geometry = run_openrocket_geometry({"rocket_path": request.ork_path})
+            diameter_m = float(geometry.get("diameter_m") or 0.0)
+            mass_result = run_openrocket_core_masscalc(
+                {"rocket_path": request.ork_path}
+            )
+            ork_mass_kg = float(mass_result.get("mass_kg") or 0.0)
+        except Exception as exc:
+            logger.exception(
+                "Failed to read ORK geometry for path=%s", request.ork_path
+            )
+            raise ValueError(f"Failed to read ORK geometry: {exc}") from exc
+        if hard_length_m > 0:
+            vehicle_params["rocket_length_in"] = m_to_in(hard_length_m)
+            constraints_payload["max_vehicle_length_in"] = m_to_in(hard_length_m)
+            vehicle.rocket_length_in = m_to_in(hard_length_m)
+        if diameter_m > 0:
+            vehicle_params["ref_diameter_m"] = diameter_m
+        if ork_mass_kg > 0:
+            vehicle.total_mass_lb = ork_mass_kg * 2.20462
     launch_altitude_m = (
         ft_to_m(request.launch_altitude_ft) if request.launch_altitude_ft is not None else 0.0
     )
@@ -273,6 +301,7 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
     return {
         "target_only": True,
         "output_dir": request.output_dir or "backend/tests",
+        "ork_path": request.ork_path,
         "total_target_impulse_ns": None,
         "target_apogee_ft": target_apogee_ft,
         "max_velocity_m_s": max_velocity_m_s,
@@ -280,7 +309,7 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         "stage_count": request.stage_count,
         "fast_mode": request.fast_mode,
         "velocity_calibration": request.velocity_calibration,
-        "constraints": request.constraints.model_dump(),
+        "constraints": constraints_payload,
         "search": search.model_dump(),
         "split_ratios": split_ratios,
         "cd_max": solver.cd_max if solver and solver.cd_max is not None else (request.cd_max or 0.5),
@@ -312,7 +341,11 @@ def enqueue_mission_target(request: V1MissionTargetRequest):
     params = _build_mission_target_params(request)
     job_id = insert_job(job_type="mission_target", params=params)
     run_mission_target_task.delay(job_id, params)
-    return build_v1_job_response(fetch_job(job_id), job_kind="mission_target")
+    return build_v1_job_response(
+        fetch_job(job_id),
+        job_kind="mission_target",
+        submitted_params=request.model_dump(),
+    )
 
 
 @router.post("/optimize/mission-target/target-only", response_model=V1JobResponse)
@@ -323,7 +356,11 @@ def enqueue_mission_target_target_only(request: V1TargetOnlyMissionRequest):
         raise HTTPException(status_code=400, detail=str(exc))
     job_id = insert_job(job_type="mission_target", params=params)
     run_mission_target_task.delay(job_id, params)
-    return build_v1_job_response(fetch_job(job_id), job_kind="mission_target")
+    return build_v1_job_response(
+        fetch_job(job_id),
+        job_kind="mission_target",
+        submitted_params=request.model_dump(),
+    )
 
 
 def _build_motor_first_params(request: V1MotorFirstRequest) -> dict:

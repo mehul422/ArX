@@ -976,6 +976,59 @@ body.dashboard-mode::after {
   width: 450px;
   box-shadow: 0 0 40px rgba(255, 51, 51, 0.3);
 }
+.launch-settings-btn {
+  letter-spacing: 2px;
+}
+.launch-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+.launch-modal.visible {
+  display: flex;
+}
+.launch-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+}
+.launch-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 90vw);
+  background: rgba(0, 10, 0, 0.92);
+  border: 1px solid rgba(0, 255, 0, 0.4);
+  box-shadow: 0 0 24px rgba(0, 255, 0, 0.25);
+  padding: 28px;
+  display: grid;
+  gap: 16px;
+}
+.launch-modal-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 3px;
+  color: var(--page-accent);
+  text-transform: uppercase;
+}
+.launch-modal-subtitle {
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: rgba(0, 255, 0, 0.6);
+  text-transform: uppercase;
+}
+.launch-modal-grid {
+  display: grid;
+  gap: 12px;
+}
+.launch-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
 .modal-text {
   font-family: var(--font-data);
   color: #fff;

@@ -160,6 +160,66 @@ const ArxInterface: React.FC = () => {
       }
     };
 
+    const getLaunchInputs = (container: Element) => {
+      const get = (name: string) =>
+        (container.querySelector(`input[name="${name}"]`) as HTMLInputElement | null) || null;
+      return {
+        altitude: get("launch_altitude_ft"),
+        temperature: get("temperature_f"),
+        wind: get("wind_speed_mph"),
+        rodLength: get("rod_length_ft"),
+        angle: get("launch_angle_deg"),
+      };
+    };
+
+    const loadLaunchProfile = () => {
+      try {
+        const stored = window.localStorage.getItem("arx_launch_profile");
+        if (!stored) return null;
+        return JSON.parse(stored) as Record<string, number>;
+      } catch (error) {
+        console.warn("Invalid arx_launch_profile JSON", error);
+        return null;
+      }
+    };
+
+    const saveLaunchProfile = (profile: Record<string, number>) => {
+      window.localStorage.setItem("arx_launch_profile", JSON.stringify(profile));
+    };
+
+    const openLaunchModal = () => {
+      const modal = document.getElementById("launchModal");
+      if (!modal) return;
+      const inputs = getLaunchInputs(modal);
+      const stored = loadLaunchProfile();
+      if (stored) {
+        if (inputs.altitude && Number.isFinite(stored.launch_altitude_ft)) {
+          inputs.altitude.value = String(stored.launch_altitude_ft);
+        }
+        if (inputs.temperature && Number.isFinite(stored.temperature_f)) {
+          inputs.temperature.value = String(stored.temperature_f);
+        }
+        if (inputs.wind && Number.isFinite(stored.wind_speed_mph)) {
+          inputs.wind.value = String(stored.wind_speed_mph);
+        }
+        if (inputs.rodLength && Number.isFinite(stored.rod_length_ft)) {
+          inputs.rodLength.value = String(stored.rod_length_ft);
+        }
+        if (inputs.angle && Number.isFinite(stored.launch_angle_deg)) {
+          inputs.angle.value = String(stored.launch_angle_deg);
+        }
+      }
+      modal.classList.add("visible");
+      modal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeLaunchModal = () => {
+      const modal = document.getElementById("launchModal");
+      if (!modal) return;
+      modal.classList.remove("visible");
+      modal.setAttribute("aria-hidden", "true");
+    };
+
     const startLandingAudio = () => {
       if (landingAudioStarted || hasLaunched) return;
       landingAudioStarted = true;
@@ -3073,6 +3133,29 @@ const ArxInterface: React.FC = () => {
             ignition_delay_s: ignitionDelay,
           };
           try {
+            const launchProfile = window.localStorage.getItem("arx_launch_profile");
+            if (launchProfile) {
+              const stored = JSON.parse(launchProfile) as Record<string, number>;
+              if (Number.isFinite(stored.launch_altitude_ft)) {
+                payload.launch_altitude_ft = Number(stored.launch_altitude_ft);
+              }
+              if (Number.isFinite(stored.rod_length_ft)) {
+                payload.rod_length_ft = Number(stored.rod_length_ft);
+              }
+              if (Number.isFinite(stored.temperature_f)) {
+                payload.temperature_f = Number(stored.temperature_f);
+              }
+              if (Number.isFinite(stored.wind_speed_mph)) {
+                payload.wind_speed_mph = Number(stored.wind_speed_mph);
+              }
+              if (Number.isFinite(stored.launch_angle_deg)) {
+                payload.launch_angle_deg = Number(stored.launch_angle_deg);
+              }
+            }
+          } catch (error) {
+            console.warn("Invalid arx_cdx1_profile JSON", error);
+          }
+          try {
             const stored = window.localStorage.getItem("arx_cdx1_profile");
             if (stored) {
               const cdx = JSON.parse(stored) as {
@@ -3082,25 +3165,20 @@ const ArxInterface: React.FC = () => {
                 wind_speed?: number;
                 launch_angle_deg?: number;
               };
-              if (Number.isFinite(cdx.altitude_ft as number)) {
-                (payload as MissionTargetPayload & { launch_altitude_ft?: number }).launch_altitude_ft =
-                  Number(cdx.altitude_ft);
+              if (!Number.isFinite(payload.launch_altitude_ft) && Number.isFinite(cdx.altitude_ft as number)) {
+                payload.launch_altitude_ft = Number(cdx.altitude_ft);
               }
-              if (Number.isFinite(cdx.rod_length_ft as number)) {
-                (payload as MissionTargetPayload & { rod_length_ft?: number }).rod_length_ft =
-                  Number(cdx.rod_length_ft);
+              if (!Number.isFinite(payload.rod_length_ft) && Number.isFinite(cdx.rod_length_ft as number)) {
+                payload.rod_length_ft = Number(cdx.rod_length_ft);
               }
-              if (Number.isFinite(cdx.temperature_f as number)) {
-                (payload as MissionTargetPayload & { temperature_f?: number }).temperature_f =
-                  Number(cdx.temperature_f);
+              if (!Number.isFinite(payload.temperature_f) && Number.isFinite(cdx.temperature_f as number)) {
+                payload.temperature_f = Number(cdx.temperature_f);
               }
-              if (Number.isFinite(cdx.wind_speed as number)) {
-                (payload as MissionTargetPayload & { wind_speed_mph?: number }).wind_speed_mph =
-                  Number(cdx.wind_speed);
+              if (!Number.isFinite(payload.wind_speed_mph) && Number.isFinite(cdx.wind_speed as number)) {
+                payload.wind_speed_mph = Number(cdx.wind_speed);
               }
-              if (Number.isFinite(cdx.launch_angle_deg as number)) {
-                (payload as MissionTargetPayload & { launch_angle_deg?: number }).launch_angle_deg =
-                  Number(cdx.launch_angle_deg);
+              if (!Number.isFinite(payload.launch_angle_deg) && Number.isFinite(cdx.launch_angle_deg as number)) {
+                payload.launch_angle_deg = Number(cdx.launch_angle_deg);
               }
             }
           } catch (error) {
@@ -3284,6 +3362,35 @@ const ArxInterface: React.FC = () => {
       },
       true
     );
+
+    const launchBtn = document.getElementById("launchSettingsBtn");
+    launchBtn?.addEventListener("click", (event) => {
+      event.preventDefault();
+      openLaunchModal();
+    });
+    const launchModal = document.getElementById("launchModal");
+    const launchBackdrop = document.getElementById("launchModalBackdrop");
+    const launchSave = document.getElementById("launchModalSave");
+    const launchClose = document.getElementById("launchModalClose");
+    launchBackdrop?.addEventListener("click", closeLaunchModal);
+    launchClose?.addEventListener("click", closeLaunchModal);
+    launchSave?.addEventListener("click", () => {
+      if (!launchModal) return;
+      const inputs = getLaunchInputs(launchModal);
+      const profile: Record<string, number> = {};
+      const setIfFinite = (key: string, input: HTMLInputElement | null) => {
+        if (!input) return;
+        const value = Number(input.value);
+        if (Number.isFinite(value)) profile[key] = value;
+      };
+      setIfFinite("launch_altitude_ft", inputs.altitude);
+      setIfFinite("temperature_f", inputs.temperature);
+      setIfFinite("wind_speed_mph", inputs.wind);
+      setIfFinite("rod_length_ft", inputs.rodLength);
+      setIfFinite("launch_angle_deg", inputs.angle);
+      saveLaunchProfile(profile);
+      closeLaunchModal();
+    });
 
     const resetDashboard = () => {
       document.documentElement.style.setProperty("--grid-color", "0, 243, 255");
@@ -3902,6 +4009,9 @@ const ArxInterface: React.FC = () => {
             </div>
           </div>
           <div className="nav-right">
+            <button className="nav-link launch-settings-btn" id="launchSettingsBtn" title="Launch parameters">
+              LAUNCH
+            </button>
             <button className="nav-link" data-action="INIT">
               Initialize
             </button>
@@ -3913,6 +4023,40 @@ const ArxInterface: React.FC = () => {
             </button>
           </div>
         </nav>
+
+        <div className="launch-modal" id="launchModal" aria-hidden="true">
+          <div className="launch-modal-backdrop" id="launchModalBackdrop"></div>
+          <div className="launch-modal-panel" role="dialog" aria-modal="true">
+            <div className="launch-modal-title">LAUNCH PARAMETERS</div>
+            <div className="launch-modal-subtitle">Set once for all runs</div>
+            <div className="launch-modal-grid">
+              <div className="arx-field">
+                <input type="number" name="launch_altitude_ft" placeholder=" " min="0" step="any" />
+                <label>LAUNCH SITE ELEVATION (FT)</label>
+              </div>
+              <div className="arx-field">
+                <input type="number" name="temperature_f" placeholder=" " step="any" />
+                <label>TEMPERATURE (F)</label>
+              </div>
+              <div className="arx-field">
+                <input type="number" name="wind_speed_mph" placeholder=" " min="0" step="any" />
+                <label>WIND SPEED (MPH)</label>
+              </div>
+              <div className="arx-field">
+                <input type="number" name="rod_length_ft" placeholder=" " min="0" step="any" />
+                <label>LAUNCH RAIL LENGTH (FT)</label>
+              </div>
+              <div className="arx-field">
+                <input type="number" name="launch_angle_deg" placeholder=" " step="any" />
+                <label>LAUNCH ANGLE (DEG)</label>
+              </div>
+            </div>
+            <div className="launch-modal-actions">
+              <button type="button" className="arx-btn" id="launchModalSave">Save</button>
+              <button type="button" className="arx-btn" id="launchModalClose">Close</button>
+            </div>
+          </div>
+        </div>
 
         <main className="main-stage">
           <div className="hud-panel side-panel boot-hidden">

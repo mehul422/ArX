@@ -52,7 +52,11 @@ export type MissionTargetPayload = {
     separation_delay_s?: number;
     ignition_delay_s?: number;
     tolerance_pct?: number;
+    stage0_length_in?: number;
+    stage1_length_in?: number;
   };
+  stage0_length_in?: number;
+  stage1_length_in?: number;
 };
 
 type MissionTargetJob = {
@@ -94,8 +98,8 @@ export const pollMissionTargetJob = async (
   jobId: string,
   options?: { intervalMs?: number; timeoutMs?: number }
 ): Promise<MissionTargetJob> => {
-  const intervalMs = options?.intervalMs ?? 2000;
-  const timeoutMs = options?.timeoutMs ?? 10 * 60 * 1000;
+  const intervalMs = options?.intervalMs ?? 15000;
+  const timeoutMs = options?.timeoutMs ?? 60 * 60 * 1000;
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const job = await fetchMissionTargetJob(jobId);

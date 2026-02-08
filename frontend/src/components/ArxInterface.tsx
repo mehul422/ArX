@@ -751,6 +751,8 @@ const ArxInterface: React.FC = () => {
       }
     };
 
+    const MISSION_TIMEOUT_MS = 60 * 60 * 1000;
+
     const runMissionTarget = async () => {
       const payload = getMissionTargetPayload();
       if (!payload) {
@@ -765,10 +767,15 @@ const ArxInterface: React.FC = () => {
       window.dispatchEvent(new CustomEvent("arx:mission-target:status", { detail: { status: "start" } }));
       try {
         const job = await submitMissionTarget(payload);
+        window.localStorage.setItem("arx_mission_target_job_id", job.id);
         window.dispatchEvent(
           new CustomEvent("arx:mission-target:status", { detail: { status: "submitted", jobId: job.id } })
         );
-        const finished = await pollMissionTargetJob(job.id);
+        const latestJobId = window.localStorage.getItem("arx_mission_target_job_id") || job.id;
+        const finished = await pollMissionTargetJob(latestJobId, {
+          timeoutMs: MISSION_TIMEOUT_MS,
+          intervalMs: 15000,
+        });
         window.dispatchEvent(
           new CustomEvent("arx:mission-target:status", { detail: { status: finished.status, job: finished } })
         );
@@ -2203,17 +2210,21 @@ const ArxInterface: React.FC = () => {
         const jobMotorlib = (jobResult?.openmotor_motorlib_result as Record<string, unknown> | undefined) || undefined;
         const jobCandidates = (jobMotorlib?.candidates as Record<string, unknown>[] | undefined) || [];
         const jobRanked = (jobMotorlib?.ranked as Record<string, unknown>[] | undefined) || [];
-        const jobCandidate = jobCandidates[0] || jobRanked[0];
+        const jobCandidate = jobRanked[0] || jobCandidates[0];
         const candidate = jobCandidate || (jobResult ? undefined : storedCandidate);
         const artifacts = (candidate?.artifacts as Record<string, string> | undefined) || undefined;
         const metrics = (candidate?.metrics as Record<string, unknown> | undefined) || {};
         const stageMetrics = (candidate?.stage_metrics as Record<string, unknown> | undefined) || {};
         const estimatedTotalImpulse = Number(
           (jobResult as { estimated_total_impulse_ns?: number } | undefined)?.estimated_total_impulse_ns ??
-            (candidate as { estimated_total_impulse_ns?: number }).estimated_total_impulse_ns
+            (candidate as { estimated_total_impulse_ns?: number } | undefined)?.estimated_total_impulse_ns
         );
-        const withinTolerance = Boolean((candidate as { within_tolerance?: boolean }).within_tolerance);
-        const objectiveError = Number((candidate as { objective_error_pct?: number }).objective_error_pct);
+        const withinTolerance = Boolean(
+          (candidate as { within_tolerance?: boolean } | undefined)?.within_tolerance
+        );
+        const objectiveError = Number(
+          (candidate as { objective_error_pct?: number } | undefined)?.objective_error_pct
+        );
         const stage0Ric = resolveDownloadUrl(artifacts?.stage0_ric || artifacts?.ric);
         const stage0Eng = resolveDownloadUrl(artifacts?.stage0_eng || artifacts?.eng);
         const stage1Ric = resolveDownloadUrl(artifacts?.stage1_ric);
@@ -2226,19 +2237,8 @@ const ArxInterface: React.FC = () => {
             : `<div class="download-muted">Best effort: objective error ${objectiveError.toFixed(
                 1
               )}%</div>`;
-        let activeStage: "stage0" | "stage1" = "stage0";
-        const getStageMetrics = (stageKey: "stage0" | "stage1") => {
-          const stage = stageMetrics[stageKey] as Record<string, unknown> | undefined;
-          return stage || metrics;
-        };
-        const renderStage = (stageKey: "stage0" | "stage1") => {
-          activeStage = stageKey;
-          const stage = getStageMetrics(stageKey);
-          const rawTotalImpulse = Number(stage.total_impulse);
-          const totalImpulse =
-            Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
-              ? estimatedTotalImpulse
-              : rawTotalImpulse;
+        const renderStageCard = (stageKey: "stage0" | "stage1", stage: Record<string, unknown>) => {
+          const totalImpulse = Number(stage.total_impulse);
           const peakMassFlux = Number(stage.peak_mass_flux);
           const rawPressure = Number(
             (stage as { peak_pressure_psi?: number }).peak_pressure_psi ??
@@ -2252,49 +2252,10 @@ const ArxInterface: React.FC = () => {
               : rawPressure;
           const kn = Number(stage.peak_kn ?? stage.max_kn);
           const motorMass = Number(stage.propellant_mass_lb);
-          const hasStageToggle = Boolean(stage1Ric || stage1Eng);
-          const nextStageLabel = stageKey === "stage0" ? "STAGE 1" : "STAGE 0";
-          const missionImpulseRow =
-            Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
-              ? `<div class="result-item"><span>TOTAL IMPULSE (MISSION)</span><strong>${format(
-                  estimatedTotalImpulse,
-                  "N·s"
-                )}</strong></div>`
-              : "";
-          const downloadLinks = artifacts
-            ? `
-              ${
-                stageKey === "stage0" && stage0Ric
-                  ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>`
-                  : ""
-              }
-              ${
-                stageKey === "stage0" && stage0Eng
-                  ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>`
-                  : ""
-              }
-              ${
-                stageKey === "stage1" && stage1Ric
-                  ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>`
-                  : ""
-              }
-              ${
-                stageKey === "stage1" && stage1Eng
-                  ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>`
-                  : ""
-              }
-            `
-            : `<div class="download-muted">Download links unavailable.</div>`;
-          subPageContent.innerHTML = `
-            <div class="subpage-form" data-form="mission-results">
-              <div class="form-title">RESULTS</div>
-              <div class="form-subtitle">MISSION TARGET OUTPUT</div>
-              <div class="results-header">
-                <div></div>
-                <div class="results-stage-label">STAGE ${stageKey === "stage0" ? "0" : "1"}</div>
-              </div>
-            <div class="results-grid">
-              ${missionImpulseRow}
+          return `
+            <div class="results-stage">
+              <div class="results-stage-label">STAGE ${stageKey === "stage0" ? "0" : "1"}</div>
+              <div class="results-grid">
                 <div class="result-item"><span>TOTAL IMPULSE</span><strong>${format(
                   totalImpulse,
                   "N·s"
@@ -2317,48 +2278,56 @@ const ArxInterface: React.FC = () => {
                   "lb"
                 )}</strong></div>
               </div>
-              <div class="download-box">
-                <div class="download-title">DOWNLOAD FILES</div>
-                <div class="download-links">${downloadLinks}</div>
-                ${outcomeNote}
-                ${
-                  hasStageToggle
-                    ? `<div class="results-stage-action">
-                        <button class="results-stage-next" data-stage="${
-                          stageKey === "stage0" ? "stage1" : "stage0"
-                        }">${nextStageLabel}</button>
-                      </div>`
-                    : ""
-                }
-              </div>
             </div>
           `;
-          const downloadsContainer = subPageContent.querySelector(".download-links");
-          if (downloadsContainer) {
-            downloadsContainer.addEventListener("click", (event) => {
-              const target = event.target as HTMLElement | null;
-              const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
-              if (!anchor) return;
-              event.preventDefault();
-              const href = anchor.getAttribute("data-download") || "";
-              triggerDownload(href);
-            });
-          }
-          const stageButton = subPageContent.querySelector(
-            ".results-stage-next"
-          ) as HTMLButtonElement | null;
-          if (stageButton) {
-            const stage = stageButton.getAttribute("data-stage") as "stage0" | "stage1" | null;
-            if (stage) {
-              stageButton.addEventListener("click", (event) => {
-                event.preventDefault();
-                if (stage === activeStage) return;
-                renderStage(stage);
-              });
-            }
-          }
         };
-        renderStage("stage0");
+
+        const stage0 = (stageMetrics.stage0 as Record<string, unknown> | undefined) || metrics;
+        const stage1 = stageMetrics.stage1 as Record<string, unknown> | undefined;
+        const missionImpulseRow =
+          Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
+            ? `<div class="result-item"><span>TOTAL IMPULSE (MISSION)</span><strong>${format(
+                estimatedTotalImpulse,
+                "N·s"
+              )}</strong></div>`
+            : "";
+        const downloadLinks = artifacts
+          ? `
+            ${stage0Ric ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>` : ""}
+            ${stage0Eng ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>` : ""}
+            ${stage1Ric ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>` : ""}
+            ${stage1Eng ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>` : ""}
+          `
+          : `<div class="download-muted">Download links unavailable.</div>`;
+        subPageContent.innerHTML = `
+          <div class="subpage-form" data-form="mission-results">
+            <div class="form-title">RESULTS</div>
+            <div class="form-subtitle">MISSION TARGET OUTPUT</div>
+            <div class="results-grid">
+              ${missionImpulseRow}
+            </div>
+            <div class="results-stages">
+              ${renderStageCard("stage0", stage0)}
+              ${stage1 ? renderStageCard("stage1", stage1) : ""}
+            </div>
+            <div class="download-box">
+              <div class="download-title">DOWNLOAD FILES</div>
+              <div class="download-links">${downloadLinks}</div>
+              ${outcomeNote}
+            </div>
+          </div>
+        `;
+        const downloadsContainer = subPageContent.querySelector(".download-links");
+        if (downloadsContainer) {
+          downloadsContainer.addEventListener("click", (event) => {
+            const target = event.target as HTMLElement | null;
+            const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
+            if (!anchor) return;
+            event.preventDefault();
+            const href = anchor.getAttribute("data-download") || "";
+            triggerDownload(href);
+          });
+        }
       } else if (type === "SYSTEM" || type === "VEHICLE") {
         const isVehiclePage = type === "VEHICLE";
         let hasLockedTarget = false;
@@ -2401,6 +2370,33 @@ const ArxInterface: React.FC = () => {
               <div class="form-status" id="mission-status-2"></div>
               <div class="arx-form-actions">
                 <button type="button" class="arx-btn" id="mission-continue-2">Continue</button>
+              </div>
+            </div>
+
+            <div class="arx-step" id="mission-step-2b">
+              <div class="form-title">ROCKET PROFILE</div>
+              <div class="form-subtitle">VERIFY ORK VALUES + SET PER-STAGE LENGTH</div>
+              <div class="arx-field">
+                <input type="number" name="ork_length_in" placeholder=" " min="0" step="any" disabled />
+                <label>ORK MAX LENGTH (IN)</label>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="ork_mass_lb" placeholder=" " min="0" step="any" disabled />
+                <label>ORK TOTAL MASS (LB)</label>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="stage0_length_in" placeholder=" " min="0" step="any" required />
+                <label>STAGE 0 LENGTH (IN)</label>
+                <div class="field-hint">Allowed tolerance: ±6 in</div>
+              </div>
+              <div class="arx-field" id="stage1-length-field">
+                <input type="number" name="stage1_length_in" placeholder=" " min="0" step="any" />
+                <label>STAGE 1 LENGTH (IN)</label>
+                <div class="field-hint">Allowed tolerance: ±6 in</div>
+              </div>
+              <div class="form-status" id="mission-status-2b"></div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" id="mission-continue-2b">Continue</button>
               </div>
             </div>
 
@@ -2493,16 +2489,55 @@ const ArxInterface: React.FC = () => {
 
         const step1 = subPageContent.querySelector("#mission-step-1") as HTMLElement | null;
         const step2 = subPageContent.querySelector("#mission-step-2") as HTMLElement | null;
+        const step2b = subPageContent.querySelector("#mission-step-2b") as HTMLElement | null;
         const step3 = subPageContent.querySelector("#mission-step-3") as HTMLElement | null;
         const status1 = subPageContent.querySelector("#mission-status-1") as HTMLElement | null;
         const status2 = subPageContent.querySelector("#mission-status-2") as HTMLElement | null;
+        const status2b = subPageContent.querySelector("#mission-status-2b") as HTMLElement | null;
         const status3 = subPageContent.querySelector("#mission-status-3") as HTMLElement | null;
         const loader = subPageContent.querySelector("#mission-loader") as HTMLElement | null;
         const resultsSlot = subPageContent.querySelector("#mission-results") as HTMLElement | null;
         const actions = subPageContent.querySelector("#mission-actions") as HTMLElement | null;
 
+        const startMissionProgress = () => {
+          if (!loader) return;
+          const existingTimer = Number(loader.dataset.progressTimer);
+          if (Number.isFinite(existingTimer)) {
+            window.clearInterval(existingTimer);
+          }
+          loader.classList.add("active");
+          loader.classList.add("progressing");
+          loader.dataset.progressStart = String(Date.now());
+          loader.dataset.progressTimeout = String(MISSION_TIMEOUT_MS);
+          loader.style.setProperty("--progress", "2");
+          const timerId = window.setInterval(() => {
+            const start = Number(loader.dataset.progressStart);
+            const timeout = Number(loader.dataset.progressTimeout);
+            if (!Number.isFinite(start) || !Number.isFinite(timeout) || timeout <= 0) return;
+            const elapsed = Date.now() - start;
+            const pct = Math.min(90, Math.max(2, (elapsed / timeout) * 90));
+            loader.style.setProperty("--progress", `${pct}`);
+          }, 500);
+          loader.dataset.progressTimer = String(timerId);
+        };
+
+        const stopMissionProgress = (finalPct?: number) => {
+          if (!loader) return;
+          const existingTimer = Number(loader.dataset.progressTimer);
+          if (Number.isFinite(existingTimer)) {
+            window.clearInterval(existingTimer);
+          }
+          delete loader.dataset.progressTimer;
+          delete loader.dataset.progressStart;
+          delete loader.dataset.progressTimeout;
+          if (typeof finalPct === "number" && Number.isFinite(finalPct)) {
+            loader.style.setProperty("--progress", `${finalPct}`);
+          }
+          loader.classList.remove("progressing");
+        };
+
         const showStep = (step: number) => {
-          [step1, step2, step3].forEach((el, index) => {
+          [step1, step2, step2b, step3].forEach((el, index) => {
             if (!el) return;
             if (index === step) {
               el.classList.add("active");
@@ -2601,12 +2636,22 @@ const ArxInterface: React.FC = () => {
         const stageCountInput = subPageContent.querySelector(
           'input[name="stage_count"]'
         ) as HTMLInputElement | null;
+        const stage1LengthField = subPageContent.querySelector(
+          "#stage1-length-field"
+        ) as HTMLElement | null;
+        const updateStageLengthVisibility = () => {
+          const stageCount = getStageCountValue();
+          if (!stage1LengthField) return;
+          stage1LengthField.style.display = stageCount > 1 ? "" : "none";
+        };
         stageCountInput?.addEventListener("input", () => {
           updateConstraintsContinue();
+          updateStageLengthVisibility();
         });
 
         const continue1 = subPageContent.querySelector("#mission-continue-1") as HTMLButtonElement | null;
         const continue2 = subPageContent.querySelector("#mission-continue-2") as HTMLButtonElement | null;
+        const continue2b = subPageContent.querySelector("#mission-continue-2b") as HTMLButtonElement | null;
         const continue3 = subPageContent.querySelector("#mission-continue-3") as HTMLButtonElement | null;
 
         // Target profile enhancements (step 1 only)
@@ -2661,14 +2706,34 @@ const ArxInterface: React.FC = () => {
             const ignitionInput = subPageContent.querySelector(
               'input[name="ignition_delay_s"]'
             ) as HTMLInputElement | null;
-            if (massInput && Number.isFinite(profile.total_mass_lb)) {
-              massInput.value = String(profile.total_mass_lb);
+            const orkLengthInput = subPageContent.querySelector(
+              'input[name="ork_length_in"]'
+            ) as HTMLInputElement | null;
+            const orkMassInput = subPageContent.querySelector(
+              'input[name="ork_mass_lb"]'
+            ) as HTMLInputElement | null;
+            const stage0LengthInput = subPageContent.querySelector(
+              'input[name="stage0_length_in"]'
+            ) as HTMLInputElement | null;
+            const stage1LengthInput = subPageContent.querySelector(
+              'input[name="stage1_length_in"]'
+            ) as HTMLInputElement | null;
+            const rocketLengthIn = Number(profile.rocket_length_in);
+            const totalMassLb = Number(profile.total_mass_lb);
+            if (massInput && Number.isFinite(totalMassLb)) {
+              massInput.value = String(totalMassLb);
             }
-            if (lengthInput && Number.isFinite(profile.rocket_length_in)) {
-              lengthInput.value = String(profile.rocket_length_in);
+            if (lengthInput && Number.isFinite(rocketLengthIn)) {
+              lengthInput.value = String(rocketLengthIn);
             }
             if (diameterInput && Number.isFinite(profile.ref_diameter_in)) {
               diameterInput.value = String(profile.ref_diameter_in);
+            }
+            if (orkLengthInput && Number.isFinite(rocketLengthIn)) {
+              orkLengthInput.value = String(rocketLengthIn);
+            }
+            if (orkMassInput && Number.isFinite(totalMassLb)) {
+              orkMassInput.value = String(totalMassLb);
             }
             if (stageCountInputEl && !stageCountInputEl.value) {
               stageCountInputEl.value = "2";
@@ -2681,6 +2746,14 @@ const ArxInterface: React.FC = () => {
             }
             if (ignitionInput && !ignitionInput.value) {
               ignitionInput.value = "5";
+            }
+            if (Number.isFinite(rocketLengthIn) && stage0LengthInput && !stage0LengthInput.value) {
+              const stageCount = stageCountInputEl ? Number(stageCountInputEl.value) || 1 : 1;
+              stage0LengthInput.value = String(rocketLengthIn / Math.max(stageCount, 1));
+            }
+            if (Number.isFinite(rocketLengthIn) && stage1LengthInput && !stage1LengthInput.value) {
+              const stageCount = stageCountInputEl ? Number(stageCountInputEl.value) || 1 : 1;
+              stage1LengthInput.value = String(rocketLengthIn / Math.max(stageCount, 1));
             }
           } catch (error) {
             console.warn("Invalid arx_ork_vehicle_profile JSON", error);
@@ -2941,6 +3014,7 @@ const ArxInterface: React.FC = () => {
           updateTargetProfileUI();
         }
         applyOrkProfile();
+        updateStageLengthVisibility();
 
         if (isVehiclePage) {
           hasLockedTarget = true;
@@ -3062,7 +3136,43 @@ const ArxInterface: React.FC = () => {
             if (status2) status2.textContent = "COMPLETE ALL VEHICLE FIELDS.";
             return;
           }
+          const stage0LengthInput = subPageContent.querySelector(
+            'input[name="stage0_length_in"]'
+          ) as HTMLInputElement | null;
+          const stage1LengthInput = subPageContent.querySelector(
+            'input[name="stage1_length_in"]'
+          ) as HTMLInputElement | null;
+          if (stage0LengthInput && !stage0LengthInput.value) {
+            stage0LengthInput.value = String(rocketLength / Math.max(stageCount, 1));
+          }
+          if (stage1LengthInput && !stage1LengthInput.value) {
+            stage1LengthInput.value = String(rocketLength / Math.max(stageCount, 1));
+          }
+          updateStageLengthVisibility();
           showStep(2);
+        });
+
+        continue2b?.addEventListener("click", () => {
+          if (status2b) status2b.textContent = "";
+          const stageCount = getStageCountValue();
+          const stage0Length = getNumberValue("stage0_length_in");
+          const stage1Length = getNumberValue("stage1_length_in");
+          if (!Number.isFinite(stage0Length) || stage0Length <= 0) {
+            if (status2b) status2b.textContent = "ENTER A VALID STAGE 0 LENGTH.";
+            return;
+          }
+          if (stageCount > 1 && (!Number.isFinite(stage1Length) || stage1Length <= 0)) {
+            if (status2b) status2b.textContent = "ENTER A VALID STAGE 1 LENGTH.";
+            return;
+          }
+          window.localStorage.setItem(
+            "arx_stage_length_targets",
+            JSON.stringify({
+              stage0_length_in: stage0Length,
+              stage1_length_in: stageCount > 1 ? stage1Length : null,
+            })
+          );
+          showStep(3);
           updateConstraintsContinue();
         });
 
@@ -3088,21 +3198,8 @@ const ArxInterface: React.FC = () => {
           const stage1Ric = resolveDownloadUrl(artifacts?.stage1_ric);
           const stage1Eng = resolveDownloadUrl(artifacts?.stage1_eng);
 
-          let activeStage: "stage0" | "stage1" = "stage0";
-
-          const getStageMetrics = (stageKey: "stage0" | "stage1") => {
-            const stage = stageMetrics[stageKey] as Record<string, unknown> | undefined;
-            return stage || metrics;
-          };
-
-          const renderStage = (stageKey: "stage0" | "stage1") => {
-            activeStage = stageKey;
-            const stage = getStageMetrics(stageKey);
-            const rawTotalImpulse = Number(stage.total_impulse);
-            const totalImpulse =
-              Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
-                ? estimatedTotalImpulse
-                : rawTotalImpulse;
+          const renderStageCard = (stageKey: "stage0" | "stage1", stage: Record<string, unknown>) => {
+            const totalImpulse = Number(stage.total_impulse);
             const peakMassFlux = Number(stage.peak_mass_flux);
             const rawPressure = Number(
               (stage as { peak_pressure_psi?: number }).peak_pressure_psi ??
@@ -3116,115 +3213,84 @@ const ArxInterface: React.FC = () => {
                 : rawPressure;
             const kn = Number(stage.peak_kn);
             const motorMass = Number(stage.propellant_mass_lb);
-            const missionImpulseRow =
-              Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
-                ? `<div class="result-item"><span>TOTAL IMPULSE (MISSION)</span><strong>${format(
-                    estimatedTotalImpulse,
-                    "N·s"
-                  )}</strong></div>`
-                : "";
-            const downloadLinks = artifacts
-              ? `
-                ${
-                  stageKey === "stage0" && stage0Ric
-                    ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>`
-                    : ""
-                }
-                ${
-                  stageKey === "stage0" && stage0Eng
-                    ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>`
-                    : ""
-                }
-                ${
-                  stageKey === "stage1" && stage1Ric
-                    ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>`
-                    : ""
-                }
-                ${
-                  stageKey === "stage1" && stage1Eng
-                    ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>`
-                    : ""
-                }
-              `
-              : `<div class="download-muted">Download links unavailable.</div>`;
-            const outcomeNote =
-              withinTolerance || !Number.isFinite(objectiveError)
-                ? ""
-                : `<div class="download-muted">Best effort: objective error ${objectiveError.toFixed(
-                    1
-                  )}%</div>`;
-
-            const hasStageToggle = Boolean(stage1Ric || stage1Eng);
-            const nextStageLabel = stageKey === "stage0" ? "STAGE 1" : "STAGE 0";
-            resultsSlot.innerHTML = `
-              <div class="results-header">
-                <div></div>
+            return `
+              <div class="results-stage">
                 <div class="results-stage-label">STAGE ${stageKey === "stage0" ? "0" : "1"}</div>
-              </div>
-              <div class="results-grid">
-                ${missionImpulseRow}
-                <div class="result-item"><span>TOTAL IMPULSE</span><strong>${format(
-                  totalImpulse,
-                  "N·s"
-                )}</strong></div>
-                <div class="result-item"><span>PEAK MASS FLUX</span><strong>${format(
-                  peakMassFlux,
-                  "kg/m²·s"
-                )}</strong></div>
-                <div class="result-item"><span>NMAX</span><strong>${format(nmax, "m/s²")}</strong></div>
-                <div class="result-item"><span>PRESSURE</span><strong>${format(
-                  pressure,
-                  "psi"
-                )}</strong></div>
-                <div class="result-item"><span>K_N</span><strong>${format(kn, "")}</strong></div>
-                <div class="result-item"><span>TOTAL MOTOR MASS</span><strong>${format(
-                  motorMass,
-                  "lb"
-                )}</strong></div>
-              </div>
-              <div class="download-box">
-                <div class="download-title">DOWNLOAD FILES</div>
-                <div class="download-links">${downloadLinks}</div>
-                ${outcomeNote}
-                ${
-                  hasStageToggle
-                    ? `<div class="results-stage-action">
-                        <button class="results-stage-next" data-stage="${
-                          stageKey === "stage0" ? "stage1" : "stage0"
-                        }">${nextStageLabel}</button>
-                      </div>`
-                    : ""
-                }
+                <div class="results-grid">
+                  <div class="result-item"><span>TOTAL IMPULSE</span><strong>${format(
+                    totalImpulse,
+                    "N·s"
+                  )}</strong></div>
+                  <div class="result-item"><span>PEAK MASS FLUX</span><strong>${format(
+                    peakMassFlux,
+                    "kg/m²·s"
+                  )}</strong></div>
+                  <div class="result-item"><span>NMAX</span><strong>${format(nmax, "m/s²")}</strong></div>
+                  <div class="result-item"><span>PRESSURE</span><strong>${format(
+                    pressure,
+                    "psi"
+                  )}</strong></div>
+                  <div class="result-item"><span>K_N</span><strong>${format(kn, "")}</strong></div>
+                  <div class="result-item"><span>TOTAL MOTOR MASS</span><strong>${format(
+                    motorMass,
+                    "lb"
+                  )}</strong></div>
+                </div>
               </div>
             `;
-            resultsSlot.classList.add("visible");
-            const downloadsContainer = resultsSlot.querySelector(".download-links");
-            if (downloadsContainer) {
-              downloadsContainer.addEventListener("click", (event) => {
-                const target = event.target as HTMLElement | null;
-                const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
-                if (!anchor) return;
-                event.preventDefault();
-                const href = anchor.getAttribute("data-download") || "";
-                triggerDownload(href);
-              });
-            }
-            const stageButton = resultsSlot.querySelector(
-              ".results-stage-next"
-            ) as HTMLButtonElement | null;
-            if (stageButton) {
-              const stage = stageButton.getAttribute("data-stage") as "stage0" | "stage1" | null;
-              if (stage) {
-                stageButton.addEventListener("click", (event) => {
-                  event.preventDefault();
-                  if (stage === activeStage) return;
-                  renderStage(stage);
-                });
-              }
-            }
           };
 
-          renderStage("stage0");
+          const stage0 = (stageMetrics.stage0 as Record<string, unknown> | undefined) || metrics;
+          const stage1 = stageMetrics.stage1 as Record<string, unknown> | undefined;
+          const missionImpulseRow =
+            Number.isFinite(estimatedTotalImpulse) && estimatedTotalImpulse > 0
+              ? `<div class="result-item"><span>TOTAL IMPULSE (MISSION)</span><strong>${format(
+                  estimatedTotalImpulse,
+                  "N·s"
+                )}</strong></div>`
+              : "";
+          const outcomeNote =
+            withinTolerance || !Number.isFinite(objectiveError)
+              ? ""
+              : `<div class="download-muted">Best effort: objective error ${objectiveError.toFixed(1)}%</div>`;
+          const downloadLinks = artifacts
+            ? `
+              ${stage0Ric ? `<a class="download-link" href="#" data-download="${stage0Ric}">.ric (stage 0)</a>` : ""}
+              ${stage0Eng ? `<a class="download-link" href="#" data-download="${stage0Eng}">.eng (stage 0)</a>` : ""}
+              ${stage1Ric ? `<a class="download-link" href="#" data-download="${stage1Ric}">.ric (stage 1)</a>` : ""}
+              ${stage1Eng ? `<a class="download-link" href="#" data-download="${stage1Eng}">.eng (stage 1)</a>` : ""}
+            `
+            : `<div class="download-muted">Download links unavailable.</div>`;
+
+          resultsSlot.innerHTML = `
+            <div class="results-header">
+              <div></div>
+            </div>
+            <div class="results-grid">
+              ${missionImpulseRow}
+            </div>
+            <div class="results-stages">
+              ${renderStageCard("stage0", stage0)}
+              ${stage1 ? renderStageCard("stage1", stage1) : ""}
+            </div>
+            <div class="download-box">
+              <div class="download-title">DOWNLOAD FILES</div>
+              <div class="download-links">${downloadLinks}</div>
+              ${outcomeNote}
+            </div>
+          `;
+          resultsSlot.classList.add("visible");
+          const downloadsContainer = resultsSlot.querySelector(".download-links");
+          if (downloadsContainer) {
+            downloadsContainer.addEventListener("click", (event) => {
+              const target = event.target as HTMLElement | null;
+              const anchor = target?.closest("a.download-link") as HTMLAnchorElement | null;
+              if (!anchor) return;
+              event.preventDefault();
+              const href = anchor.getAttribute("data-download") || "";
+              triggerDownload(href);
+            });
+          }
         };
 
         const handleMissionStatus = (event: Event) => {
@@ -3232,12 +3298,58 @@ const ArxInterface: React.FC = () => {
             | { status: string; job?: { result?: Record<string, unknown> } }
             | undefined;
           if (!detail) return;
+          if (detail.status === "start" || detail.status === "submitted" || detail.status === "running") {
+            startMissionProgress();
+          }
           if (detail.status === "completed" && detail.job?.result) {
             const result = detail.job.result as Record<string, unknown>;
             const motorlib = result.openmotor_motorlib_result as Record<string, unknown> | undefined;
             const ranked = (motorlib?.ranked as Record<string, unknown>[] | undefined) || [];
             const candidates = (motorlib?.candidates as Record<string, unknown>[] | undefined) || [];
-            const candidate = ranked[0] || candidates[0];
+            const hasStageData = (entry?: Record<string, unknown>) =>
+              Boolean(entry?.stage_metrics || entry?.artifacts || entry?.artifact_urls);
+            const findBestCandidateMatch = (target: Record<string, unknown>) => {
+              const targetName = target.name;
+              const targetMetrics = (target.metrics as Record<string, unknown> | undefined) || {};
+              const targetImpulse = Number(targetMetrics.total_impulse);
+              const nameMatches = candidates.filter((item) => item.name === targetName);
+              if (nameMatches.length === 1) {
+                return nameMatches[0];
+              }
+              let best: Record<string, unknown> | undefined;
+              let bestDelta: number | undefined;
+              const pool = nameMatches.length ? nameMatches : candidates;
+              for (const item of pool) {
+                const metrics = (item.metrics as Record<string, unknown> | undefined) || {};
+                const impulse = Number(metrics.total_impulse);
+                if (!Number.isFinite(targetImpulse) || !Number.isFinite(impulse)) continue;
+                const delta = Math.abs(impulse - targetImpulse);
+                if (bestDelta === undefined || delta < bestDelta) {
+                  bestDelta = delta;
+                  best = item;
+                }
+              }
+              return best;
+            };
+            let candidate = ranked[0] || candidates[0];
+            if (candidate && !hasStageData(candidate) && candidates.length) {
+              const match = findBestCandidateMatch(candidate);
+              if (match) {
+                candidate = {
+                  ...match,
+                  ...candidate,
+                  stage_metrics:
+                    (match as { stage_metrics?: Record<string, unknown> }).stage_metrics ??
+                    (candidate as { stage_metrics?: Record<string, unknown> }).stage_metrics,
+                  artifacts:
+                    (match as { artifacts?: Record<string, unknown> }).artifacts ??
+                    (candidate as { artifacts?: Record<string, unknown> }).artifacts,
+                  artifact_urls:
+                    (match as { artifact_urls?: Record<string, unknown> }).artifact_urls ??
+                    (candidate as { artifact_urls?: Record<string, unknown> }).artifact_urls,
+                };
+              }
+            }
             const estimatedTotalImpulse = Number(
               (result as { estimated_total_impulse_ns?: number }).estimated_total_impulse_ns
             );
@@ -3253,6 +3365,7 @@ const ArxInterface: React.FC = () => {
               JSON.stringify({ job: detail.job })
             );
             if (status3) status3.textContent = "THIS IS DONE.";
+            stopMissionProgress(100);
             if (loader) loader.classList.add("active");
             if (actions) actions.classList.add("hidden");
             document.body.classList.remove("grid-mat-active");
@@ -3262,6 +3375,7 @@ const ArxInterface: React.FC = () => {
             window.setTimeout(() => {
               pendingSubPageType = "RESULTS";
               window.location.hash = "mission-results";
+              stopMissionProgress();
               if (loader) loader.classList.remove("active");
               revealPendingSubPage();
             }, 800);
@@ -3271,6 +3385,7 @@ const ArxInterface: React.FC = () => {
         const handleMissionError = (event: Event) => {
           const detail = (event as CustomEvent).detail as { message?: string } | undefined;
           if (status3) status3.textContent = detail?.message || "MISSION TARGET FAILED.";
+          stopMissionProgress();
           if (loader) loader.classList.remove("active");
           if (continue3) continue3.disabled = false;
           if (continue3) continue3.style.display = "";
@@ -3281,6 +3396,7 @@ const ArxInterface: React.FC = () => {
         continue3?.addEventListener("click", () => {
           if (status3) status3.textContent = "";
           window.localStorage.removeItem("arx_mission_target_result");
+          window.localStorage.removeItem("arx_mission_target_job_id");
           let apogee = getNumberValue("max_apogee_ft");
           let velocity = getNumberValue("max_velocity_m_s");
           if (!Number.isFinite(apogee) || apogee <= 0 || !Number.isFinite(velocity) || velocity <= 0) {
@@ -3318,6 +3434,8 @@ const ArxInterface: React.FC = () => {
           const totalMass = getNumberValue("total_mass_lb");
           const rocketLength = getNumberValue("rocket_length_in");
           const stageCount = getStageCountValue();
+          const stage0Length = getNumberValue("stage0_length_in");
+          const stage1Length = getNumberValue("stage1_length_in");
           let separationDelay = getNumberValue("separation_delay_s");
           let ignitionDelay = getNumberValue("ignition_delay_s");
           if (!Number.isFinite(separationDelay) || separationDelay < 0) {
@@ -3377,6 +3495,27 @@ const ArxInterface: React.FC = () => {
           }
 
           const maxStageLengthRatio = 1.15;
+          const preferredPropellants = [
+            "RCS - Blue Thunder",
+            "White Lightning",
+            "Black Jack",
+            "Green Gorilla",
+            "RCS - Warp 9",
+            "MIT - Cherry Limeade",
+            "MIT - Ocean Water",
+            "Skidmark",
+            "Redline",
+            "AP/Al/HTPB",
+            "AP/HTPB",
+            "ANCP",
+            "APCP",
+            "HTPB (hybrid fuel grain)",
+            "Composite Propellant",
+            "Sugar Propellant",
+            "Nakka - KNSB",
+            "KNSU",
+            "KNDX",
+          ];
 
           const objectives = [
             { name: "apogee_ft" as const, target: apogee, units: "ft" },
@@ -3398,7 +3537,20 @@ const ArxInterface: React.FC = () => {
             },
             separation_delay_s: separationDelay,
             ignition_delay_s: ignitionDelay,
+            allowed_propellants: {
+              names: preferredPropellants,
+            },
+            stage0_length_in: Number.isFinite(stage0Length) ? stage0Length : undefined,
+            stage1_length_in:
+              stageCount > 1 && Number.isFinite(stage1Length) ? stage1Length : undefined,
           };
+          if (Number.isFinite(stage0Length) || Number.isFinite(stage1Length)) {
+            payload.solver_config = {
+              ...(payload.solver_config || {}),
+              stage0_length_in: Number.isFinite(stage0Length) ? stage0Length : undefined,
+              stage1_length_in: Number.isFinite(stage1Length) ? stage1Length : undefined,
+            };
+          }
           const orkPath = window.localStorage.getItem("arx_ork_path");
           if (orkPath) {
             payload.ork_path = orkPath;
@@ -3468,7 +3620,7 @@ const ArxInterface: React.FC = () => {
             continue3.disabled = true;
             continue3.style.display = "none";
           }
-          if (loader) loader.classList.add("active");
+          startMissionProgress();
           if (resultsSlot) resultsSlot.classList.remove("visible");
           if (status3) status3.textContent = "TARGETS LOCKED. RUNNING OPTIMIZATION.";
           window.addEventListener("arx:mission-target:status", handleMissionStatus as EventListener);

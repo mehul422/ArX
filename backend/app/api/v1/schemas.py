@@ -203,6 +203,10 @@ class V1SolverConfig(BaseModel):
     ignition_delay_s: float | None = Field(default=None, ge=0, description="s")
     weights: MissionTargetWeights | None = None
     tolerance_pct: float | None = Field(default=None, gt=0)
+    stage0_length_in: float | None = Field(default=None, gt=0, description="in")
+    stage1_length_in: float | None = Field(default=None, gt=0, description="in")
+    stage0_length_in: float | None = Field(default=None, gt=0, description="in")
+    stage1_length_in: float | None = Field(default=None, gt=0, description="in")
 
 
 class V1AllowedPropellants(BaseModel):
@@ -297,6 +301,8 @@ class V1TargetOnlyMissionRequest(BaseModel):
     launch_angle_deg: float | None = None
     allowed_propellant_families: list[str] | None = None
     allowed_propellant_names: list[str] | None = None
+    stage0_length_in: float | None = Field(default=None, gt=0, description="in")
+    stage1_length_in: float | None = Field(default=None, gt=0, description="in")
     preset_path: str | None = None
     weights: MissionTargetWeights | None = None
     search: MissionTargetSearch | None = None

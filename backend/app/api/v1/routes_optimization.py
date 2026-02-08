@@ -34,34 +34,34 @@ logger = logging.getLogger("arx.backend")
 
 def _default_design_space() -> MissionTargetSearch:
     return MissionTargetSearch(
-        diameter_scales=[0.6, 0.8, 1.0, 1.2, 1.4],
-        length_scales=[0.6, 0.8, 1.0, 1.2, 1.4],
-        core_scales=[0.7, 0.85, 1.0, 1.15],
-        throat_scales=[0.7, 0.85, 1.0, 1.15],
-        exit_scales=[0.8, 1.0, 1.2, 1.4],
-        grain_count=None,
+        diameter_scales=[0.5, 0.7, 0.9, 1.1, 1.4, 1.7, 2.0, 2.4],
+        length_scales=[0.5, 0.7, 0.9, 1.2, 1.6, 2.0, 2.6, 3.2],
+        core_scales=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+        throat_scales=[0.7, 0.9, 1.1, 1.3, 1.6, 2.0, 2.4],
+        exit_scales=[1.2, 1.6, 2.0, 2.5, 3.0, 3.6],
+        grain_count=7,
     )
 
 
 def _fast_design_space() -> MissionTargetSearch:
     return MissionTargetSearch(
-        diameter_scales=[0.8, 1.0, 1.2],
-        length_scales=[0.8, 1.0, 1.2],
-        core_scales=[0.85, 1.0],
-        throat_scales=[0.85, 1.0],
-        exit_scales=[1.0, 1.2],
-        grain_count=None,
+        diameter_scales=[0.6, 0.8, 1.0, 1.3, 1.6, 2.0],
+        length_scales=[0.6, 0.8, 1.1, 1.5, 2.0, 2.6],
+        core_scales=[0.1, 0.2, 0.3, 0.4, 0.5],
+        throat_scales=[0.8, 1.0, 1.2, 1.5, 1.9, 2.2],
+        exit_scales=[1.3, 1.6, 2.0, 2.5, 3.0],
+        grain_count=7,
     )
 
 
 def _default_design_space_fast() -> MissionTargetSearch:
     return MissionTargetSearch(
-        diameter_scales=[0.8, 1.0, 1.2],
-        length_scales=[0.8, 1.0, 1.2],
-        core_scales=[0.85, 1.0],
-        throat_scales=[0.85, 1.0],
-        exit_scales=[1.0, 1.2],
-        grain_count=None,
+        diameter_scales=[0.6, 0.8, 1.0, 1.3, 1.6, 2.0],
+        length_scales=[0.6, 0.8, 1.1, 1.5, 2.0, 2.6],
+        core_scales=[0.1, 0.2, 0.3, 0.4, 0.5],
+        throat_scales=[0.8, 1.0, 1.2, 1.5, 1.9, 2.2],
+        exit_scales=[1.3, 1.6, 2.0, 2.5, 3.0],
+        grain_count=7,
     )
 
 
@@ -137,6 +137,16 @@ def _build_mission_target_params(request: V1MissionTargetRequest) -> dict:
         if allowed_propellants and allowed_propellants.names
         else request.allowed_propellant_names
     )
+    stage0_length_in = (
+        solver.stage0_length_in
+        if solver and solver.stage0_length_in is not None
+        else request.stage0_length_in
+    )
+    stage1_length_in = (
+        solver.stage1_length_in
+        if solver and solver.stage1_length_in is not None
+        else request.stage1_length_in
+    )
     preset_path = (
         allowed_propellants.preset_path
         if allowed_propellants and allowed_propellants.preset_path
@@ -190,6 +200,8 @@ def _build_mission_target_params(request: V1MissionTargetRequest) -> dict:
         "allowed_propellant_names": allowed_names,
         "preset_path": preset_path,
         "weights": weights.model_dump(),
+        "stage0_length_in": stage0_length_in,
+        "stage1_length_in": stage1_length_in,
         "objectives": objectives_payload,
     }
 
@@ -223,7 +235,7 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         search = _fast_design_space() if request.fast_mode else _default_design_space()
     split_ratios = solver.split_ratios if solver and solver.split_ratios else request.split_ratios
     if not split_ratios:
-        split_ratios = [0.5]
+        split_ratios = [0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75]
 
     weights = solver.weights if solver and solver.weights else request.weights
     if weights is None:
@@ -246,7 +258,7 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         else request.preset_path
     )
     if request.fast_mode and not allowed_families and not allowed_names:
-        allowed_names = ["AP/Al/HTPB", "AP/HTPB", "APCP"]
+        allowed_names = None
 
     tolerance_pct = (
         solver.tolerance_pct
@@ -307,7 +319,7 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         "max_velocity_m_s": max_velocity_m_s,
         "tolerance_pct": tolerance_pct,
         "stage_count": request.stage_count,
-        "fast_mode": request.fast_mode,
+        "fast_mode": False,
         "velocity_calibration": request.velocity_calibration,
         "constraints": constraints_payload,
         "search": search.model_dump(),
@@ -326,6 +338,8 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
         "allowed_propellant_names": allowed_names,
         "preset_path": preset_path,
         "weights": weights.model_dump(),
+        "stage0_length_in": solver.stage0_length_in if solver else None,
+        "stage1_length_in": solver.stage1_length_in if solver else None,
         "objectives": objectives_payload,
         "vehicle_params": vehicle_params,
         "launch_altitude_m": launch_altitude_m,
@@ -340,7 +354,7 @@ def _build_target_only_params(request: V1TargetOnlyMissionRequest) -> dict:
 def enqueue_mission_target(request: V1MissionTargetRequest):
     params = _build_mission_target_params(request)
     job_id = insert_job(job_type="mission_target", params=params)
-    run_mission_target_task.delay(job_id, params)
+    run_mission_target_task.apply_async(args=(job_id, params), task_id=job_id)
     return build_v1_job_response(
         fetch_job(job_id),
         job_kind="mission_target",
@@ -355,7 +369,7 @@ def enqueue_mission_target_target_only(request: V1TargetOnlyMissionRequest):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     job_id = insert_job(job_type="mission_target", params=params)
-    run_mission_target_task.delay(job_id, params)
+    run_mission_target_task.apply_async(args=(job_id, params), task_id=job_id)
     return build_v1_job_response(
         fetch_job(job_id),
         job_kind="mission_target",
@@ -387,7 +401,7 @@ def _build_motor_first_params(request: V1MotorFirstRequest) -> dict:
 def enqueue_motor_first(request: V1MotorFirstRequest):
     params = _build_motor_first_params(request)
     job_id = insert_job(job_type="motor_first", params=params)
-    run_motor_first_task.delay(job_id, params)
+    run_motor_first_task.apply_async(args=(job_id, params), task_id=job_id)
     return build_v1_job_response(fetch_job(job_id), job_kind="motor_first")
 
 
@@ -481,7 +495,7 @@ def get_mission_target_manual_report(job_id: str):
 @router.post("/optimize", response_model=JobResponse)
 def enqueue_optimization(request: OptimizationRequest):
     job_id = insert_job(job_type="optimize", params=request.params)
-    run_optimization_task.delay(job_id, request.params)
+    run_optimization_task.apply_async(args=(job_id, request.params), task_id=job_id)
     return fetch_job(job_id)
 
 
@@ -490,7 +504,9 @@ def enqueue_input_optimization(input_id: str, request: OptimizationInputRequest)
     params = request.model_dump()
     params["input_id"] = input_id
     job_id = insert_job(job_type="optimize_input", params=params)
-    run_input_optimization_task.delay(job_id, input_id, params)
+    run_input_optimization_task.apply_async(
+        args=(job_id, input_id, params), task_id=job_id
+    )
     return fetch_job(job_id)
 
 

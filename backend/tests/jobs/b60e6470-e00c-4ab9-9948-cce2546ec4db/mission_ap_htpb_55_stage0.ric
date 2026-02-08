@@ -1,0 +1,55 @@
+data:
+  config:
+    ambPressure: 101325.0
+    burnoutThrustThres: 0.1
+    burnoutWebThres: 0.0000254
+    mapDim: 750
+    maxMassFlux: 1400.0
+    maxPressure: 12000000.0
+    minPortThroat: 2.0
+    timestep: 0.03
+  grains:
+  - properties:
+      coreDiameter: 0.0508
+      diameter: 0.1016
+      inhibitedEnds: Neither
+      length: 0.2159
+    type: BATES
+  - properties:
+      coreDiameter: 0.0508
+      diameter: 0.1016
+      inhibitedEnds: Neither
+      length: 0.2159
+    type: BATES
+  - properties:
+      coreDiameter: 0.0508
+      diameter: 0.1016
+      inhibitedEnds: Neither
+      length: 0.2159
+    type: BATES
+  nozzle:
+    convAngle: 35.0
+    divAngle: 12.0
+    efficiency: 1.0
+    erosionCoeff: 0.0
+    exit: 0.0762
+    slagCoeff: 0.0
+    throat: 0.0254
+    throatLength: 0.0
+  propellant:
+    density: 1700.0
+    name: AP/HTPB
+    tabs:
+    - a: 0.000048
+      k: 1.22
+      m: 28.0
+      maxPressure: 10000000.0
+      minPressure: 100000.0
+      n: 0.34
+      t: 3200.0
+type: !!python/object/apply:uilib.fileIO.fileTypes
+- 3
+version: !!python/tuple
+- 0
+- 5
+- 0

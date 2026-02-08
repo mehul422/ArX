@@ -1665,6 +1665,12 @@ body.dashboard-mode::after {
   overflow: visible;
   clip-path: none;
 }
+
+.subpage-form[data-form="mission-results"] {
+  max-height: calc(var(--panel-unit) * 32);
+  overflow: visible;
+  clip-path: none;
+}
  
 .subpage-form[data-form="vehicle-info"] .arx-form-actions {
   transform: translateY(-10%);
@@ -1872,16 +1878,33 @@ body.panel-active #holo-side-layer {
   box-shadow: 0 0 12px rgba(0, 243, 255, 0.2);
 }
 .mini-reactor-loader {
+  --progress: 0;
   width: 34px;
   height: 34px;
+  position: relative;
   border-radius: 50%;
   border: 2px solid rgba(0, 243, 255, 0.25);
   border-top-color: rgba(0, 243, 255, 0.9);
   box-shadow: 0 0 12px rgba(0, 243, 255, 0.5);
+  background: conic-gradient(
+    rgba(0, 243, 255, 0.85) calc(var(--progress) * 1%),
+    rgba(0, 243, 255, 0.12) 0
+  );
   opacity: 0;
   transform: scale(0.8);
   transition: opacity 0.3s ease, transform 0.3s ease;
   animation: reactorSpin 1.2s linear infinite;
+}
+.mini-reactor-loader::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.85);
+  box-shadow: inset 0 0 6px rgba(0, 243, 255, 0.25);
+}
+.mini-reactor-loader.progressing {
+  animation: none;
 }
 .mini-reactor-loader.active {
   opacity: 1;
@@ -1923,6 +1946,8 @@ body.panel-active #holo-side-layer {
   background: rgba(0, 0, 0, 0.55);
   padding: 14px;
   text-align: center;
+  max-height: none;
+  overflow: visible;
 }
 .download-title {
   font-size: 0.7rem;
@@ -1932,7 +1957,11 @@ body.panel-active #holo-side-layer {
 }
 .download-links {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 .download-link {
   color: rgba(0, 243, 255, 0.9);

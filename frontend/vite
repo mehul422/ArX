@@ -1,0 +1,16 @@
+
+
+  VITE v7.3.1  ready in 616 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+3:18:56 PM [vite] (client) hmr updat
+3:18:56 PM [vite] (client) hmr update /src/components/ArxInterface.tsx
+3:23:24 PM [vite] (client) hmr updat
+3:23:24 PM [vite] (client) hmr update /src/components/ArxInterface.tsx (
+3:23:24 PM [vite] (client) hmr update /src/components/ArxInterface.tsx (x2)
+3:23:56 PM [vite] (client) hmr updat
+3:23:56 PM [vite] (client) hmr update /src/components/ArxInterface.tsx (
+3:23:56 PM [vite] (client) hmr update /src/components/ArxInterface.tsx (x3)
+^C^(base) mehulverma422@Mehuls-MBP frontend % > arx-frontend@0.1.0 dev

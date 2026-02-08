@@ -1,4 +1,6 @@
 import logging
+from pathlib import Path
+import time
 from typing import Any
 
 from app.api.v1.v1_mappers import compute_inputs_hash
@@ -115,8 +117,25 @@ def run_mission_target_task(self, job_id: str, params: dict[str, Any]) -> None:
             tolerance_pct=params.get("tolerance_pct", 0.02),
         )
         weights = ScoreWeights(**params["weights"]) if params.get("weights") else None
+        base_output = params.get("output_dir", "backend/tests")
+        output_dir = str(Path(base_output) / "jobs" / job_id)
 
         if params.get("target_only"):
+            start_time = time.time()
+            last_update = 0.0
+
+            def progress_cb(payload: dict[str, object]) -> None:
+                nonlocal last_update
+                now = time.time()
+                if now - last_update < 3.0:
+                    return
+                last_update = now
+                update_job(
+                    job_id,
+                    status="running",
+                    result={"progress": payload | {"elapsed_s": int(now - start_time)}},
+                )
+
             vehicle_params = params.get("vehicle_params") or {}
             total_mass_kg = params.get("total_mass_kg") or vehicle_params.get("total_mass_kg")
             ref_diameter_m = vehicle_params.get("ref_diameter_m")
@@ -126,7 +145,7 @@ def run_mission_target_task(self, job_id: str, params: dict[str, Any]) -> None:
             if total_mass_kg is None:
                 raise ValueError("total_mass_kg is required for target_only runs")
             result = mission_targeted_design_target_only(
-                output_dir=params.get("output_dir", "backend/tests"),
+                output_dir=output_dir,
                 targets=targets,
                 constraints=constraints,
                 search=search,
@@ -141,6 +160,8 @@ def run_mission_target_task(self, job_id: str, params: dict[str, Any]) -> None:
                 stage_count=params.get("stage_count", 1),
                 velocity_calibration=params.get("velocity_calibration", 1.0),
                 fast_mode=params.get("fast_mode", False),
+                stage0_length_in=params.get("stage0_length_in"),
+                stage1_length_in=params.get("stage1_length_in"),
                 launch_altitude_m=params.get("launch_altitude_m", 0.0),
                 wind_speed_m_s=params.get("wind_speed_m_s", 0.0),
                 temperature_k=params.get("temperature_k"),
@@ -155,12 +176,13 @@ def run_mission_target_task(self, job_id: str, params: dict[str, Any]) -> None:
                     ref_diameter_m=ref_diameter_m,
                     rocket_length_in=rocket_length_in,
                 ),
+                progress_cb=progress_cb,
             )
         else:
             result = mission_targeted_design(
                 base_ric_path=params["base_ric_path"],
                 stage1_ric_path=params.get("stage1_ric_path"),
-                output_dir=params.get("output_dir", "backend/tests"),
+                output_dir=output_dir,
                 rkt_path=params["rkt_path"],
                 total_target_impulse_ns=params.get("total_target_impulse_ns"),
                 targets=targets,

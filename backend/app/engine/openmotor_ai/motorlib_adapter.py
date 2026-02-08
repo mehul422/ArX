@@ -75,6 +75,83 @@ def _safe_last(values: Iterable[float]) -> float:
     return items[-1] if items else 0.0
 
 
+def _float_or(value: object, default: float = 0.0) -> float:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _int_or(value: object, default: int = 0) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _motor_dict_from_ric_data(ric: "RicData") -> dict:
+    nozzle = ric.nozzle or {}
+    propellant = ric.propellant or {}
+    config = ric.config or {}
+    grains = ric.grains or []
+    return {
+        "nozzle": {
+            "throat": _float_or(nozzle.get("throat")),
+            "exit": _float_or(nozzle.get("exit")),
+            "efficiency": _float_or(nozzle.get("efficiency")),
+            "divAngle": _float_or(nozzle.get("divAngle")),
+            "convAngle": _float_or(nozzle.get("convAngle")),
+            "throatLength": _float_or(nozzle.get("throatLength")),
+            "slagCoeff": _float_or(nozzle.get("slagCoeff")),
+            "erosionCoeff": _float_or(nozzle.get("erosionCoeff")),
+        },
+        "propellant": {
+            "name": propellant.get("name", ""),
+            "density": _float_or(propellant.get("density")),
+            "tabs": [
+                {
+                    "minPressure": _float_or(tab.get("minPressure")),
+                    "maxPressure": _float_or(tab.get("maxPressure")),
+                    "a": _float_or(tab.get("a")),
+                    "n": _float_or(tab.get("n")),
+                    "k": _float_or(tab.get("k")),
+                    "t": _float_or(tab.get("t")),
+                    "m": _float_or(tab.get("m")),
+                }
+                for tab in (propellant.get("tabs") or [])
+                if isinstance(tab, dict)
+            ],
+        },
+        "grains": [
+            {
+                "type": grain.get("type", "BATES"),
+                "properties": {
+                    "diameter": _float_or((grain.get("properties") or {}).get("diameter")),
+                    "coreDiameter": _float_or((grain.get("properties") or {}).get("coreDiameter")),
+                    "length": _float_or((grain.get("properties") or {}).get("length")),
+                    "inhibitedEnds": _int_or((grain.get("properties") or {}).get("inhibitedEnds")),
+                },
+            }
+            for grain in grains
+            if isinstance(grain, dict)
+        ],
+        "config": {
+            "ambPressure": _float_or(config.get("ambPressure")),
+            "burnoutThrustThres": _float_or(config.get("burnoutThrustThres")),
+            "burnoutWebThres": _float_or(config.get("burnoutWebThres")),
+            "mapDim": _int_or(config.get("mapDim")),
+            "maxMassFlux": _float_or(config.get("maxMassFlux")),
+            "maxPressure": _float_or(config.get("maxPressure")),
+            "minPortThroat": _float_or(config.get("minPortThroat")),
+            "timestep": _float_or(config.get("timestep")),
+        },
+    }
+
+
 def simulate_motorlib_with_result(spec: MotorSpec) -> Tuple[list["TimeStep"], "SimulationResult"]:
     _ensure_motorlib()
     from motorlib.motor import Motor
@@ -109,6 +186,51 @@ def simulate_motorlib_with_result(spec: MotorSpec) -> Tuple[list["TimeStep"], "S
             )
         )
     return steps, sim
+
+
+def simulate_motorlib_with_result_from_ric(
+    ric_path: str,
+) -> Tuple[list["TimeStep"], "SimulationResult"]:
+    _ensure_motorlib()
+    from motorlib.motor import Motor
+    from motorlib.simResult import SimAlertLevel
+    from motorlib.simResult import SimulationResult
+
+    from app.engine.openmotor_ai.ballistics import TimeStep
+    from app.engine.openmotor_ai.ric_parser import load_ric
+
+    ric = load_ric(ric_path)
+    motor = Motor(_motor_dict_from_ric_data(ric))
+    sim: SimulationResult = motor.runSimulation()
+    if sim.getAlertsByLevel(SimAlertLevel.ERROR):
+        messages = [alert.description for alert in sim.getAlertsByLevel(SimAlertLevel.ERROR)]
+        raise RuntimeError(f"OpenMotor simulation errors: {messages}")
+
+    steps: list[TimeStep] = []
+    times = sim.channels["time"].getData()
+    for idx, time_s in enumerate(times):
+        pressure = sim.channels["pressure"].getPoint(idx)
+        thrust = sim.channels["force"].getPoint(idx)
+        kn = sim.channels["kn"].getPoint(idx)
+        mass_flow = _safe_last(sim.channels["massFlow"].getPoint(idx))
+        reg_depth = _safe_last(sim.channels["regression"].getPoint(idx))
+        port_area = motor.grains[-1].getPortArea(reg_depth) or 0.0
+        steps.append(
+            TimeStep(
+                time_s=time_s,
+                chamber_pressure_pa=pressure,
+                thrust_n=thrust,
+                mass_flow_kg_s=mass_flow,
+                kn=kn,
+                port_area_m2=port_area,
+            )
+        )
+    return steps, sim
+
+
+def simulate_motorlib_from_ric(ric_path: str) -> list["TimeStep"]:
+    steps, _ = simulate_motorlib_with_result_from_ric(ric_path)
+    return steps
 
 
 def simulate_motorlib(spec: MotorSpec) -> list["TimeStep"]:

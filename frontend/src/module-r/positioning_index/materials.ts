@@ -1,4 +1,12 @@
-const textureUrl = (path: string) => new URL(path, import.meta.url).toString();
+const textureAssets = import.meta.glob("./textures/**/*.{png,jpg,jpeg,webp,avif}", {
+  eager: true,
+  import: "default",
+}) as Record<string, string>;
+
+const textureUrl = (path: string) => {
+  const normalized = path.startsWith("./") ? path : `./${path}`;
+  return textureAssets[normalized] || normalized;
+};
 
 export type MaterialEntry = {
   type: "color" | "metal" | "texture";

@@ -418,6 +418,13 @@ export const PositioningModule: React.FC = () => {
   const [viewMode, setViewMode] = useState<"3d" | "2d">("3d");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const workspacePanelRef = useRef<HTMLDivElement | null>(null);
+  const workspaceBgUrl = useMemo(() => {
+    try {
+      return new URL("rocket_bg.png", window.location.href).toString();
+    } catch {
+      return `${import.meta.env.BASE_URL}rocket_bg.png`;
+    }
+  }, []);
 
   const showFinRecommendation = useMemo(() => {
     const hasNose = assembly.some((part) => part.type === "nose");
@@ -930,7 +937,7 @@ export const PositioningModule: React.FC = () => {
               cameraMode={cameraMode}
               viewMode={viewMode}
               onHoverPosition={setLastDropPosition}
-              backgroundImageUrl="/rocket_bg.png"
+              backgroundImageUrl={workspaceBgUrl}
             />
           </WorkspaceDropZone>
         </div>

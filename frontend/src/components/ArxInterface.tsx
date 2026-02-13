@@ -906,6 +906,48 @@ const ArxInterface: React.FC = () => {
       engineScene = null;
       engineCamera = null;
     };
+    const ensureAuthFunModal = () => {
+      let modal = document.querySelector(".auth-fun-modal") as HTMLElement | null;
+      if (modal) return modal;
+      modal = document.createElement("div");
+      modal.className = "auth-fun-modal";
+      modal.setAttribute("data-open", "false");
+      modal.innerHTML = `
+        <div class="auth-fun-modal-backdrop"></div>
+        <div class="auth-fun-modal-panel" role="dialog" aria-modal="true">
+          <div class="panel-header">NOTICE</div>
+          <div class="modal-text" id="auth-fun-modal-text"></div>
+          <div class="arx-form-actions">
+            <button type="button" class="arx-btn" data-action="auth-fun-ok">OK</button>
+          </div>
+        </div>
+      `;
+      const close = () => modal?.setAttribute("data-open", "false");
+      modal.addEventListener("click", (event) => {
+        const target = event.target as HTMLElement | null;
+        if (!target) return;
+        if (target.classList.contains("auth-fun-modal-backdrop")) {
+          close();
+          return;
+        }
+        if (target.closest('[data-action="auth-fun-ok"]')) {
+          close();
+        }
+      });
+      document.body.appendChild(modal);
+      return modal;
+    };
+    const openAuthFunModal = (mode: "login" | "new") => {
+      const modal = ensureAuthFunModal();
+      const text = modal.querySelector("#auth-fun-modal-text") as HTMLElement | null;
+      if (text) {
+        text.textContent =
+          mode === "new"
+            ? "This is just for fun! We do not have a new user setup just yet."
+            : "This is just for fun! We do not have a login setup just yet.";
+      }
+      modal.setAttribute("data-open", "true");
+    };
 
     const handleNavClick = (type: string) => {
       if (isTransitioning) return;
@@ -913,6 +955,7 @@ const ArxInterface: React.FC = () => {
       pendingSubPageType = null;
       isSubPageLocked = false;
       if (type !== "SYSTEM" && type !== "VEHICLE") {
+        document.body.classList.remove("holo-active");
         document.body.classList.remove("a-module-active");
         stopEngineHologram();
       }
@@ -5555,74 +5598,13 @@ const ArxInterface: React.FC = () => {
         const fields = form ? new FormData(form) : null;
         if (!fields) return;
         if (formType === "login") {
-          const email = String(fields.get("email") || "").trim();
-          const password = String(fields.get("password") || "").trim();
-          if (!email || !password) {
-            if (status) status.textContent = "ENTER EMAIL AND ACCESS CODE.";
-            return;
-          }
-          pendingSubPageType = null;
-          showSuccessLayer("YOU HAVE BEEN LOGGED IN SUCCESSFULLY.", 6000);
-        loggedInEmail = email;
-        updateAuthUI();
-          const loginLayer = document.getElementById("login-layer");
-          if (loginLayer) loginLayer.innerHTML = "";
-          const floater = document.getElementById("activeFloater");
-          if (floater) floater.remove();
-          const titleEl = document.getElementById("activeModuleTitle");
-          if (titleEl) titleEl.remove();
-          document.getElementById("arc-reactor-overlay")?.classList.remove("active");
-          document
-            .getElementById("arc-reactor-overlay")
-            ?.classList.remove("form-mode");
-          setTimeout(() => {
-          resetDashboard();
-        }, 7500);
+          if (status) status.textContent = "";
+          openAuthFunModal("login");
+          return;
         } else if (formType === "new") {
-          const name = String(fields.get("name") || "").trim();
-          const email = String(fields.get("email") || "").trim();
-          const password = String(fields.get("password") || "").trim();
-          const dob = readDobValue();
-          if (!dob) {
-            if (status) status.textContent = "PLEASE PUT REAL DATE.";
-            return;
-          }
-          if (!name || !email || !password) {
-            if (status) status.textContent = "INPUT INFORMATION.";
-            return;
-          }
-          const formEl = container.querySelector("form");
-          formEl?.classList.add("fade-out");
-          const floater = document.getElementById("activeFloater");
-          if (floater) floater.remove();
-          const titleEl = document.getElementById("activeModuleTitle");
-          if (titleEl) titleEl.remove();
-          const overlay = document.getElementById("arc-reactor-overlay");
-          overlay?.classList.remove("active");
-          overlay?.classList.remove("form-mode");
-          setTimeout(() => {
-            const onFadeEnd = () => {
-              overlay?.removeEventListener("transitionend", onFadeEnd);
-              showSuccessLayer("WELCOME. YOU HAVE BEEN REGISTERED TO A.R.X.", 5000, () => {
-                showSuccessLayer("YOU CAN GO TO LOGIN NOW.", 4000, () => {
-                  resetDashboard();
-                });
-              });
-            };
-            if (overlay) {
-              overlay.addEventListener("transitionend", onFadeEnd, { once: true });
-            } else {
-              showSuccessLayer("WELCOME. YOU HAVE BEEN REGISTERED TO A.R.X.", 5000, () => {
-                showSuccessLayer("YOU CAN GO TO LOGIN NOW.", 4000);
-              });
-            }
-            const loginLayer = document.getElementById("login-layer");
-            if (loginLayer) {
-              setTimeout(() => {
-                loginLayer.innerHTML = "";
-              }, 3000);
-            }
-          }, 1200);
+          if (status) status.textContent = "";
+          openAuthFunModal("new");
+          return;
         } else if (formType === "proto") {
           const name = String(fields.get("name") || "").trim();
           const email = String(fields.get("email") || "").trim();
@@ -5821,6 +5803,7 @@ const ArxInterface: React.FC = () => {
       const type = pendingSubPageType;
       if (!type) return;
       if (type !== "SYSTEM" && type !== "VEHICLE") {
+        document.body.classList.remove("holo-active");
         document.body.classList.remove("a-module-active");
         stopEngineHologram();
       }
@@ -6582,9 +6565,6 @@ const ArxInterface: React.FC = () => {
         window.setTimeout(() => {
           document.body.classList.remove("grid-only");
           document.body.classList.add("panel-active");
-          if (type === "ARMOR") {
-            window.location.assign("/module-r");
-          }
         }, 1000);
 
         const goToVehicleInfo = () => {
@@ -6634,6 +6614,18 @@ const ArxInterface: React.FC = () => {
           if (!raw) return NaN;
           const value = Number(raw);
           return Number.isFinite(value) ? value : NaN;
+        };
+        const getStepNumberValue = (container: ParentNode | null, name: string) => {
+          const input = container?.querySelector(`input[name="${name}"]`) as HTMLInputElement | null;
+          if (!input) return NaN;
+          const raw = input.value.trim();
+          if (!raw) return NaN;
+          const value = Number(raw);
+          return Number.isFinite(value) ? value : NaN;
+        };
+        const getConstraintNumberValue = (name: string) => {
+          const fromStep3 = getStepNumberValue(step3, name);
+          return Number.isFinite(fromStep3) ? fromStep3 : getNumberValue(name);
         };
         const getStageCountValue = () => {
           const override = Math.floor(getNumberValue("stage_count_constraints"));
@@ -7162,8 +7154,8 @@ const ArxInterface: React.FC = () => {
           const rocketLength = getNumberValue("rocket_length_in");
           const refDiameter = getNumberValue("ref_diameter_in");
           const stageCount = getStageCountValue();
-          const separationDelay = getNumberValue("separation_delay_s");
-          const ignitionDelay = getNumberValue("ignition_delay_s");
+          const separationDelay = getConstraintNumberValue("separation_delay_s");
+          const ignitionDelay = getConstraintNumberValue("ignition_delay_s");
           if (
             !Number.isFinite(totalMass) ||
             totalMass <= 0 ||
@@ -7495,8 +7487,8 @@ const ArxInterface: React.FC = () => {
           const stageCount = getStageCountValue();
           const stage0Length = getNumberValue("stage0_length_in");
           const stage1Length = getNumberValue("stage1_length_in");
-          let separationDelay = getNumberValue("separation_delay_s");
-          let ignitionDelay = getNumberValue("ignition_delay_s");
+          let separationDelay = getConstraintNumberValue("separation_delay_s");
+          let ignitionDelay = getConstraintNumberValue("ignition_delay_s");
           if (!Number.isFinite(separationDelay) || separationDelay < 0) {
             try {
               const stored = window.localStorage.getItem("arx_cdx1_profile");
@@ -7699,7 +7691,6 @@ const ArxInterface: React.FC = () => {
         updateConstraintsContinue();
       } else if (type === "ARMOR") {
         const title = "ROCKET DEVELOPMENT";
-        document.body.classList.add("holo-active");
         document.body.classList.add("grid-only");
         subPageContent.innerHTML = `
           <div class="subpage-form" data-form="module-r">
@@ -8123,7 +8114,6 @@ const ArxInterface: React.FC = () => {
           document.body.classList.add("panel-active");
         }, 1000);
       } else if (type === "NETWORK") {
-        document.body.classList.add("holo-active");
         document.body.classList.add("grid-only");
         subPageContent.innerHTML = `
           <div class="subpage-form" data-form="coming-soon">

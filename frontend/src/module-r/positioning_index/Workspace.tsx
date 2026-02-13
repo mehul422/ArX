@@ -732,6 +732,13 @@ const PartInstance2D: React.FC<{
       height: Math.max(height, 2),
     };
   }, [visibleProjection]);
+  const hitArea = useMemo(
+    () => ({
+      width: Math.max(bounds.width + 2.5, 5),
+      height: Math.max(bounds.height + 2.5, 5),
+    }),
+    [bounds]
+  );
 
   const body = (
     <group
@@ -746,6 +753,7 @@ const PartInstance2D: React.FC<{
         }
         if (event.button !== 0) return;
         event.stopPropagation();
+        event.currentTarget.setPointerCapture(event.pointerId);
         onSelect();
         if (!groupRef.current) return;
         dragTargetRef.current = { type: "group" };
@@ -773,6 +781,7 @@ const PartInstance2D: React.FC<{
             if (event.button !== 0) return;
             if (type !== "fin") return;
             event.stopPropagation();
+            event.currentTarget.setPointerCapture(event.pointerId);
             onSelect();
             if (!groupRef.current) return;
             dragTargetRef.current = { type: "fin", index: idx };
@@ -810,12 +819,10 @@ const PartInstance2D: React.FC<{
           />
         </group>
       ))}
-      {selected && (
-        <mesh>
-          <planeGeometry args={[bounds.width, bounds.height]} />
-          <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} />
-        </mesh>
-      )}
+      <mesh>
+        <planeGeometry args={[hitArea.width, hitArea.height]} />
+        <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
     </group>
   );
 

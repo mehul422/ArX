@@ -304,7 +304,7 @@ body.grid-init-holograms #holo-layer {
   opacity: 0;
   transition: opacity 300ms ease;
 }
-body.holo-active #holo-side-layer {
+body.holo-active.a-module-active #holo-side-layer {
   opacity: 1;
 }
 #telemetry-graph-layer {
@@ -319,7 +319,7 @@ body.holo-active #holo-side-layer {
   opacity: 0;
   transition: opacity 300ms ease;
 }
-body.holo-active #telemetry-graph-layer {
+body.holo-active.a-module-active #telemetry-graph-layer {
   opacity: 1;
 }
 #telemetry-graph-left {
@@ -3015,10 +3015,13 @@ body.grid-only #holo-side-layer {
   opacity: 0;
   pointer-events: none;
 }
-body.panel-active .subpage-form,
-body.panel-active #holo-side-layer {
+body.panel-active .subpage-form {
   opacity: 1;
   pointer-events: auto;
+}
+body.panel-active.holo-active.a-module-active #holo-side-layer {
+  opacity: 1;
+  pointer-events: none;
 }
 .subpage-form::before {
   content: "";
@@ -3153,6 +3156,42 @@ body.panel-active #holo-side-layer {
   line-height: 1.45;
 }
 .mission-notice-modal .arx-form-actions {
+  justify-content: center;
+}
+.auth-fun-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.auth-fun-modal[data-open="true"] {
+  display: flex;
+}
+.auth-fun-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 7, 10, 0.72);
+  backdrop-filter: blur(6px);
+}
+.auth-fun-modal-panel {
+  position: relative;
+  width: min(460px, calc(100% - 28px));
+  padding: 20px 22px 18px;
+  border: 1px solid rgba(0, 243, 255, 0.45);
+  box-shadow: 0 0 24px rgba(0, 243, 255, 0.25), inset 0 0 14px rgba(0, 243, 255, 0.08);
+  background: linear-gradient(180deg, rgba(3, 14, 20, 0.97) 0%, rgba(0, 7, 12, 0.97) 100%);
+  text-align: center;
+}
+.auth-fun-modal .modal-text {
+  margin-top: 12px;
+  margin-bottom: 16px;
+  color: rgba(215, 250, 255, 0.9);
+  letter-spacing: 1px;
+  line-height: 1.45;
+}
+.auth-fun-modal .arx-form-actions {
   justify-content: center;
 }
 #mission-step-1 > * {

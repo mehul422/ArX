@@ -1,0 +1,216 @@
+<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.9" creator="OpenRocket 23.09">
+  <rocket>
+    <name>Rocket</name>
+    <id>e8cd0a58-591d-437f-a528-a205608016a9</id>
+    <axialoffset method="absolute">0.0</axialoffset>
+    <position type="absolute">0.0</position>
+    <referencetype>maximum</referencetype>
+
+    <subcomponents>
+      <stage>
+        <name>Sustainer</name>
+        <id>9d46027f-7cd7-416d-9d1c-65c296338808</id>
+
+        <subcomponents>
+          <nosecone>
+            <name>Nose Cone</name>
+            <id>dc9f2e2e-74c2-4853-9faf-de94dad49e52</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680.0">Cardboard</material>
+            <length>0.43548000000000003</length>
+            <thickness>0.002</thickness>
+            <shape>ogive</shape>
+            <shapeparameter>1.0</shapeparameter>
+            <aftradius>0.07258</aftradius>
+            <aftshoulderradius>0.0</aftshoulderradius>
+            <aftshoulderlength>0.0</aftshoulderlength>
+            <aftshoulderthickness>0.0</aftshoulderthickness>
+            <aftshouldercapped>false</aftshouldercapped>
+            <isflipped>false</isflipped>
+          </nosecone>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>9c83990f-90a7-478e-b058-8647312b651f</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680.0">Cardboard</material>
+            <length>0.7643800000000003</length>
+            <thickness>0.0020000000000000018</thickness>
+            <radius>0.07258</radius>
+
+            <subcomponents>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>5f5fc7fd-e7d1-4bfa-a60f-0fbec354bc5a</id>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <material type="bulk" density="680.0">Cardboard</material>
+                <length>0.7543800000000003</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.06958</outerradius>
+                <thickness>5.000000000000004E-4</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1.0</clusterscale>
+                <clusterrotation>0.0</clusterrotation>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0.0</ignitiondelay>
+                  <overhang>0.0</overhang>
+                </motormount>
+              </innertube>
+
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>e5037ca9-9e02-41b5-ade0-f1e72bec5613</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0.0</instanceseparation>
+                <axialoffset method="bottom">0.7543800000000003</axialoffset>
+                <position type="bottom">0.7543800000000003</position>
+                <material type="bulk" density="680.0">Cardboard</material>
+                <length>0.01</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.07258</outerradius>
+              </bulkhead>
+
+              <trapezoidfinset>
+                <name>Trapezoidal Fin Set</name>
+                <id>09769f77-75eb-4f33-adaa-34798a61945f</id>
+                <instancecount>4</instancecount>
+                <fincount>4</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0.0</angleoffset>
+                <rotation>0.0</rotation>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="680.0">Cardboard</material>
+                <thickness>0.003</thickness>
+                <crosssection>square</crosssection>
+                <cant>0.0</cant>
+                <filletradius>0.0</filletradius>
+                <filletmaterial type="bulk" density="680.0">Cardboard</filletmaterial>
+                <rootchord>0.29032</rootchord>
+                <tipchord>0.14516</tipchord>
+                <sweeplength>0.0</sweeplength>
+                <height>0.21774000000000002</height>
+              </trapezoidfinset>
+            </subcomponents>
+          </bodytube>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>2f86b8b7-a7c1-4c82-a3b1-8b510678b467</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680.0">Cardboard</material>
+            <length>0.7643800000000003</length>
+            <thickness>0.0020000000000000018</thickness>
+            <radius>0.07258</radius>
+
+            <subcomponents>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>0d6cece3-6dac-46ab-9911-6eefad40cd09</id>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <material type="bulk" density="680.0">Cardboard</material>
+                <length>0.7543800000000003</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.06958</outerradius>
+                <thickness>5.000000000000004E-4</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1.0</clusterscale>
+                <clusterrotation>0.0</clusterrotation>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0.0</ignitiondelay>
+                  <overhang>0.0</overhang>
+                </motormount>
+              </innertube>
+
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>19ad3f3a-d61e-433d-b539-242f8a7db49f</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0.0</instanceseparation>
+                <axialoffset method="bottom">0.7543800000000003</axialoffset>
+                <position type="bottom">0.7543800000000003</position>
+                <material type="bulk" density="680.0">Cardboard</material>
+                <length>0.01</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.07258</outerradius>
+              </bulkhead>
+            </subcomponents>
+          </bodytube>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>9a86320e-a8fd-4a18-9631-7c557e0ae01d</id>
+            <finish>normal</finish>
+            <material type="bulk" density="680.0">Cardboard</material>
+            <length>1.8457599999999994</length>
+            <thickness>0.0020000000000000018</thickness>
+            <radius>0.07258</radius>
+
+            <subcomponents>
+              <parachute>
+                <name>Parachute</name>
+                <id>dc21f405-3de2-4ac5-86a3-82283ffcf524</id>
+                <axialoffset method="top">1.1074559999999996</axialoffset>
+                <position type="top">1.1074559999999996</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>auto</cd>
+                <material type="surface" density="0.067">Ripstop nylon</material>
+                <deployevent>ejection</deployevent>
+                <deployaltitude>200.0</deployaltitude>
+                <deploydelay>0.0</deploydelay>
+                <diameter>1.16128</diameter>
+                <linecount>6</linecount>
+                <linelength>0.3</linelength>
+                <linematerial type="line" density="0.0018">Elastic cord (round 2 mm, 1/16 in)</linematerial>
+              </parachute>
+
+              <masscomponent>
+                <name>Telemetry Module</name>
+                <id>f94918cb-8663-421f-925a-1c74aae211d3</id>
+                <axialoffset method="top">0.3691519999999999</axialoffset>
+                <position type="top">0.3691519999999999</position>
+                <packedlength>0.05</packedlength>
+                <packedradius>0.02</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <mass>0.0</mass>
+                <masscomponenttype>masscomponent</masscomponenttype>
+              </masscomponent>
+
+              <masscomponent>
+                <name>Ballast</name>
+                <id>8fe4d469-bdf1-420c-9146-2e635a25c965</id>
+                <axialoffset method="top">0.18457599999999996</axialoffset>
+                <position type="top">0.18457599999999996</position>
+                <packedlength>0.05</packedlength>
+                <packedradius>0.02</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <mass>0.0</mass>
+                <masscomponenttype>masscomponent</masscomponenttype>
+              </masscomponent>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+
+  <simulations>
+  </simulations>
+  <photostudio>
+  </photostudio>
+</openrocket>

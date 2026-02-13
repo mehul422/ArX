@@ -356,8 +356,65 @@
     }
   },
   {
-    "name": "White Lightning",
-    "family": "Composite Propellant",
+    "name": "MIT - Ocean Water",
+    "family": "MIT Propellant",
+    "source": "external_db",
+    "description": "OpenMotor test-data propellant.",
+    "physical_properties": {
+      "density": { "value": 1650.0, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 1.467e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.382, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.25, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3500.0, "units": "K" }
+    }
+  },
+  {
+    "name": "MIT - Cherry Limeade",
+    "family": "MIT Propellant",
+    "source": "external_db",
+    "description": "OpenMotor test-data propellant.",
+    "physical_properties": {
+      "density": { "value": 1680.0037644662068, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 3.517054143255937e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.3273, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.21, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3500.0, "units": "K" }
+    }
+  },
+  {
+    "name": "Ocean Water Final",
+    "family": "MIT Propellant",
+    "source": "external_db",
+    "description": "OpenMotor test-data propellant.",
+    "physical_properties": {
+      "density": { "value": 1589.2690569181755, "units": "kg/m^3" }
+    },
+    "combustion_properties": {
+      "burn_rate_law": {
+        "model": "power_law",
+        "a": { "value": 1.5486328404259838e-5, "units": "m/s/Pa^n" },
+        "n": { "value": 0.383, "units": "dimensionless" }
+      },
+      "c_star": { "value": 1500, "units": "m/s" },
+      "gamma": { "value": 1.25, "units": "dimensionless" },
+      "combustion_temperature": { "value": 3500.0, "units": "K" }
+    }
+  },
+  {
+    "name": "RCS - White Lightning",
+    "family": "RCS Propellant",
     "source": "external_db",
     "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
     "physical_properties": {
@@ -375,8 +432,8 @@
     }
   },
   {
-    "name": "Blue Thunder",
-    "family": "Composite Propellant",
+    "name": "RCS - Blue Thunder",
+    "family": "RCS Propellant",
     "source": "external_db",
     "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
     "physical_properties": {
@@ -451,8 +508,8 @@
     }
   },
   {
-    "name": "Warp 9",
-    "family": "Composite Propellant",
+    "name": "RCS - Warp 9",
+    "family": "RCS Propellant",
     "source": "external_db",
     "description": "Commercial label used in .eng files; baseline values provided for compatibility.",
     "physical_properties": {

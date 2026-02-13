@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.0">
+  <rocket>
+    <subcomponents>
+      <stage>
+        <subcomponents>
+          <nosecone>
+            <length>0.49</length>
+            <aftradius>0.049</aftradius>
+            <shape>ogive</shape>
+            <finish>smooth</finish>
+            <material type="bulk" density="1850.0" />
+          </nosecone>
+          <bodytube>
+            <length>1.11</length>
+            <outerradius>0.049</outerradius>
+            <innerradius>0.0475</innerradius>
+            <material type="bulk" density="1850.0" />
+            <subcomponents>
+              <innertube>
+                <length>0.782</length>
+                <outerradius>0.0772</outerradius>
+                <innerradius>0.0762</innerradius>
+                <position type="top" method="absolute">0.32800000000000007</position>
+                <material type="bulk" density="690.0" />
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0.0</ignitiondelay>
+                  <overhang>0.01</overhang>
+                </motormount>
+              </innertube>
+              <centeringring>
+                <outerradius>0.0475</outerradius>
+                <innerradius>0.0772</innerradius>
+                <length>0.005</length>
+                <position type="top" method="absolute">0.32800000000000007</position>
+                <material type="bulk" density="680.0" />
+              </centeringring>
+              <centeringring>
+                <outerradius>0.0475</outerradius>
+                <innerradius>0.0772</innerradius>
+                <length>0.005</length>
+                <position type="bottom" method="absolute">0.01</position>
+                <material type="bulk" density="680.0" />
+              </centeringring>
+              <trapezoidfinset>
+                <rootchord>0.245</rootchord>
+                <tipchord>0.098</tipchord>
+                <height>0.1715</height>
+                <sweepangle>0.14700000000000002</sweepangle>
+                <thickness>0.003</thickness>
+                <fincount>3</fincount>
+                <position type="bottom" method="absolute">0.0</position>
+                <material type="bulk" density="1850.0" />
+              </trapezoidfinset>
+              <parachute>
+                <diameter>0.8162890164242531</diameter>
+                <dragcoefficient>1.5</dragcoefficient>
+                <packedlength>0.15</packedlength>
+                <packedradius>0.038000000000000006</packedradius>
+                <position type="top" method="absolute">0.1</position>
+              </parachute>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+  <simulations />
+</openrocket>

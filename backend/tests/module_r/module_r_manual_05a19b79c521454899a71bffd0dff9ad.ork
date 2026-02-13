@@ -1,0 +1,249 @@
+<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.9" creator="OpenRocket 23.09">
+  <rocket>
+    <name>Rocket</name>
+    <id>e37f0fbe-278d-4fe6-b0fd-7244e24652d4</id>
+    <axialoffset method="absolute">0.0</axialoffset>
+    <position type="absolute">0.0</position>
+    <referencetype>maximum</referencetype>
+
+    <subcomponents>
+      <stage>
+        <name>Sustainer</name>
+        <id>df2f1126-0269-44e4-a4b0-f2bb0cd4f901</id>
+
+        <subcomponents>
+          <nosecone>
+            <name>Nose Cone</name>
+            <id>12a230d6-06a8-4397-8c12-805e49313ebe</id>
+            <finish>normal</finish>
+            <material type="bulk" density="1780.0">Carbon fiber</material>
+            <length>0.508</length>
+            <thickness>0.002</thickness>
+            <shape>ogive</shape>
+            <shapeparameter>1.0</shapeparameter>
+            <aftradius>0.07619999999999999</aftradius>
+            <aftshoulderradius>0.0</aftshoulderradius>
+            <aftshoulderlength>0.0</aftshoulderlength>
+            <aftshoulderthickness>0.0</aftshoulderthickness>
+            <aftshouldercapped>false</aftshouldercapped>
+            <isflipped>false</isflipped>
+          </nosecone>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>194d6b8c-f82c-4c55-a669-7d3aa6699319</id>
+            <finish>normal</finish>
+            <material type="bulk" density="2700.0">Aluminum 6063-T6</material>
+            <length>1.4223999999999999</length>
+            <thickness>0.0020000000000000018</thickness>
+            <radius>0.07619999999999999</radius>
+
+            <subcomponents>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>377f0b06-07e2-4504-b43e-8574a2d31d71</id>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <material type="bulk" density="2700.0">Aluminum 6063-T6</material>
+                <length>1.4223999999999999</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.07619999999999999</outerradius>
+                <thickness>0.003047999999999995</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1.0</clusterscale>
+                <clusterrotation>0.0</clusterrotation>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0.0</ignitiondelay>
+                  <overhang>0.0</overhang>
+                </motormount>
+              </innertube>
+
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>094a0e82-9c00-470d-8674-4e788bbf23b5</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0.0</instanceseparation>
+                <axialoffset method="bottom">1.4097</axialoffset>
+                <position type="bottom">1.4097</position>
+                <material type="bulk" density="700.0">Spruce</material>
+                <length>0.0127</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.07619999999999999</outerradius>
+              </bulkhead>
+            </subcomponents>
+          </bodytube>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>89ece86a-0eda-4972-9b54-9f2f2a98bbec</id>
+            <finish>normal</finish>
+            <material type="bulk" density="2700.0">Aluminum 6063-T6</material>
+            <length>0.45719999999999994</length>
+            <thickness>0.0020000000000000018</thickness>
+            <radius>0.07619999999999999</radius>
+
+            <subcomponents>
+              <masscomponent>
+                <name>recovery</name>
+                <id>8c1c4745-2441-428b-a644-93a8161a9a94</id>
+                <axialoffset method="top">0.0</axialoffset>
+                <position type="top">0.0</position>
+                <overridemass>1.3607771100000001</overridemass>
+                <overridesubcomponentsmass>false</overridesubcomponentsmass>
+                <packedlength>0.05</packedlength>
+                <packedradius>0.02</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <mass>1.3607771100000001</mass>
+                <masscomponenttype>flightcomputer</masscomponenttype>
+              </masscomponent>
+            </subcomponents>
+          </bodytube>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>b17f71f0-2634-4c99-8407-f135a51d5b9e</id>
+            <finish>normal</finish>
+            <material type="bulk" density="2700.0">Aluminum 6063-T6</material>
+            <length>0.45719999999999994</length>
+            <thickness>0.0020000000000000018</thickness>
+            <radius>0.07619999999999999</radius>
+
+            <subcomponents>
+              <parachute>
+                <name>Parachute</name>
+                <id>257777e3-a246-4afa-9dd6-5274ab67e883</id>
+                <axialoffset method="top">0.0</axialoffset>
+                <position type="top">0.0</position>
+                <packedlength>0.025</packedlength>
+                <packedradius>0.0125</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>auto</cd>
+                <material type="surface" density="1150.0">Ripstop nylon</material>
+                <deployevent>ejection</deployevent>
+                <deployaltitude>200.0</deployaltitude>
+                <deploydelay>0.0</deploydelay>
+                <diameter>0.3</diameter>
+                <linecount>6</linecount>
+                <linelength>0.3</linelength>
+                <linematerial type="line" density="0.0018">Elastic cord (round 2 mm, 1/16 in)</linematerial>
+              </parachute>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+
+      <stage>
+        <name>Booster 1</name>
+        <id>1684bc88-1ea8-4c5e-b448-6b3b6917639f</id>
+        <separationevent>ejection</separationevent>
+        <separationdelay>0.0</separationdelay>
+
+        <subcomponents>
+          <bodytube>
+            <name>Body Tube</name>
+            <id>d8df9c8c-ddb3-489d-bcfe-3dbafc37104f</id>
+            <finish>normal</finish>
+            <material type="bulk" density="2700.0">Aluminum 6063-T6</material>
+            <length>1.016</length>
+            <thickness>0.0020000000000000018</thickness>
+            <radius>0.07619999999999999</radius>
+
+            <subcomponents>
+              <innertube>
+                <name>Inner Tube</name>
+                <id>48dcb7df-8db8-4198-94ca-f17ea6fe518f</id>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <material type="bulk" density="2700.0">Aluminum 6063-T6</material>
+                <length>1.016</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.07619999999999999</outerradius>
+                <thickness>0.003047999999999995</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1.0</clusterscale>
+                <clusterrotation>0.0</clusterrotation>
+                <motormount>
+                  <ignitionevent>automatic</ignitionevent>
+                  <ignitiondelay>0.0</ignitiondelay>
+                  <overhang>0.0</overhang>
+                </motormount>
+              </innertube>
+
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>d8033ec3-946c-42ed-8f90-0ea4c7746db1</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0.0</instanceseparation>
+                <axialoffset method="bottom">1.0033</axialoffset>
+                <position type="bottom">1.0033</position>
+                <material type="bulk" density="700.0">Plywood (birch)</material>
+                <length>0.0127</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.07619999999999999</outerradius>
+              </bulkhead>
+
+              <trapezoidfinset>
+                <name>Trapezoidal Fin Set</name>
+                <id>053e7a1f-6002-4d0f-bcef-77a21744408c</id>
+                <instancecount>3</instancecount>
+                <fincount>3</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0.0</angleoffset>
+                <rotation>0.0</rotation>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="2700.0">Aluminum 6063-T6</material>
+                <thickness>0.003048</thickness>
+                <crosssection>square</crosssection>
+                <cant>0.0</cant>
+                <filletradius>0.0</filletradius>
+                <filletmaterial type="bulk" density="680.0">Cardboard</filletmaterial>
+                <rootchord>0.0508</rootchord>
+                <tipchord>0.0508</tipchord>
+                <sweeplength>0.0254</sweeplength>
+                <height>0.030479999999999997</height>
+              </trapezoidfinset>
+
+              <trapezoidfinset>
+                <name>Trapezoidal Fin Set</name>
+                <id>9ed9d0f9-c42a-4698-b991-b111ccb06d25</id>
+                <instancecount>3</instancecount>
+                <fincount>3</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0.0</angleoffset>
+                <rotation>0.0</rotation>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="2700.0">Aluminum 6063-T6</material>
+                <thickness>0.003048</thickness>
+                <crosssection>square</crosssection>
+                <cant>0.0</cant>
+                <filletradius>0.0</filletradius>
+                <filletmaterial type="bulk" density="680.0">Cardboard</filletmaterial>
+                <rootchord>0.0508</rootchord>
+                <tipchord>0.0508</tipchord>
+                <sweeplength>0.0254</sweeplength>
+                <height>0.030479999999999997</height>
+              </trapezoidfinset>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+
+  <simulations>
+  </simulations>
+  <photostudio>
+  </photostudio>
+</openrocket>

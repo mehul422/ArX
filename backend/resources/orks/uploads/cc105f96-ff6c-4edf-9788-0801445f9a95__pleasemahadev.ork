@@ -1,0 +1,351 @@
+<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.9" creator="OpenRocket 23.09">
+  <rocket>
+    <name>stress2</name>
+    <id>5e8a1187-e622-4828-ab20-c0d9e2a574b8</id>
+    <axialoffset method="absolute">0.0</axialoffset>
+    <position type="absolute">0.0</position>
+    <motorconfiguration configid="eb768ea9-ad13-4dd0-96ad-300ed7b5a6d7" default="true">
+      <stage number="0" active="true"/>
+      <stage number="1" active="true"/>
+    </motorconfiguration>
+    <referencetype>maximum</referencetype>
+
+    <subcomponents>
+      <stage>
+        <name>Sustainer</name>
+        <id>f210bdc7-68b7-4b9c-8617-61b976ab8785</id>
+
+        <subcomponents>
+          <nosecone>
+            <name>Nose Cone</name>
+            <id>6ab60163-77d2-4486-9983-f3bc3c35391d</id>
+            <finish>normal</finish>
+            <material type="bulk" density="1780.0">Carbon fiber</material>
+            <length>2.7178000000000044</length>
+            <thickness>0.002</thickness>
+            <shape>haack</shape>
+            <shapeclipped>false</shapeclipped>
+            <shapeparameter>0.0</shapeparameter>
+            <aftradius>0.381</aftradius>
+            <aftshoulderradius>0.0</aftshoulderradius>
+            <aftshoulderlength>0.0</aftshoulderlength>
+            <aftshoulderthickness>0.0</aftshoulderthickness>
+            <aftshouldercapped>false</aftshouldercapped>
+            <isflipped>false</isflipped>
+
+            <subcomponents>
+              <parachute>
+                <name>Iris Ultra Compact Parachute [Cd 2.2 (16.3 oz) 90.5 in^3]</name>
+                <id>357b16bc-472d-4848-a422-af764d912bb3</id>
+                <preset type="PARACHUTE" manufacturer="Fruity Chutes" partno="IFC-096-S" digest="f7b9937e07ae9aab9459a6d854790593"/>
+                <axialoffset method="bottom">-0.015239999999999998</axialoffset>
+                <position type="bottom">-0.015239999999999998</position>
+                <overridemass>0.046209723</overridemass>
+                <overridesubcomponentsmass>false</overridesubcomponentsmass>
+                <packedlength>0.254</packedlength>
+                <packedradius>0.21589999999999998</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>2.2</cd>
+                <material type="surface" density="0.035653924">Ripstop nylon, lightweight, 3 mil</material>
+                <deployevent>ejection</deployevent>
+                <deployaltitude>200.0</deployaltitude>
+                <deploydelay>0.0</deploydelay>
+                <diameter>2.4383999999999997</diameter>
+                <linecount>12</linecount>
+                <linelength>2.80416</linelength>
+                <linematerial type="line" density="0.001202975">Spectra #400 [Oval 2.55 mm, 3/32in]</linematerial>
+              </parachute>
+            </subcomponents>
+          </nosecone>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>32e91611-0969-40dc-a74a-e2a23123a519</id>
+            <finish>normal</finish>
+            <material type="bulk" density="1850.0">Fiberglass</material>
+            <length>0.5841999999999994</length>
+            <thickness>0.00254</thickness>
+            <radius>0.381</radius>
+
+            <subcomponents>
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>2428b08a-3cf3-4fcd-8f52-aa2698daed6b</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0.0</instanceseparation>
+                <axialoffset method="top">0.0</axialoffset>
+                <position type="top">0.0</position>
+                <material type="bulk" density="7850.0">Steel</material>
+                <length>0.0127</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>auto</outerradius>
+              </bulkhead>
+
+              <masscomponent>
+                <name>Mass Component</name>
+                <id>759ab225-a760-40a1-93b4-95f5a0e72353</id>
+                <color red="0" green="153" blue="0" alpha="255"/>
+                <linestyle>dashed</linestyle>
+                <axialoffset method="bottom">-0.02794</axialoffset>
+                <position type="bottom">-0.02794</position>
+                <packedlength>0.2032</packedlength>
+                <packedradius>0.07874</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <mass>2.267961848</mass>
+                <masscomponenttype>flightcomputer</masscomponenttype>
+              </masscomponent>
+
+              <masscomponent>
+                <name>Payload</name>
+                <id>a62db7ff-4b39-4de8-8028-ac78202d13d9</id>
+                <axialoffset method="top">0.015239999999999998</axialoffset>
+                <position type="top">0.015239999999999998</position>
+                <packedlength>0.35559999999999997</packedlength>
+                <packedradius>0.07619999999999999</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <mass>41.73049803599997</mass>
+                <masscomponenttype>payload</masscomponenttype>
+              </masscomponent>
+            </subcomponents>
+          </bodytube>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>e5fa4f52-e19c-4159-ac8d-1dbf3b3a71c7</id>
+            <finish>normal</finish>
+            <material type="bulk" density="2700.0">Aluminum</material>
+            <length>2.6416</length>
+            <thickness>0.01427479999999999</thickness>
+            <radius>0.381</radius>
+            <motormount>
+              <ignitionevent>automatic</ignitionevent>
+              <ignitiondelay>0.0</ignitiondelay>
+              <overhang>0.0</overhang>
+              <motor configid="eb768ea9-ad13-4dd0-96ad-300ed7b5a6d7">
+                <manufacturer>shourya</manufacturer>
+                <digest>18096e58adc2f6306b620cf861c14bfa</digest>
+                <designation>V83407</designation>
+                <diameter>0.762001524</diameter>
+                <length>2.54000508</length>
+                <delay>none</delay>
+              </motor>
+              <ignitionconfiguration configid="eb768ea9-ad13-4dd0-96ad-300ed7b5a6d7">
+                <ignitionevent>automatic</ignitionevent>
+                <ignitiondelay>0.0</ignitiondelay>
+              </ignitionconfiguration>
+            </motormount>
+
+            <subcomponents>
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>066518d0-af0a-4c1a-b6e2-71f2b53a55a3</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0.0</instanceseparation>
+                <axialoffset method="top">0.0</axialoffset>
+                <position type="top">0.0</position>
+                <overridemass>1.81436948</overridemass>
+                <overridesubcomponentsmass>false</overridesubcomponentsmass>
+                <material type="bulk" density="7850.0">Steel</material>
+                <length>0.1016</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.381</outerradius>
+              </bulkhead>
+
+              <trapezoidfinset>
+                <name>Trapezoidal Fin Set</name>
+                <id>c67985e0-0f12-49a4-b34d-35c377c1bf96</id>
+                <instancecount>4</instancecount>
+                <fincount>4</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0.0</angleoffset>
+                <rotation>0.0</rotation>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="1780.0">Carbon fiber</material>
+                <thickness>0.007619999999999999</thickness>
+                <crosssection>airfoil</crosssection>
+                <cant>0.0</cant>
+                <filletradius>0.0</filletradius>
+                <filletmaterial type="bulk" density="1780.0">Carbon fiber</filletmaterial>
+                <rootchord>0.7518400000000006</rootchord>
+                <tipchord>0.61976</tipchord>
+                <sweeplength>0.6831973147500493</sweeplength>
+                <height>0.350520000000001</height>
+              </trapezoidfinset>
+
+              <innertube>
+                <name>Inner Tube</name>
+                <id>b95907cc-ea2c-40ef-b466-780302408a20</id>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <material type="bulk" density="950.0">Kraft phenolic</material>
+                <length>2.54</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.381</outerradius>
+                <thickness>0.006184899999999993</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1.0</clusterscale>
+                <clusterrotation>0.0</clusterrotation>
+              </innertube>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+
+      <stage>
+        <name>Booster Stage</name>
+        <id>7faec9b3-9eb5-4602-ac0f-8e688a4db321</id>
+        <separationevent>ejection</separationevent>
+        <separationdelay>0.0</separationdelay>
+
+        <subcomponents>
+          <bodytube>
+            <name>Body Tube</name>
+            <id>13c7d91f-67bb-4d28-a2d5-128e1a64450c</id>
+            <finish>normal</finish>
+            <material type="bulk" density="1850.0">Fiberglass</material>
+            <length>0.30479999999999996</length>
+            <thickness>0.00254</thickness>
+            <radius>auto 0.381</radius>
+
+            <subcomponents>
+              <masscomponent>
+                <name>booster avionics</name>
+                <id>1b68a77d-1cb5-486e-91af-eaa89fac64f5</id>
+                <color red="0" green="153" blue="0" alpha="255"/>
+                <linestyle>dashed</linestyle>
+                <axialoffset method="bottom">-0.007619999999999999</axialoffset>
+                <position type="bottom">-0.007619999999999999</position>
+                <packedlength>0.10922</packedlength>
+                <packedradius>0.07365999999999999</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <mass>54.4310844</mass>
+                <masscomponenttype>flightcomputer</masscomponenttype>
+              </masscomponent>
+
+              <parachute>
+                <name>Iris Ultra Parachute [Cd 2.2 (13.4 oz) 74.1 in^3]</name>
+                <id>a53d2e6b-23ba-4a3c-a7a0-aa9b192fb313</id>
+                <axialoffset method="top">0.02794</axialoffset>
+                <position type="top">0.02794</position>
+                <overridemass>0.37988361</overridemass>
+                <overridesubcomponentsmass>false</overridesubcomponentsmass>
+                <packedlength>0.15239999999999998</packedlength>
+                <packedradius>0.06604</packedradius>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <cd>0.8</cd>
+                <material type="surface" density="0.035653924">Ripstop nylon, lightweight, 3 mil</material>
+                <deployevent>ejection</deployevent>
+                <deployaltitude>200.0</deployaltitude>
+                <deploydelay>0.0</deploydelay>
+                <diameter>1.4986</diameter>
+                <linecount>12</linecount>
+                <linelength>2.1031199999999997</linelength>
+                <linematerial type="line" density="0.0">Nylon IIIa Paraline [flat 6.4 mm, 1/4 in]</linematerial>
+              </parachute>
+            </subcomponents>
+          </bodytube>
+
+          <bodytube>
+            <name>Body Tube</name>
+            <id>c8d4dfb5-4965-4d84-a6be-21ddb008865a</id>
+            <finish>normal</finish>
+            <material type="bulk" density="2700.0">Aluminum</material>
+            <length>2.6416</length>
+            <thickness>0.0127</thickness>
+            <radius>auto 0.381</radius>
+            <motormount>
+              <ignitionevent>automatic</ignitionevent>
+              <ignitiondelay>0.0</ignitiondelay>
+              <overhang>0.0</overhang>
+              <motor configid="eb768ea9-ad13-4dd0-96ad-300ed7b5a6d7">
+                <manufacturer>shourya</manufacturer>
+                <digest>18096e58adc2f6306b620cf861c14bfa</digest>
+                <designation>V83407</designation>
+                <diameter>0.762001524</diameter>
+                <length>2.54000508</length>
+                <delay>none</delay>
+              </motor>
+              <ignitionconfiguration configid="eb768ea9-ad13-4dd0-96ad-300ed7b5a6d7">
+                <ignitionevent>automatic</ignitionevent>
+                <ignitiondelay>0.0</ignitiondelay>
+              </ignitionconfiguration>
+            </motormount>
+
+            <subcomponents>
+              <bulkhead>
+                <name>Bulkhead</name>
+                <id>a9f60e8c-f9f8-427d-b6ad-681c6c1c4179</id>
+                <instancecount>1</instancecount>
+                <instanceseparation>0.0</instanceseparation>
+                <axialoffset method="top">0.0</axialoffset>
+                <position type="top">0.0</position>
+                <overridemass>1.81436948</overridemass>
+                <overridesubcomponentsmass>false</overridesubcomponentsmass>
+                <material type="bulk" density="7850.0">Steel</material>
+                <length>0.10159999999999998</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.381</outerradius>
+              </bulkhead>
+
+              <innertube>
+                <name>Inner Tube</name>
+                <id>8274f70c-0d97-4c24-94d0-bea2c7c13713</id>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <material type="bulk" density="950.0">Kraft phenolic</material>
+                <length>2.54</length>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
+                <outerradius>0.381</outerradius>
+                <thickness>0.006184899999999993</thickness>
+                <clusterconfiguration>single</clusterconfiguration>
+                <clusterscale>1.0</clusterscale>
+                <clusterrotation>0.0</clusterrotation>
+              </innertube>
+
+              <trapezoidfinset>
+                <name>Trapezoidal Fin Set</name>
+                <id>ca557630-7b28-4a80-be7a-c2014943a4b8</id>
+                <instancecount>4</instancecount>
+                <fincount>4</fincount>
+                <radiusoffset method="surface">0.0</radiusoffset>
+                <angleoffset method="relative">0.0</angleoffset>
+                <rotation>0.0</rotation>
+                <axialoffset method="bottom">0.0</axialoffset>
+                <position type="bottom">0.0</position>
+                <finish>normal</finish>
+                <material type="bulk" density="1780.0">Carbon fiber</material>
+                <thickness>0.0127</thickness>
+                <crosssection>airfoil</crosssection>
+                <cant>0.0</cant>
+                <filletradius>0.0</filletradius>
+                <filletmaterial type="bulk" density="1780.0">Carbon fiber</filletmaterial>
+                <rootchord>0.9143999999999998</rootchord>
+                <tipchord>0.8356600000000001</tipchord>
+                <sweeplength>0.6078159412439292</sweeplength>
+                <height>0.7823200000000016</height>
+              </trapezoidfinset>
+            </subcomponents>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+
+  <simulations>
+  </simulations>
+  <photostudio>
+  </photostudio>
+</openrocket>

@@ -221,3 +221,5 @@ def run_mission_target_task(self, job_id: str, params: dict[str, Any]) -> None:
         logger.exception("mission target failed: %s", exc)
         update_job(job_id, status="failed", error=str(exc))
         raise
+
+

@@ -227,6 +227,53 @@ def _ensure_openrocket_initialized() -> None:
     _start_headless_loaders()
 
 
+def _resolve_openrocket_saver_class():
+    saver_classes = [
+        "net.sf.openrocket.file.openrocket.exportt.OpenRocketSaver",
+        "net.sf.openrocket.file.openrocket.export.OpenRocketSaver",
+        "net.sf.openrocket.file.openrocket.OpenRocketSaver",
+    ]
+    last_error: Exception | None = None
+    for class_name in saver_classes:
+        try:
+            return jpype.JClass(class_name), class_name
+        except Exception as exc:
+            last_error = exc
+            continue
+    jar_path = _resolve_openrocket_jar()
+    raise OpenRocketRunnerError(
+        f"OpenRocketSaver class not available in jar: {jar_path}"
+    ) from last_error
+
+
+def ensure_openrocket_initialized() -> None:
+    _ensure_openrocket_initialized()
+
+
+def save_openrocket_document(document, output_path: str) -> str:
+    _ensure_openrocket_initialized()
+    File = jpype.JClass("java.io.File")
+    FileOutputStream = jpype.JClass("java.io.FileOutputStream")
+    OpenRocketSaver, _ = _resolve_openrocket_saver_class()
+    saver = OpenRocketSaver()
+    out_file = File(output_path)
+    out_file.getParentFile().mkdirs()
+    WarningSet = jpype.JClass("net.sf.openrocket.logging.WarningSet")
+    ErrorSet = jpype.JClass("net.sf.openrocket.logging.ErrorSet")
+    warnings = WarningSet()
+    errors = ErrorSet()
+    stream = FileOutputStream(out_file)
+    try:
+        try:
+            saver.save(stream, document, warnings, errors)
+        except Exception:
+            StorageOptions = jpype.JClass("net.sf.openrocket.document.StorageOptions")
+            saver.save(stream, document, StorageOptions(), warnings, errors)
+    finally:
+        stream.close()
+    return output_path
+
+
 def _ensure_headless_module():
     global _HEADLESS_MODULE
     if _HEADLESS_MODULE is not None:
@@ -286,6 +333,7 @@ def openrocket_healthcheck() -> dict[str, object]:
     required_major = _required_java_major(jar_path)
     try:
         _ensure_openrocket_initialized()
+        saver_class = _resolve_openrocket_saver_class()[1]
     except Exception as exc:
         return {
             "status": "error",
@@ -297,6 +345,7 @@ def openrocket_healthcheck() -> dict[str, object]:
         "status": "ok",
         "required_java_major": required_major,
         "jar_path": jar_path,
+        "saver_class": saver_class,
     }
 
 

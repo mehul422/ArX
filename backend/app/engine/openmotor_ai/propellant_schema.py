@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
-
 class ValueWithUnits(BaseModel):
     value: float
     units: str

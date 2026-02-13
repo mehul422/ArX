@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createRoot } from "react-dom/client";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
@@ -11,6 +12,7 @@ import {
   submitMissionTarget,
 } from "../services/missionTarget";
 import { FlightTelemetryGraph } from "./telemetry/FlightTelemetryGraph";
+import { PositioningModule } from "../module-r/positioning_index/PositioningModule";
 import "./ArxInterface.css";
 
 const ArxInterface: React.FC = () => {
@@ -97,6 +99,51 @@ const ArxInterface: React.FC = () => {
     let activeModuleId: string | null = null;
     let isSubPageLocked = false;
     let pendingSubPageType: string | null = null;
+    const MODULE_R_FULL_MATERIALS = [
+      "Carbon Fiber",
+      "Fiberglass",
+      "Aramid Fiber",
+      "Phenolic",
+      "Plywood (Birch)",
+      "Plywood",
+      "Balsa",
+      "Basswood",
+      "Spruce",
+      "MDF",
+      "ABS",
+      "PLA",
+      "PVC",
+      "Polycarbonate",
+      "Polystyrene",
+      "Polyethylene",
+      "Nylon",
+      "Delrin",
+      "Teflon",
+      "Aluminum",
+      "Aluminum 6061-T6",
+      "Titanium",
+      "Steel (Stainless)",
+      "Steel (Mild)",
+      "Steel",
+      "Brass",
+      "Copper",
+      "Cardboard",
+      "Kraft Paper",
+      "Hard Paper",
+      "Plastic",
+    ] as const;
+    const MODULE_R_FULL_MATERIAL_OPTIONS_HTML = MODULE_R_FULL_MATERIALS.map(
+      (material) => `<option value="${material}">${material}</option>`
+    ).join("");
+    const MODULE_R_PARACHUTE_LIBRARY_URL =
+      "https://github.com/dbcook/openrocket-database/tree/master/orc";
+    const MODULE_R_PARACHUTE_LIBRARY = [
+      { id: "orc-12in", name: "Parachute 12 in", mass_lb: 0.02, drag_coefficient: 0.8, material: "Nylon" },
+      { id: "orc-18in", name: "Parachute 18 in", mass_lb: 0.04, drag_coefficient: 0.82, material: "Nylon" },
+      { id: "orc-24in", name: "Parachute 24 in", mass_lb: 0.07, drag_coefficient: 0.84, material: "Nylon" },
+      { id: "orc-36in", name: "Parachute 36 in", mass_lb: 0.12, drag_coefficient: 0.86, material: "Nylon" },
+      { id: "orc-48in", name: "Parachute 48 in", mass_lb: 0.2, drag_coefficient: 0.88, material: "Nylon" },
+    ] as const;
 
     const floatSound = new Audio(
       "https://raw.githubusercontent.com/mehul422/ArX/main/frontend/public/axr%20float.mp3"
@@ -917,8 +964,90 @@ const ArxInterface: React.FC = () => {
       if (loginLayer) loginLayer.innerHTML = "";
       if (subPageContent) {
         if (isPricing) {
-          subPageContent.innerHTML =
-            '<div class="pricing-grid"><div class="pricing-box"></div><div class="pricing-box"></div><div class="pricing-box"></div></div>';
+          subPageContent.innerHTML = `
+            <div class="pricing-notice-modal" data-open="true" role="dialog" aria-modal="true">
+              <div class="pricing-notice-panel">
+                <div class="panel-header">PRICING NOTICE</div>
+                <div class="modal-text">everything is on us right now, pricing initializes in V2.0)</div>
+                <div class="arx-form-actions">
+                  <button type="button" class="arx-btn" data-action="close-pricing-notice">OK</button>
+                </div>
+              </div>
+            </div>
+            <div class="pricing-grid">
+              <article class="pricing-box">
+                <div class="pricing-tier-name">LAUNCH</div>
+                <div class="pricing-price-row">
+                  <span class="pricing-current-price">$0</span>
+                  <span class="pricing-period">/ month</span>
+                </div>
+                <ul class="pricing-feature-list">
+                  <li>Access to AR</li>
+                  <li>
+                    Access to X (Limited)
+                    <span class="pricing-soon-tag">[COMING SOON]</span>
+                  </li>
+                  <li>
+                    Access to Module X (Limited)
+                    <span class="pricing-soon-tag">[COMING SOON]</span>
+                  </li>
+                </ul>
+              </article>
+              <article class="pricing-box">
+                <div class="pricing-tier-name">ORBIT</div>
+                <div class="pricing-price-row">
+                  <span class="pricing-old-price">$10</span>
+                  <span class="pricing-current-price">$5</span>
+                  <span class="pricing-period">/ month</span>
+                </div>
+                <div class="pricing-discount-note">Early Adopter Discount</div>
+                <ul class="pricing-feature-list">
+                  <li>Unlimited access to AR</li>
+                  <li>
+                    Unlimited access to X
+                    <span class="pricing-soon-tag">[COMING SOON]</span>
+                  </li>
+                  <li>
+                    Access to Module X (Limited)
+                    <span class="pricing-soon-tag">[COMING SOON]</span>
+                  </li>
+                </ul>
+              </article>
+              <article class="pricing-box">
+                <div class="pricing-tier-name">ESCAPE</div>
+                <div class="pricing-price-row">
+                  <span class="pricing-old-price">$30</span>
+                  <span class="pricing-current-price">$15</span>
+                  <span class="pricing-period">/ month</span>
+                </div>
+                <div class="pricing-discount-note">Early Adopter Discount</div>
+                <ul class="pricing-feature-list">
+                  <li>Infinite access to AR</li>
+                  <li>
+                    Infinite access to X
+                    <span class="pricing-soon-tag">[COMING SOON]</span>
+                  </li>
+                  <li>
+                    Infinite access to Module X
+                    <span class="pricing-soon-tag">[COMING SOON]</span>
+                  </li>
+                </ul>
+              </article>
+            </div>
+          `;
+          const pricingNotice = subPageContent.querySelector(".pricing-notice-modal") as
+            | HTMLElement
+            | null;
+          pricingNotice?.addEventListener("click", (event) => {
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+            if (
+              target === pricingNotice ||
+              target.closest('[data-action="close-pricing-notice"]')
+            ) {
+              pricingNotice.setAttribute("data-open", "false");
+            }
+          });
           setTimeout(() => {
             document.querySelectorAll(".pricing-box").forEach((box) => {
               box.addEventListener("mouseenter", () => {
@@ -940,6 +1069,12 @@ const ArxInterface: React.FC = () => {
       }
       setTimeout(() => {
         document.getElementById("subPage")?.classList.add("active");
+        if (type === "PRICING") {
+          floater.style.opacity = "0";
+          window.setTimeout(() => {
+            if (floater.parentElement) floater.remove();
+          }, 420);
+        }
         if (type === "INIT" || type === "NEW" || type === "PROTO") {
           document.getElementById("subPage")?.classList.add("form-active");
           document
@@ -982,6 +1117,16 @@ const ArxInterface: React.FC = () => {
                 <div class="arx-field">
                   <input type="email" name="email" placeholder=" " autocomplete="email" required />
                   <label>YOUR EMAIL</label>
+                </div>
+                <div class="arx-field">
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder=" "
+                    autocomplete="new-password"
+                    required
+                  />
+                  <label>YOUR PASSWORD</label>
                 </div>
                 <div class="arx-field dob-field">
                   <div class="dob-inputs">
@@ -1064,6 +1209,32 @@ const ArxInterface: React.FC = () => {
           }
         }
       }, 500);
+    };
+
+    const parseDobParts = (monthRaw: string, dayRaw: string, yearRaw: string) => {
+      const month = Number(monthRaw);
+      const day = Number(dayRaw);
+      const year = Number(yearRaw);
+      if (!Number.isInteger(month) || !Number.isInteger(day) || !Number.isInteger(year)) {
+        return { valid: false as const, date: null as Date | null };
+      }
+      // Must be a real positive year and non-future date.
+      if (year <= 0 || month < 1 || month > 12 || day < 1 || day > 31) {
+        return { valid: false as const, date: null as Date | null };
+      }
+      const date = new Date(year, month - 1, day);
+      const isExact =
+        date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day;
+      if (!isExact) {
+        return { valid: false as const, date: null as Date | null };
+      }
+      const now = new Date();
+      if (date.getTime() > now.getTime()) {
+        return { valid: false as const, date: null as Date | null };
+      }
+      return { valid: true as const, date };
     };
 
     const setupDobFields = (scope: Element | null) => {
@@ -1177,14 +1348,15 @@ const ArxInterface: React.FC = () => {
             fieldEl.classList.remove("age-active");
             return;
           }
-          const dobDate = new Date(Number(year), Number(month) - 1, Number(day));
-          if (Number.isNaN(dobDate.getTime())) {
+          const parsedDob = parseDobParts(month, day, year);
+          if (!parsedDob.valid || !parsedDob.date) {
             clearAgeTimer();
             labelEl.textContent = "DATE OF BIRTH";
-            ageEl.textContent = "";
-            fieldEl.classList.remove("age-active");
+            ageEl.textContent = "PLEASE PUT REAL DATE.";
+            fieldEl.classList.add("age-active");
             return;
           }
+          const dobDate = parsedDob.date;
           labelEl.textContent = "YOU HAVE BEEN ALIVE FOR";
           ageEl.textContent = formatAge(dobDate);
           fieldEl.classList.add("age-active");
@@ -1548,6 +1720,3731 @@ const ArxInterface: React.FC = () => {
       if (form && form.getAttribute("data-bound") === "true") return;
       if (form) form.setAttribute("data-bound", "true");
       setupDobFields(container);
+      const moduleR = container.querySelector('[data-form="module-r"]') as HTMLElement | null;
+      if (moduleR && moduleR.getAttribute("data-bound") !== "true") {
+        moduleR.setAttribute("data-bound", "true");
+        const positioningRoot = moduleR.querySelector(
+          "[data-positioning-root]"
+        ) as HTMLElement | null;
+        if (positioningRoot && positioningRoot.getAttribute("data-mounted") !== "true") {
+          const root = createRoot(positioningRoot);
+          root.render(<PositioningModule />);
+          positioningRoot.setAttribute("data-mounted", "true");
+        }
+        const widthInput = moduleR.querySelector('input[name="global_width"]') as
+          | HTMLInputElement
+          | null;
+        const lockBtn = moduleR.querySelector('[data-action="lock-width"]') as
+          | HTMLButtonElement
+          | null;
+        const resetBtn = moduleR.querySelector('[data-action="reset-width"]') as
+          | HTMLButtonElement
+          | null;
+        const manualBtn = moduleR.querySelector('[data-action="mode-manual"]') as
+          | HTMLButtonElement
+          | null;
+        const autoBtn = moduleR.querySelector('[data-action="mode-auto"]') as
+          | HTMLButtonElement
+          | null;
+        const backInitBtn = moduleR.querySelector('[data-action="back-init"]') as
+          | HTMLButtonElement
+          | null;
+        const backEntryBtn = moduleR.querySelectorAll('[data-action="back-entry"]');
+        const cardBody = moduleR.querySelector('[data-card="body"]') as HTMLElement | null;
+        const cardNose = moduleR.querySelector('[data-card="nose"]') as HTMLElement | null;
+        const cardFins = moduleR.querySelector('[data-card="fins"]') as HTMLElement | null;
+        const cardPositioning = moduleR.querySelector('[data-card="positioning"]') as
+          | HTMLElement
+          | null;
+        const backManualBtns = moduleR.querySelectorAll('[data-action="back-manual"]');
+        const markBodyBtn = moduleR.querySelector('[data-action="mark-body"]') as
+          | HTMLButtonElement
+          | null;
+        const unmarkBodyBtn = moduleR.querySelector('[data-action="unmark-body"]') as
+          | HTMLButtonElement
+          | null;
+        const markNoseBtn = moduleR.querySelector('[data-action="mark-nose"]') as
+          | HTMLButtonElement
+          | null;
+        const unmarkNoseBtn = moduleR.querySelector('[data-action="unmark-nose"]') as
+          | HTMLButtonElement
+          | null;
+        const markFinsBtn = moduleR.querySelector('[data-action="mark-fins"]') as
+          | HTMLButtonElement
+          | null;
+        const unmarkFinsBtn = moduleR.querySelector('[data-action="unmark-fins"]') as
+          | HTMLButtonElement
+          | null;
+        const saveNoseBtn = moduleR.querySelector('[data-action="save-nose"]') as
+          | HTMLButtonElement
+          | null;
+        const finsNextBtn = moduleR.querySelector('[data-action="fins-next"]') as
+          | HTMLButtonElement
+          | null;
+        const finsClearIndex = moduleR.querySelector('[data-action="clear-fins-index"]') as
+          | HTMLButtonElement
+          | null;
+        const finsSaveBtn = moduleR.querySelector('[data-action="fins-save"]') as
+          | HTMLButtonElement
+          | null;
+        const backFinsBtn = moduleR.querySelector('[data-action="back-fins"]') as
+          | HTMLButtonElement
+          | null;
+        const finsCountInput = moduleR.querySelector('input[name="fin_set_count"]') as
+          | HTMLInputElement
+          | null;
+        const finsList = moduleR.querySelector(".module-r-fins-list") as HTMLElement | null;
+        const storageList = moduleR.querySelector(".module-r-storage-list") as HTMLElement | null;
+        const workspaceDrop = moduleR.querySelector(
+          ".module-r-workspace-drop"
+        ) as HTMLElement | null;
+        const savePositioningBtn = moduleR.querySelector('[data-action="save-positioning"]') as
+          | HTMLButtonElement
+          | null;
+        const openMotorMounts = moduleR.querySelector('[data-action="open-motor-mounts"]') as
+          | HTMLElement
+          | null;
+        const openAdditionalTubes = moduleR.querySelector('[data-action="open-additional-tubes"]') as
+          | HTMLElement
+          | null;
+        const openBulkheads = moduleR.querySelector('[data-action="open-bulkheads"]') as
+          | HTMLElement
+          | null;
+        const clearBodyBtn = moduleR.querySelector('[data-action="clear-body"]') as
+          | HTMLButtonElement
+          | null;
+        const backBodyBtns = moduleR.querySelectorAll('[data-action="back-body"]');
+        const motorMountsNext = moduleR.querySelector('[data-action="motor-mounts-next"]') as
+          | HTMLButtonElement
+          | null;
+        const motorMountsClearIndex = moduleR.querySelector(
+          '[data-action="motor-mounts-clear-index"]'
+        ) as HTMLButtonElement | null;
+        const motorMountsSave = moduleR.querySelector('[data-action="motor-mounts-save"]') as
+          | HTMLButtonElement
+          | null;
+        const motorMountsClear = moduleR.querySelector('[data-action="motor-mounts-clear"]') as
+          | HTMLButtonElement
+          | null;
+        const backMotorMounts = moduleR.querySelector('[data-action="back-motor-mounts"]') as
+          | HTMLButtonElement
+          | null;
+        const additionalNext = moduleR.querySelector('[data-action="additional-next"]') as
+          | HTMLButtonElement
+          | null;
+        const additionalSave = moduleR.querySelector('[data-action="additional-save"]') as
+          | HTMLButtonElement
+          | null;
+        const additionalClear = moduleR.querySelector('[data-action="additional-clear"]') as
+          | HTMLButtonElement
+          | null;
+        const additionalClearIndex = moduleR.querySelector(
+          '[data-action="additional-clear-index"]'
+        ) as HTMLButtonElement | null;
+        const backAdditional = moduleR.querySelector('[data-action="back-additional"]') as
+          | HTMLButtonElement
+          | null;
+        const bulkheadNext = moduleR.querySelector('[data-action="bulkheads-next"]') as
+          | HTMLButtonElement
+          | null;
+        const bulkheadsSave = moduleR.querySelector('[data-action="bulkheads-save"]') as
+          | HTMLButtonElement
+          | null;
+        const bulkheadsClear = moduleR.querySelector('[data-action="bulkheads-clear"]') as
+          | HTMLButtonElement
+          | null;
+        const bulkheadsClearIndex = moduleR.querySelector(
+          '[data-action="bulkheads-clear-index"]'
+        ) as HTMLButtonElement | null;
+        const backBulkheads = moduleR.querySelector('[data-action="back-bulkheads"]') as
+          | HTMLButtonElement
+          | null;
+        const stageCountInput = moduleR.querySelector('input[name="stage_count_manual"]') as
+          | HTMLInputElement
+          | null;
+        const stageList = moduleR.querySelector(".module-r-stage-list") as HTMLElement | null;
+        const additionalCountInput = moduleR.querySelector(
+          'input[name="additional_tube_count"]'
+        ) as HTMLInputElement | null;
+        const additionalList = moduleR.querySelector(".module-r-additional-list") as
+          | HTMLElement
+          | null;
+        const bulkheadCountInput = moduleR.querySelector('input[name="bulkhead_count"]') as
+          | HTMLInputElement
+          | null;
+        const bulkheadList = moduleR.querySelector(".module-r-bulkhead-list") as HTMLElement | null;
+        const savedStageCount = Number(window.localStorage.getItem("arx_module_r_stage_count") || "0");
+        if (stageCountInput && Number.isFinite(savedStageCount) && savedStageCount > 0) {
+          stageCountInput.value = String(savedStageCount);
+        }
+        const savedBulkheadCount = Number(
+          window.localStorage.getItem("arx_module_r_bulkhead_count") || "0"
+        );
+        if (bulkheadCountInput && Number.isFinite(savedBulkheadCount) && savedBulkheadCount > 0) {
+          bulkheadCountInput.value = String(savedBulkheadCount);
+        }
+        const savedAdditionalCount = Number(
+          window.localStorage.getItem("arx_module_r_additional_count") || "0"
+        );
+        if (
+          additionalCountInput &&
+          Number.isFinite(savedAdditionalCount) &&
+          savedAdditionalCount >= 0
+        ) {
+          additionalCountInput.value = String(savedAdditionalCount);
+        }
+        const noseClearBtn = moduleR.querySelector('[data-action="clear-nose"]') as
+          | HTMLButtonElement
+          | null;
+        const finsClearBtn = moduleR.querySelector('[data-action="clear-fins"]') as
+          | HTMLButtonElement
+          | null;
+        const pages = moduleR.querySelectorAll("[data-page]");
+        const currentPage = () => String(moduleR.getAttribute("data-active-page") || "init");
+        const enhanceModuleRSelects = () => {
+          const closeAll = () => {
+            moduleR
+              .querySelectorAll(".module-r-custom-select.is-open")
+              .forEach((node) => {
+                const wrapper = node as HTMLElement;
+                wrapper.classList.remove("is-open");
+                const trigger = wrapper.querySelector(
+                  ".module-r-custom-select-trigger"
+                ) as HTMLButtonElement | null;
+                const active = wrapper.querySelectorAll(".module-r-custom-select-option.is-active");
+                active.forEach((item) => (item as HTMLElement).classList.remove("is-active"));
+                if (trigger) {
+                  trigger.setAttribute("aria-expanded", "false");
+                }
+              });
+          };
+          if (moduleR.getAttribute("data-custom-select-bound") !== "true") {
+            moduleR.setAttribute("data-custom-select-bound", "true");
+            document.addEventListener("pointerdown", (event) => {
+              const target = event.target as Node | null;
+              if (!target || !moduleR.contains(target)) {
+                closeAll();
+                return;
+              }
+              if (!(target as Element).closest(".module-r-custom-select")) {
+                closeAll();
+              }
+            });
+          }
+
+          const selects = Array.from(moduleR.querySelectorAll("select")) as HTMLSelectElement[];
+          selects.forEach((select) => {
+            if (select.classList.contains("module-r-select-native-hidden")) return;
+
+            const host = select.parentElement;
+            if (!host) return;
+
+            const wrapper = document.createElement("div");
+            wrapper.className = "module-r-custom-select";
+
+            const trigger = document.createElement("button");
+            trigger.type = "button";
+            trigger.className = "module-r-custom-select-trigger";
+            trigger.setAttribute("aria-haspopup", "listbox");
+            trigger.setAttribute("aria-expanded", "false");
+
+            const menu = document.createElement("div");
+            menu.className = "module-r-custom-select-menu";
+            menu.tabIndex = -1;
+            menu.setAttribute("role", "listbox");
+
+            const syncFromNative = () => {
+              const current = select.options[select.selectedIndex];
+              trigger.textContent = current?.textContent || "Select";
+              Array.from(menu.querySelectorAll(".module-r-custom-select-option")).forEach((node) => {
+                const el = node as HTMLButtonElement;
+                const selected = el.getAttribute("data-value") === select.value;
+                el.classList.toggle("is-selected", selected);
+                if (selected) el.setAttribute("aria-selected", "true");
+                else el.removeAttribute("aria-selected");
+              });
+            };
+            const optionButtons: HTMLButtonElement[] = [];
+            let activeIndex = -1;
+            const getEnabledButtons = () => optionButtons.filter((btn) => !btn.disabled);
+            const setActiveOption = (btn: HTMLButtonElement | null) => {
+              optionButtons.forEach((node) => node.classList.remove("is-active"));
+              if (!btn) {
+                activeIndex = -1;
+                return;
+              }
+              activeIndex = optionButtons.indexOf(btn);
+              btn.classList.add("is-active");
+              btn.scrollIntoView({ block: "nearest" });
+            };
+            const focusSelectedOrFirst = () => {
+              const selectedBtn =
+                (optionButtons.find((btn) => btn.getAttribute("data-value") === select.value) as
+                  | HTMLButtonElement
+                  | undefined) || null;
+              const target = selectedBtn || getEnabledButtons()[0] || null;
+              setActiveOption(target);
+            };
+            const openMenu = (preferLast = false) => {
+              closeAll();
+              const rect = trigger.getBoundingClientRect();
+              const viewportH = window.innerHeight || 0;
+              const menuMax = Math.min(260, viewportH * 0.34);
+              const expectedMenuH = Math.min(
+                Math.max(menu.scrollHeight, optionButtons.length * 34, 60),
+                menuMax
+              );
+              const spaceBelow = viewportH - rect.bottom;
+              const spaceAbove = rect.top;
+              const openUp = spaceBelow < expectedMenuH + 12 && spaceAbove > spaceBelow;
+              wrapper.classList.toggle("open-up", openUp);
+              wrapper.classList.add("is-open");
+              trigger.setAttribute("aria-expanded", "true");
+              if (preferLast) {
+                const enabled = getEnabledButtons();
+                setActiveOption(enabled[enabled.length - 1] || null);
+              } else {
+                focusSelectedOrFirst();
+              }
+              menu.focus();
+            };
+            const closeMenu = () => {
+              wrapper.classList.remove("is-open");
+              wrapper.classList.remove("open-up");
+              trigger.setAttribute("aria-expanded", "false");
+              setActiveOption(null);
+            };
+            const moveActive = (step: number) => {
+              const enabled = getEnabledButtons();
+              if (!enabled.length) return;
+              const currentBtn =
+                activeIndex >= 0 ? optionButtons[activeIndex] : (null as HTMLButtonElement | null);
+              const currentEnabledIdx = currentBtn ? enabled.indexOf(currentBtn) : -1;
+              const nextEnabledIdx = Math.max(
+                0,
+                Math.min(enabled.length - 1, currentEnabledIdx + step)
+              );
+              setActiveOption(enabled[nextEnabledIdx]);
+            };
+            const commitActive = () => {
+              if (activeIndex < 0) return;
+              const btn = optionButtons[activeIndex];
+              if (!btn || btn.disabled) return;
+              btn.click();
+            };
+
+            Array.from(select.options).forEach((opt) => {
+              const optionBtn = document.createElement("button");
+              optionBtn.type = "button";
+              optionBtn.className = "module-r-custom-select-option";
+              optionBtn.textContent = opt.textContent || opt.value;
+              optionBtn.setAttribute("data-value", opt.value);
+              optionBtn.disabled = Boolean(opt.disabled);
+              optionBtn.setAttribute("role", "option");
+              optionBtn.addEventListener("click", () => {
+                select.value = opt.value;
+                syncFromNative();
+                closeMenu();
+                trigger.focus();
+                select.dispatchEvent(new Event("input", { bubbles: true }));
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+              });
+              optionBtn.addEventListener("mouseenter", () => {
+                setActiveOption(optionBtn);
+              });
+              optionButtons.push(optionBtn);
+              menu.appendChild(optionBtn);
+            });
+
+            trigger.addEventListener("click", (event) => {
+              event.preventDefault();
+              const isOpen = wrapper.classList.contains("is-open");
+              if (isOpen) closeMenu();
+              else openMenu();
+            });
+            trigger.addEventListener("keydown", (event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                if (!wrapper.classList.contains("is-open")) openMenu();
+                else moveActive(1);
+                return;
+              }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                if (!wrapper.classList.contains("is-open")) openMenu(true);
+                else moveActive(-1);
+                return;
+              }
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                if (!wrapper.classList.contains("is-open")) openMenu();
+                else commitActive();
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                closeMenu();
+              }
+            });
+            menu.addEventListener("keydown", (event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                moveActive(1);
+                return;
+              }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                moveActive(-1);
+                return;
+              }
+              if (event.key === "Home") {
+                event.preventDefault();
+                const first = getEnabledButtons()[0] || null;
+                setActiveOption(first);
+                return;
+              }
+              if (event.key === "End") {
+                event.preventDefault();
+                const enabled = getEnabledButtons();
+                setActiveOption(enabled[enabled.length - 1] || null);
+                return;
+              }
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                commitActive();
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                closeMenu();
+                trigger.focus();
+                return;
+              }
+              if (event.key === "Tab") {
+                closeMenu();
+              }
+            });
+
+            select.classList.add("module-r-select-native-hidden");
+            host.insertBefore(wrapper, select);
+            wrapper.appendChild(trigger);
+            wrapper.appendChild(menu);
+            wrapper.appendChild(select);
+            select.addEventListener("change", syncFromNative);
+            syncFromNative();
+          });
+        };
+        const showPage = (page: string) => {
+          moduleR
+            .querySelectorAll(".module-r-custom-select.is-open")
+            .forEach((node) => {
+              const wrapper = node as HTMLElement;
+              wrapper.classList.remove("is-open", "open-up");
+              const trigger = wrapper.querySelector(
+                ".module-r-custom-select-trigger"
+              ) as HTMLButtonElement | null;
+              trigger?.setAttribute("aria-expanded", "false");
+            });
+          pages.forEach((node) => {
+            const el = node as HTMLElement;
+            el.style.display = el.getAttribute("data-page") === page ? "grid" : "none";
+            if (el.getAttribute("data-page") === page) {
+              el.scrollTop = 0;
+            }
+          });
+          const parachuteModal = moduleR.querySelector(".module-r-parachute-modal") as
+            | HTMLElement
+            | null;
+          if (parachuteModal) {
+            parachuteModal.removeAttribute("data-open");
+            parachuteModal.removeAttribute("data-target-component-id");
+            parachuteModal.remove();
+          }
+          moduleR.setAttribute("data-active-page", page);
+          moduleR.scrollTop = 0;
+          enhanceModuleRSelects();
+        };
+        const autoPage = moduleR.querySelector('[data-page="auto"]') as HTMLElement | null;
+        const submitAuto = moduleR.querySelector('[data-action="submit-auto"]') as
+          | HTMLButtonElement
+          | null;
+        const pickRicBtn = moduleR.querySelector('[data-action="pick-ric"]') as
+          | HTMLButtonElement
+          | null;
+        const ricInput = moduleR.querySelector('input[name="ric_file"]') as
+          | HTMLInputElement
+          | null;
+        const ricName = moduleR.querySelector(".module-r-file-name") as HTMLElement | null;
+        const statusEl = moduleR.querySelector(".form-status") as HTMLElement | null;
+        const autoResultsEl = moduleR.querySelector(".module-r-auto-results") as HTMLElement | null;
+
+        const setStatus = (message: string) => {
+          const statuses = moduleR.querySelectorAll(".form-status");
+          statuses.forEach((el) => {
+            (el as HTMLElement).textContent = message;
+          });
+          if (!statuses.length && statusEl) {
+            statusEl.textContent = message;
+          }
+        };
+        const ensureParachuteModal = () => {
+          let modal = moduleR.querySelector(".module-r-parachute-modal") as HTMLElement | null;
+          if (modal) return modal;
+          modal = document.createElement("div");
+          modal.className = "module-r-parachute-modal";
+          modal.innerHTML = `
+            <div class="module-r-parachute-modal-backdrop" data-action="close-parachute-modal"></div>
+            <div class="module-r-parachute-modal-panel" role="dialog" aria-modal="true" aria-label="Parachute Library">
+              <div class="panel-header">PARACHUTE LIBRARY</div>
+              <div class="form-status">Source: ${MODULE_R_PARACHUTE_LIBRARY_URL}</div>
+              <div class="module-r-parachute-list">
+                <div class="arx-field">
+                  <select data-field="parachute_modal_select">
+                    ${MODULE_R_PARACHUTE_LIBRARY.map(
+                      (item) =>
+                        `<option value="${item.id}">${item.name} | ${item.mass_lb.toFixed(2)} lb | Cd ${item.drag_coefficient.toFixed(2)} | ${item.material}</option>`
+                    ).join("")}
+                  </select>
+                  <label>PARACHUTE MODEL</label>
+                </div>
+                <div class="module-r-parachute-meta" data-parachute-meta></div>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="apply-parachute-modal">Apply</button>
+                <button type="button" class="arx-btn" data-action="close-parachute-modal">Close</button>
+              </div>
+            </div>
+          `;
+          moduleR.appendChild(modal);
+          const select = modal.querySelector('select[data-field="parachute_modal_select"]') as
+            | HTMLSelectElement
+            | null;
+          const syncMeta = () => {
+            const meta = modal?.querySelector("[data-parachute-meta]") as HTMLElement | null;
+            if (!meta || !select) return;
+            const selected = MODULE_R_PARACHUTE_LIBRARY.find((item) => item.id === select.value);
+            if (!selected) {
+              meta.textContent = "";
+              return;
+            }
+            meta.textContent = `MASS ${selected.mass_lb.toFixed(2)} LB  |  DRAG ${selected.drag_coefficient.toFixed(2)}  |  MATERIAL ${selected.material}`;
+          };
+          if (select) {
+            select.addEventListener("change", syncMeta);
+            syncMeta();
+          }
+          enhanceModuleRSelects();
+          return modal;
+        };
+        const openParachuteModal = (componentNode: HTMLElement) => {
+          const modal = ensureParachuteModal();
+          modal.setAttribute("data-open", "true");
+          modal.setAttribute("data-target-component-id", componentNode.getAttribute("data-component-id") || "");
+          const select = modal.querySelector('select[data-field="parachute_modal_select"]') as
+            | HTMLSelectElement
+            | null;
+          const existing = String(componentNode.getAttribute("data-parachute-id") || "");
+          if (select && existing) {
+            select.value = existing;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        };
+        const closeParachuteModal = () => {
+          const modal = moduleR.querySelector(".module-r-parachute-modal") as HTMLElement | null;
+          if (!modal) return;
+          modal.removeAttribute("data-open");
+          modal.removeAttribute("data-target-component-id");
+          // Remove the node to prevent leaked custom-select UI fragments across pages.
+          modal.remove();
+        };
+        const applyParachuteSelectionToComponent = (component: HTMLElement, parachuteId: string) => {
+          const selected = MODULE_R_PARACHUTE_LIBRARY.find((item) => item.id === parachuteId);
+          if (!selected) return;
+          const nameInput = component.querySelector('input[data-field="name"]') as HTMLInputElement | null;
+          const massInput = component.querySelector('input[data-field="mass"]') as HTMLInputElement | null;
+          const dragInput = component.querySelector('input[data-field="drag"]') as HTMLInputElement | null;
+          const materialInput = component.querySelector('input[data-field="parachute_material"]') as
+            | HTMLInputElement
+            | null;
+          const parachuteDisplay = component.querySelector(
+            '[data-field="parachute_display"]'
+          ) as HTMLInputElement | null;
+          if (nameInput && !String(nameInput.value || "").trim()) {
+            nameInput.value = selected.name;
+          }
+          if (massInput) massInput.value = selected.mass_lb.toFixed(2);
+          if (dragInput) dragInput.value = selected.drag_coefficient.toFixed(3);
+          if (materialInput) materialInput.value = selected.material;
+          if (parachuteDisplay) parachuteDisplay.value = selected.name;
+          component.setAttribute("data-parachute-id", selected.id);
+          component.dispatchEvent(new Event("input", { bubbles: true }));
+          component.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+        const updateNosePreview = () => {
+          const svg = moduleR.querySelector(
+            `[data-nose-preview="main"]`
+          ) as SVGSVGElement | null;
+          const path = moduleR.querySelector(`[data-nose-shape="main"]`) as SVGPathElement | null;
+          const lengthInput = moduleR.querySelector('input[name="nose_length_in"]') as
+            | HTMLInputElement
+            | null;
+          const typeSelect = moduleR.querySelector('select[name="nose_type"]') as
+            | HTMLSelectElement
+            | null;
+          if (!svg || !path) return;
+          const noseLen = Math.max(0.1, Number(lengthInput?.value || 10));
+          const type = String(typeSelect?.value || "OGIVE").toUpperCase();
+          const h = 130;
+          const x0 = 18;
+          const centerY = h * 0.5;
+          const L = Math.min(188, Math.max(58, noseLen * 8));
+          const R = 24;
+          const tipX = x0 + L;
+          const samples = 56;
+          const radiusAt = (x: number) => {
+            const t = Math.max(0, Math.min(1, x / Math.max(L, 0.001)));
+            if (type === "CONICAL") return R * (1 - t);
+            if (type === "ELLIPTICAL") return R * Math.sqrt(Math.max(0, 1 - t * t));
+            if (type === "PARABOLIC") return R * Math.max(0, 1 - t * t);
+            const rho = (R * R + L * L) / (2 * R);
+            // Tangent ogive profile: base radius at x=0 and smooth point at x=L.
+            return (
+              Math.sqrt(Math.max(0, rho * rho - x * x)) +
+              R -
+              rho
+            );
+          };
+          const top: Array<{ x: number; y: number }> = [];
+          for (let i = 0; i <= samples; i += 1) {
+            const x = (L * i) / samples;
+            const r = radiusAt(x);
+            top.push({ x: x0 + x, y: centerY - r });
+          }
+          const bottom = top
+            .slice(0, -1)
+            .reverse()
+            .map((p) => ({ x: p.x, y: centerY + (centerY - p.y) }));
+          const d = [
+            `M ${x0} ${centerY + R}`,
+            ...top.map((p) => `L ${p.x} ${p.y}`),
+            ...bottom.map((p) => `L ${p.x} ${p.y}`),
+            "Z",
+          ].join(" ");
+          path.setAttribute("d", d);
+        };
+        const updateStagePreview = (index: number) => {
+          if (!stageList) return;
+          const path = stageList.querySelector(
+            `[data-stage-shape="${index}"]`
+          ) as SVGPathElement | null;
+          if (!path) return;
+          const getNum = (name: string, fallback: number) => {
+            const input = stageList.querySelector(`input[name="${name}_${index}"]`) as
+              | HTMLInputElement
+              | null;
+            const v = Number(input?.value ?? fallback);
+            return Number.isFinite(v) && v > 0 ? v : fallback;
+          };
+          const length = getNum("stage_length", 20);
+          const innerDiameter = getNum("inner_tube_diameter", 2);
+          const innerThickness = getNum("inner_tube_thickness", 0.1);
+          const width = 240;
+          const height = 130;
+          const pad = 14;
+          const scaledLen = Math.min(200, Math.max(60, length * 4));
+          const x0 = pad;
+          const x1 = x0 + scaledLen;
+          const bodyTop = 26;
+          const bodyBottom = 104;
+          const coreHeight = Math.min(
+            bodyBottom - bodyTop - 10,
+            Math.max(18, (innerDiameter - innerThickness * 2) * 8)
+          );
+          const coreTop = (height - coreHeight) / 2;
+          const coreBottom = coreTop + coreHeight;
+          const wall = Math.max(1.5, Math.min(12, innerThickness * 10));
+          path.setAttribute(
+            "d",
+            `M ${x0} ${bodyBottom} L ${x1} ${bodyBottom} L ${x1} ${bodyTop} L ${x0} ${bodyTop} Z M ${x0 + 8} ${coreBottom} L ${
+              x1 - 8
+            } ${coreBottom} L ${x1 - 8} ${coreTop} L ${x0 + 8} ${coreTop} Z M ${x0} ${bodyBottom} L ${x0 + wall} ${bodyBottom} L ${
+              x0 + wall
+            } ${bodyTop} L ${x0} ${bodyTop} Z M ${x1 - wall} ${bodyBottom} L ${x1} ${bodyBottom} L ${x1} ${bodyTop} L ${
+              x1 - wall
+            } ${bodyTop} Z`
+          );
+        };
+        const MODULE_R_TELEMETRY_MEDIA_DEFAULT = "/module-r/telemetry_transition.mp4";
+        const MODULE_R_PARACHUTE_MEDIA_DEFAULT =
+          "/@fs/Users/mehulverma422/.cursor/projects/Users-mehulverma422-Desktop-ArX-arx-os/assets/Screenshot_2026-02-12_at_6.38.51_PM-8ff42754-3b23-4ea8-959a-dadba5928638.png";
+        const MODULE_R_MASS_MEDIA_DEFAULT =
+          "/@fs/Users/mehulverma422/.cursor/projects/Users-mehulverma422-Desktop-ArX-arx-os/assets/Screenshot_2026-02-12_at_6.38.36_PM-97ff63be-7908-4a3e-9117-bb90cb653664.png";
+        const updateAdditionalPreview = (tubeIndex: number) => {
+          if (!additionalList) return;
+          const svg = additionalList.querySelector(
+            `[data-additional-preview="${tubeIndex}"]`
+          ) as SVGSVGElement | null;
+          const path = additionalList.querySelector(
+            `[data-additional-shape="${tubeIndex}"]`
+          ) as SVGPathElement | null;
+          const telemetryLayer = additionalList.querySelector(
+            `[data-additional-telemetry="${tubeIndex}"]`
+          ) as SVGGElement | null;
+          const parachuteLayer = additionalList.querySelector(
+            `[data-additional-parachute-icon="${tubeIndex}"]`
+          ) as SVGGElement | null;
+          const massLayer = additionalList.querySelector(
+            `[data-additional-mass-icon="${tubeIndex}"]`
+          ) as SVGGElement | null;
+          const telemetryVideo = additionalList.querySelector(
+            `video[data-additional-telemetry-video="${tubeIndex}"]`
+          ) as HTMLVideoElement | null;
+          const parachuteImage = additionalList.querySelector(
+            `img[data-additional-parachute-image="${tubeIndex}"]`
+          ) as HTMLImageElement | null;
+          const massImage = additionalList.querySelector(
+            `img[data-additional-mass-image="${tubeIndex}"]`
+          ) as HTMLImageElement | null;
+          if (!path) return;
+          const items = Array.from(
+            additionalList.querySelectorAll(
+              `.module-r-additional-components[data-tube="${tubeIndex}"] .module-r-additional-component`
+            )
+          ) as HTMLElement[];
+          const width = 240;
+          const height = 130;
+          const pad = 12;
+          const x0 = pad;
+          const x1 = width - pad;
+          const y0 = 8;
+          const y1 = height - 6;
+          const segments = Math.max(items.length, 1);
+          const segW = (x1 - x0) / segments;
+          let segmentPath = "";
+          items.forEach((component, idx) => {
+            const massInput = component.querySelector('input[data-field="mass"]') as
+              | HTMLInputElement
+              | null;
+            const typeSelect = component.querySelector('select[data-field="type"]') as
+              | HTMLSelectElement
+              | null;
+            const mass = Math.max(0, Number(massInput?.value || 0));
+            const type = String(typeSelect?.value || "telemetry");
+            const cx0 = x0 + idx * segW + 2;
+            const cx1 = x0 + (idx + 1) * segW - 2;
+            const maxH = y1 - y0 - 4;
+            const h = Math.min(maxH, Math.max(6, mass * 8 + (type === "parachute" ? 4 : 0)));
+            const cy0 = y1 - h - 2;
+            if (type === "parachute") {
+              const mid = (cx0 + cx1) * 0.5;
+              segmentPath += ` M ${cx0} ${y1 - 2} Q ${mid} ${cy0 - 8} ${cx1} ${y1 - 2} L ${cx1} ${y1} L ${cx0} ${y1} Z`;
+            } else {
+              segmentPath += ` M ${cx0} ${y1 - 2} L ${cx1} ${y1 - 2} L ${cx1} ${cy0} L ${cx0} ${cy0} Z`;
+            }
+          });
+          const hasTelemetry = items.some((component) => {
+            const typeSelect = component.querySelector('select[data-field="type"]') as
+              | HTMLSelectElement
+              | null;
+            return String(typeSelect?.value || "") === "telemetry";
+          });
+          const hasParachute = items.some((component) => {
+            const typeSelect = component.querySelector('select[data-field="type"]') as
+              | HTMLSelectElement
+              | null;
+            return String(typeSelect?.value || "") === "parachute";
+          });
+          const hasMass = items.some((component) => {
+            const typeSelect = component.querySelector('select[data-field="type"]') as
+              | HTMLSelectElement
+              | null;
+            return String(typeSelect?.value || "") === "mass";
+          });
+
+          const activeMedia = hasTelemetry ? "telemetry" : hasParachute ? "parachute" : hasMass ? "mass" : "none";
+          if (svg) svg.setAttribute("data-telemetry-active", hasTelemetry ? "true" : "false");
+          if (telemetryLayer) telemetryLayer.style.opacity = hasTelemetry ? "1" : "0";
+          if (parachuteLayer) parachuteLayer.style.opacity = activeMedia === "parachute" ? "1" : "0";
+          if (massLayer) massLayer.style.opacity = activeMedia === "mass" ? "1" : "0";
+
+          const shellPath = `M ${x0} ${y1} L ${x1} ${y1} L ${x1} ${y0} L ${x0} ${y0} Z M ${
+            x0 + 2
+          } ${y1 - 2} Q ${(x0 + x1) * 0.5} ${y1 - 14} ${x1 - 2} ${y1 - 2} L ${x1 - 2} ${y1} L ${
+            x0 + 2
+          } ${y1} Z`;
+          path.setAttribute("d", `${shellPath}${segmentPath}`);
+
+          const telemetryMediaSrc =
+            window.localStorage.getItem("arx_module_r_telemetry_media_url") ||
+            MODULE_R_TELEMETRY_MEDIA_DEFAULT;
+          const parachuteMediaSrc =
+            window.localStorage.getItem("arx_module_r_parachute_media_url") ||
+            MODULE_R_PARACHUTE_MEDIA_DEFAULT;
+          const massMediaSrc =
+            window.localStorage.getItem("arx_module_r_mass_media_url") || MODULE_R_MASS_MEDIA_DEFAULT;
+
+          if (telemetryVideo) {
+            if (telemetryVideo.getAttribute("data-src") !== telemetryMediaSrc) {
+              telemetryVideo.setAttribute("data-src", telemetryMediaSrc);
+              telemetryVideo.setAttribute("data-ready", "false");
+              telemetryVideo.src = telemetryMediaSrc;
+            }
+            const ready =
+              telemetryVideo.readyState >= 2 && telemetryVideo.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE;
+            telemetryVideo.setAttribute("data-ready", ready ? "true" : "false");
+            telemetryVideo.setAttribute("data-active", activeMedia === "telemetry" ? "true" : "false");
+            if (activeMedia === "telemetry" && ready) {
+              const playPromise = telemetryVideo.play();
+              if (playPromise && typeof playPromise.catch === "function") {
+                playPromise.catch(() => undefined);
+              }
+            } else {
+              telemetryVideo.pause();
+            }
+          }
+          if (parachuteImage) {
+            if (parachuteImage.getAttribute("data-src") !== parachuteMediaSrc) {
+              parachuteImage.setAttribute("data-src", parachuteMediaSrc);
+              parachuteImage.setAttribute("data-ready", "false");
+              parachuteImage.src = parachuteMediaSrc;
+            }
+            const ready = Boolean(parachuteImage.complete && parachuteImage.naturalWidth > 0);
+            parachuteImage.setAttribute("data-ready", ready ? "true" : "false");
+            parachuteImage.setAttribute("data-active", activeMedia === "parachute" ? "true" : "false");
+          }
+          if (massImage) {
+            if (massImage.getAttribute("data-src") !== massMediaSrc) {
+              massImage.setAttribute("data-src", massMediaSrc);
+              massImage.setAttribute("data-ready", "false");
+              massImage.src = massMediaSrc;
+            }
+            const ready = Boolean(massImage.complete && massImage.naturalWidth > 0);
+            massImage.setAttribute("data-ready", ready ? "true" : "false");
+            massImage.setAttribute("data-active", activeMedia === "mass" ? "true" : "false");
+          }
+        };
+        const updateBulkheadPreview = (index: number) => {
+          if (!bulkheadList) return;
+          const path = bulkheadList.querySelector(
+            `[data-bulkhead-shape="${index}"]`
+          ) as SVGPathElement | null;
+          if (!path) return;
+          const getNum = (name: string, fallback: number) => {
+            const input = bulkheadList.querySelector(`input[name="${name}_${index}"]`) as
+              | HTMLInputElement
+              | null;
+            const value = Number(input?.value ?? fallback);
+            return Number.isFinite(value) && value > 0 ? value : fallback;
+          };
+          const outerDiameter = getNum("bulkhead_outer_diameter", 4);
+          const thickness = getNum("bulkhead_thickness", 0.3);
+          const viewW = 240;
+          const viewH = 130;
+          const pad = 14;
+          const maxRectW = viewW - pad * 2;
+          const maxRectH = viewH - pad * 2;
+          const rectH = Math.min(maxRectH, Math.max(18, outerDiameter * 8));
+          const rectW = Math.min(maxRectW, Math.max(8, thickness * 30));
+          const x0 = (viewW - rectW) / 2;
+          const y0 = (viewH - rectH) / 2;
+          const x1 = x0 + rectW;
+          const y1 = y0 + rectH;
+          path.setAttribute(
+            "d",
+            `M ${x0} ${y1} L ${x1} ${y1} L ${x1} ${y0} L ${x0} ${y0} Z`
+          );
+        };
+        const M_TO_FT = 3.28084;
+        const M_TO_IN = 39.3701;
+        const KG_TO_LB = 2.20462;
+        const formatFixed = (value: number, digits = 2) => value.toFixed(digits);
+        const extractMetric = (message: string, key: string) => {
+          const match = message.match(new RegExp(`${key}=([0-9]*\\.?[0-9]+)`));
+          return match ? Number(match[1]) : NaN;
+        };
+        const toImperialAutoBuildError = (detail: string) => {
+          const raw = (detail || "").trim();
+          const lower = raw.toLowerCase();
+          if (!raw) return "UNKNOWN ERROR";
+          if (lower.includes("exceeds feasible length budget")) {
+            const upperLengthM = extractMetric(raw, "upper_length_m");
+            const minRequiredM = extractMetric(raw, "min_required_length_m");
+            const stages = extractMetric(raw, "stage_count");
+            const stageText = Number.isFinite(stages) ? ` for ${Math.floor(stages)} stage(s)` : "";
+            const upperIn = Number.isFinite(upperLengthM)
+              ? `${formatFixed(upperLengthM * M_TO_IN, 2)} in`
+              : "N/A";
+            const minIn = Number.isFinite(minRequiredM)
+              ? `${formatFixed(minRequiredM * M_TO_IN, 2)} in`
+              : "N/A";
+            return `Requested stage count${stageText} exceeds length budget. Max length: ${upperIn}; minimum required: ${minIn}. Increase max length or reduce stage count.`;
+          }
+
+          return raw
+            .replace(/upper_length_m=([0-9]*\.?[0-9]+)/g, (_, v) => {
+              const n = Number(v);
+              return `upper_length_in=${Number.isFinite(n) ? formatFixed(n * M_TO_IN, 2) : v}`;
+            })
+            .replace(/min_required_length_m=([0-9]*\.?[0-9]+)/g, (_, v) => {
+              const n = Number(v);
+              return `min_required_length_in=${Number.isFinite(n) ? formatFixed(n * M_TO_IN, 2) : v}`;
+            })
+            .replace(/target_apogee_m=([0-9]*\.?[0-9]+)/g, (_, v) => {
+              const n = Number(v);
+              return `target_apogee_ft=${Number.isFinite(n) ? formatFixed(n * M_TO_FT, 0) : v}`;
+            })
+            .replace(/predicted_apogee_m=([0-9]*\.?[0-9]+)/g, (_, v) => {
+              const n = Number(v);
+              return `predicted_apogee_ft=${Number.isFinite(n) ? formatFixed(n * M_TO_FT, 0) : v}`;
+            })
+            .replace(/apogee_error_m=([0-9]*\.?[0-9]+)/g, (_, v) => {
+              const n = Number(v);
+              return `apogee_error_ft=${Number.isFinite(n) ? formatFixed(n * M_TO_FT, 0) : v}`;
+            })
+            .replace(/upper_mass_kg=([0-9]*\.?[0-9]+)/g, (_, v) => {
+              const n = Number(v);
+              return `upper_mass_lb=${Number.isFinite(n) ? formatFixed(n * KG_TO_LB, 2) : v}`;
+            })
+            .replace(/total_mass_kg=([0-9]*\.?[0-9]+)/g, (_, v) => {
+              const n = Number(v);
+              return `total_mass_lb=${Number.isFinite(n) ? formatFixed(n * KG_TO_LB, 2) : v}`;
+            });
+        };
+        const renderAutoBuildResults = (result: unknown) => {
+          if (!autoResultsEl) return;
+          const payload = result as {
+            assembly?: {
+              metadata?: Record<string, unknown>;
+              stages?: unknown[];
+              body_tubes?: unknown[];
+              fin_sets?: unknown[];
+            };
+          };
+          const metadata = payload?.assembly?.metadata || {};
+          const backendVariant = String(metadata.backend_variant ?? "unknown");
+          const predictedApogeeM = Number(metadata.predicted_apogee_m ?? 0);
+          const winnerScore = Number(metadata.winner_score ?? 0);
+          const totalMassKg = Number(metadata.total_mass_kg ?? 0);
+          const stabilityCal = Number(metadata.stability_margin_cal ?? 0);
+          const ranked = Array.isArray(metadata.ranked_candidates)
+            ? (metadata.ranked_candidates as Array<Record<string, unknown>>)
+            : [];
+          const targetInput = moduleR.querySelector('input[name="target_apogee_m"]') as
+            | HTMLInputElement
+            | null;
+          const targetApogeeFt = Number(targetInput?.value || 0);
+          const targetApogeeM =
+            Number.isFinite(targetApogeeFt) && targetApogeeFt > 0 ? targetApogeeFt * 0.3048 : 0;
+          const apogeeFt = predictedApogeeM > 0 ? predictedApogeeM * M_TO_FT : 0;
+          const massLb = totalMassKg > 0 ? totalMassKg * KG_TO_LB : 0;
+          const stages = payload.assembly?.stages?.length || 0;
+          const tubes = payload.assembly?.body_tubes?.length || 0;
+          const fins = payload.assembly?.fin_sets?.length || 0;
+
+          const rows = ranked
+            .slice(0, 5)
+            .map((item, idx) => {
+              const score = Number(item.score ?? 0).toFixed(3);
+              const apogee = Number(item.predicted_apogee_m ?? 0);
+              const apogeeFeet = (apogee * M_TO_FT).toFixed(0);
+              const errM = Number(
+                item.apogee_error_m ??
+                  (targetApogeeM > 0 ? Math.abs(apogee - targetApogeeM) : 0)
+              );
+              const errFt = (errM * M_TO_FT).toFixed(0);
+              const mass = Number(item.total_mass_kg ?? 0);
+              const massPounds = mass * KG_TO_LB;
+              const margin = Number(item.stability_margin_cal ?? 0);
+              return `<tr>
+                <td>${idx + 1}</td>
+                <td>${apogeeFeet} ft</td>
+                <td>${errFt} ft</td>
+                <td>${massPounds.toFixed(2)} lb</td>
+                <td>${margin.toFixed(2)} cal</td>
+                <td>${score}</td>
+              </tr>`;
+            })
+            .join("");
+
+          autoResultsEl.innerHTML = `
+            <div class="module-r-auto-result-card">
+              <div class="module-r-auto-result-title">WINNER SUMMARY</div>
+              <div class="module-r-auto-kpis">
+                <span>Predicted Apogee: ${apogeeFt.toFixed(0)} ft</span>
+                <span>Total Mass: ${massLb.toFixed(2)} lb</span>
+                <span>Stability: ${stabilityCal.toFixed(2)} cal</span>
+                <span>Winner Score: ${winnerScore.toFixed(3)}</span>
+                <span>Backend Variant: ${backendVariant}</span>
+                <span>Stages: ${stages}</span>
+                <span>Body Tubes: ${tubes}</span>
+                <span>Fin Sets: ${fins}</span>
+              </div>
+              <div class="module-r-auto-result-title">TOP CANDIDATES</div>
+              <table class="module-r-auto-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Apogee</th>
+                    <th>Error</th>
+                    <th>Mass</th>
+                    <th>Stability</th>
+                    <th>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows || `<tr><td colspan="6">No ranked candidates returned.</td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          `;
+        };
+
+        const getModuleRCompletionState = () => {
+          const safeParse = <T,>(raw: string | null, fallback: T): T => {
+            if (!raw) return fallback;
+            try {
+              return JSON.parse(raw) as T;
+            } catch {
+              return fallback;
+            }
+          };
+          const stageCount = Number(window.localStorage.getItem("arx_module_r_stage_count") || "0");
+          const motorOwned = window.localStorage.getItem("arx_module_r_motor_owned") === "true";
+          const motorMounts = safeParse<
+            Array<{ length_in?: number; inner_tube_diameter_in?: number; inner_tube_thickness_in?: number }>
+          >(window.localStorage.getItem("arx_module_r_motor_mounts"), []);
+          const motorDone =
+            motorOwned &&
+            Number.isFinite(stageCount) &&
+            stageCount >= 1 &&
+            motorMounts.length === stageCount &&
+            motorMounts.every(
+              (item) =>
+                Number.isFinite(Number(item.length_in)) &&
+                Number(item.length_in) > 0 &&
+                Number.isFinite(Number(item.inner_tube_diameter_in)) &&
+                Number(item.inner_tube_diameter_in) > 0 &&
+                Number.isFinite(Number(item.inner_tube_thickness_in)) &&
+                Number(item.inner_tube_thickness_in) > 0
+            );
+
+          const additionalCount = Number(
+            window.localStorage.getItem("arx_module_r_additional_count") || "0"
+          );
+          const additionalOwned =
+            window.localStorage.getItem("arx_module_r_additional_owned") === "true";
+          const additionalTubes = safeParse<
+            Array<{
+              tube?: number;
+              components?: Array<{
+                name?: string;
+                type?: string;
+                mass_lb?: number;
+                drag_coefficient?: number;
+                is_override_active?: boolean;
+                manual_override_mass_lb?: number;
+              }>;
+            }>
+          >(window.localStorage.getItem("arx_module_r_additional_tubes"), []);
+          const additionalDone =
+            additionalOwned &&
+            Number.isFinite(additionalCount) &&
+            additionalCount >= 0 &&
+            (additionalCount === 0 ||
+              (additionalTubes.length === additionalCount &&
+                additionalTubes.every((tube) => {
+                  const components = Array.isArray(tube.components) ? tube.components : [];
+                  return (
+                    components.length > 0 &&
+                    components.every((component) => {
+                      const nameValid = String(component.name || "").trim().length > 0;
+                      const type = String(component.type || "");
+                      const typeValid = type.length > 0;
+                      const mass = Number(component.mass_lb);
+                      const massValid = Number.isFinite(mass) && mass >= 0;
+                      const overrideActive = Boolean(component.is_override_active);
+                      const overrideMass = Number(component.manual_override_mass_lb);
+                      const overrideValid =
+                        !overrideActive || (Number.isFinite(overrideMass) && overrideMass >= 0);
+                      const drag = Number(component.drag_coefficient);
+                      const dragValid =
+                        type !== "parachute" || (Number.isFinite(drag) && drag > 0);
+                      return nameValid && typeValid && massValid && overrideValid && dragValid;
+                    })
+                  );
+                })));
+
+          const bulkheadCount = Number(window.localStorage.getItem("arx_module_r_bulkhead_count") || "0");
+          const bulkheadsOwned =
+            window.localStorage.getItem("arx_module_r_bulkheads_owned") === "true";
+          const bulkheads = safeParse<
+            Array<{
+              outer_diameter_in?: number;
+              thickness_in?: number;
+              position_in?: number;
+              material?: string;
+            }>
+          >(window.localStorage.getItem("arx_module_r_bulkheads"), []);
+          const bulkheadsDone =
+            bulkheadsOwned &&
+            Number.isFinite(bulkheadCount) &&
+            bulkheadCount >= 1 &&
+            bulkheads.length === bulkheadCount &&
+            bulkheads.every(
+              (item) =>
+                Number.isFinite(Number(item.outer_diameter_in)) &&
+                Number(item.outer_diameter_in) > 0 &&
+                Number.isFinite(Number(item.thickness_in)) &&
+                Number(item.thickness_in) > 0 &&
+                Number.isFinite(Number(item.position_in)) &&
+                Number(item.position_in) >= 0 &&
+                String(item.material || "").length > 0
+            );
+
+          const nose = safeParse<{ length_in?: number; profile?: string; material?: string }>(
+            window.localStorage.getItem("arx_module_r_nose_cone"),
+            {}
+          );
+          const noseDone =
+            Number.isFinite(Number(nose.length_in)) &&
+            Number(nose.length_in) > 0 &&
+            String(nose.profile || "").length > 0 &&
+            String(nose.material || "").length > 0;
+
+          const finSetCount = Number(window.localStorage.getItem("arx_module_r_fin_set_count") || "0");
+          const fins = safeParse<Array<Record<string, unknown>>>(
+            window.localStorage.getItem("arx_module_r_fins"),
+            []
+          );
+          const finsDone =
+            Number.isFinite(finSetCount) &&
+            finSetCount >= 1 &&
+            fins.length === finSetCount &&
+            fins.every((f) => {
+              const count = Number(f.count);
+              const root = Number(f.root);
+              const span = Number(f.span);
+              return (
+                Number.isFinite(count) &&
+                count >= 2 &&
+                Number.isFinite(root) &&
+                root > 0 &&
+                Number.isFinite(span) &&
+                span > 0
+              );
+            });
+
+          const bodyDone = motorDone && additionalDone && bulkheadsDone;
+          const allDone = bodyDone && noseDone && finsDone;
+          return { motorDone, additionalDone, bulkheadsDone, bodyDone, noseDone, finsDone, allDone };
+        };
+        const updateCardStates = () => {
+          const {
+            motorDone,
+            additionalDone,
+            bulkheadsDone,
+            bodyDone,
+            noseDone,
+            finsDone,
+            allDone,
+          } = getModuleRCompletionState();
+          // Keep done flags synchronized with derived hierarchy state.
+          window.localStorage.setItem("arx_module_r_body_motor_done", motorDone ? "true" : "false");
+          window.localStorage.setItem(
+            "arx_module_r_body_additional_done",
+            additionalDone ? "true" : "false"
+          );
+          window.localStorage.setItem(
+            "arx_module_r_body_bulkheads_done",
+            bulkheadsDone ? "true" : "false"
+          );
+          window.localStorage.setItem("arx_module_r_body_done", bodyDone ? "true" : "false");
+          window.localStorage.setItem("arx_module_r_nose_done", noseDone ? "true" : "false");
+          window.localStorage.setItem("arx_module_r_fins_done", finsDone ? "true" : "false");
+
+          cardBody?.classList.toggle("module-r-complete", bodyDone);
+          cardNose?.classList.toggle("module-r-complete", noseDone);
+          cardFins?.classList.toggle("module-r-complete", finsDone);
+          openBulkheads?.classList.toggle("module-r-complete", bulkheadsDone);
+          openMotorMounts?.classList.toggle("module-r-complete", motorDone);
+          openAdditionalTubes?.classList.toggle("module-r-complete", additionalDone);
+
+          if (cardPositioning) {
+            cardPositioning.classList.toggle("module-r-locked", !allDone);
+            cardPositioning.classList.toggle("module-r-next", allDone);
+          }
+        };
+        const collectMotorMountsFromForm = () => {
+          if (!stageList) return [];
+          const lengthInputs = Array.from(
+            stageList.querySelectorAll('input[name^="stage_length_"]')
+          ) as HTMLInputElement[];
+          const innerDiameterInputs = Array.from(
+            stageList.querySelectorAll('input[name^="inner_tube_diameter_"]')
+          ) as HTMLInputElement[];
+          const innerThicknessInputs = Array.from(
+            stageList.querySelectorAll('input[name^="inner_tube_thickness_"]')
+          ) as HTMLInputElement[];
+          return lengthInputs.map((input, idx) => ({
+            length_in: Number(input.value || 0),
+            bulkhead_height_in: Math.max(
+              Number((innerThicknessInputs[idx] as HTMLInputElement | undefined)?.value || 0.1),
+              0.05
+            ),
+            bulkhead_material: "Cardboard",
+            inner_tube_diameter_in: Number(
+              (innerDiameterInputs[idx] as HTMLInputElement | undefined)?.value || 0
+            ),
+            inner_tube_thickness_in: Number(
+              (innerThicknessInputs[idx] as HTMLInputElement | undefined)?.value || 0
+            ),
+          }));
+        };
+        const persistMotorMountDraft = () => {
+          const count = Number(stageCountInput?.value || "0");
+          if (!Number.isFinite(count) || count < 1) {
+            window.localStorage.removeItem("arx_module_r_motor_owned");
+            window.localStorage.setItem("arx_module_r_body_motor_done", "false");
+            updateCardStates();
+            return;
+          }
+          window.localStorage.setItem("arx_module_r_motor_owned", "true");
+          window.localStorage.setItem("arx_module_r_stage_count", String(count));
+          const stages = collectMotorMountsFromForm();
+          window.localStorage.setItem("arx_module_r_motor_mounts", JSON.stringify(stages));
+          const done =
+            stages.length === count &&
+            stages.every(
+              (item) =>
+                Number.isFinite(item.length_in) &&
+                item.length_in > 0 &&
+                Number.isFinite(item.inner_tube_diameter_in) &&
+                item.inner_tube_diameter_in > 0 &&
+                Number.isFinite(item.inner_tube_thickness_in) &&
+                item.inner_tube_thickness_in > 0
+            );
+          window.localStorage.setItem("arx_module_r_body_motor_done", done ? "true" : "false");
+          updateCardStates();
+        };
+        const collectAdditionalTubesFromForm = (tubeCount: number) => {
+          if (!additionalList || tubeCount < 0) return [];
+          return Array.from({ length: tubeCount }, (_, idx) => {
+            const tubeIndex = idx + 1;
+            const container = additionalList.querySelector(
+              `.module-r-additional-components[data-tube="${tubeIndex}"]`
+            ) as HTMLElement | null;
+            const tubeComponents = Array.from(
+              container?.querySelectorAll(".module-r-additional-component") || []
+            ).map((component) => {
+              const nameInput = component.querySelector('input[data-field="name"]') as
+                | HTMLInputElement
+                | null;
+              const typeSelect = component.querySelector('select[data-field="type"]') as
+                | HTMLSelectElement
+                | null;
+              const massInput = component.querySelector('input[data-field="mass"]') as
+                | HTMLInputElement
+                | null;
+              const overrideToggle = component.querySelector('input[data-field="override_active"]') as
+                | HTMLInputElement
+                | null;
+              const overrideMassInput = component.querySelector('input[data-field="override_mass"]') as
+                | HTMLInputElement
+                | null;
+              const dragInput = component.querySelector('input[data-field="drag"]') as
+                | HTMLInputElement
+                | null;
+              const parachuteMaterialInput = component.querySelector(
+                'input[data-field="parachute_material"]'
+              ) as HTMLInputElement | null;
+              const parachuteDisplayInput = component.querySelector(
+                'input[data-field="parachute_display"]'
+              ) as HTMLInputElement | null;
+              return {
+                name: String(nameInput?.value || "").trim(),
+                type: String(typeSelect?.value || ""),
+                mass_lb: Number(massInput?.value || 0),
+                drag_coefficient: Number(dragInput?.value || 0),
+                parachute_material: String(parachuteMaterialInput?.value || "Nylon"),
+                parachute_library_id: String(component.getAttribute("data-parachute-id") || ""),
+                parachute_model: String(parachuteDisplayInput?.value || ""),
+                is_override_active: Boolean(overrideToggle?.checked),
+                manual_override_mass_lb: Number(overrideMassInput?.value || 0),
+              };
+            });
+            return { tube: tubeIndex, components: tubeComponents };
+          });
+        };
+        const isAdditionalComponentComplete = (
+          component: (ReturnType<typeof collectAdditionalTubesFromForm>[number]["components"])[number]
+        ) => {
+          const nameValid = component.name.length > 0;
+          const typeValid = component.type.length > 0;
+          const massValid = Number.isFinite(component.mass_lb) && component.mass_lb >= 0;
+          const overrideValid =
+            !component.is_override_active ||
+            (Number.isFinite(component.manual_override_mass_lb) &&
+              component.manual_override_mass_lb >= 0);
+          const dragValid =
+            component.type !== "parachute" ||
+            (Number.isFinite(component.drag_coefficient) && component.drag_coefficient > 0);
+          return nameValid && typeValid && massValid && overrideValid && dragValid;
+        };
+        const persistAdditionalDraft = () => {
+          const count = Number(additionalCountInput?.value || "0");
+          if (!Number.isFinite(count) || count < 0) {
+            window.localStorage.removeItem("arx_module_r_additional_owned");
+            window.localStorage.setItem("arx_module_r_body_additional_done", "false");
+            updateCardStates();
+            return;
+          }
+          window.localStorage.setItem("arx_module_r_additional_owned", "true");
+          window.localStorage.setItem("arx_module_r_additional_count", String(count));
+          const tubes = collectAdditionalTubesFromForm(count);
+          window.localStorage.setItem("arx_module_r_additional_tubes", JSON.stringify(tubes));
+          const done =
+            count === 0 ||
+            (tubes.length === count &&
+              tubes.every(
+                (tube) =>
+                  Array.isArray(tube.components) &&
+                  tube.components.length > 0 &&
+                  tube.components.every(isAdditionalComponentComplete)
+              ));
+          window.localStorage.setItem("arx_module_r_body_additional_done", done ? "true" : "false");
+          updateCardStates();
+        };
+        const collectBulkheadsFromForm = (count: number) => {
+          if (!bulkheadList || count < 1) return [];
+          return Array.from({ length: count }, (_, idx) => {
+            const i = idx + 1;
+            const getNumber = (name: string, fallback = 0) => {
+              const input = bulkheadList.querySelector(`input[name="${name}_${i}"]`) as
+                | HTMLInputElement
+                | null;
+              const value = Number(input?.value ?? fallback);
+              return Number.isFinite(value) ? value : fallback;
+            };
+            const getSelect = (name: string) =>
+              bulkheadList.querySelector(`select[name="${name}_${i}"]`) as
+                | HTMLSelectElement
+                | null;
+            return {
+              outer_diameter_in: getNumber("bulkhead_outer_diameter", 0),
+              thickness_in: getNumber("bulkhead_thickness", 0),
+              position_in: getNumber("bulkhead_position", 0),
+              material: getSelect("bulkhead_material_detail")?.value || "Cardboard",
+            };
+          });
+        };
+        const persistBulkheadDraft = () => {
+          const count = Number(bulkheadCountInput?.value || "0");
+          if (!Number.isFinite(count) || count < 1) {
+            window.localStorage.removeItem("arx_module_r_bulkheads_owned");
+            window.localStorage.setItem("arx_module_r_body_bulkheads_done", "false");
+            updateCardStates();
+            return;
+          }
+          window.localStorage.setItem("arx_module_r_bulkheads_owned", "true");
+          window.localStorage.setItem("arx_module_r_bulkhead_count", String(count));
+          const bulkheads = collectBulkheadsFromForm(count);
+          window.localStorage.setItem("arx_module_r_bulkheads", JSON.stringify(bulkheads));
+          const done =
+            bulkheads.length === count &&
+            bulkheads.every(
+              (item) =>
+                Number.isFinite(item.outer_diameter_in) &&
+                item.outer_diameter_in > 0 &&
+                Number.isFinite(item.thickness_in) &&
+                item.thickness_in > 0 &&
+                Number.isFinite(item.position_in) &&
+                item.position_in >= 0 &&
+                Boolean(item.material)
+            );
+          window.localStorage.setItem("arx_module_r_body_bulkheads_done", done ? "true" : "false");
+          updateCardStates();
+        };
+        const syncAdditionalComponentUI = (componentNode: HTMLElement) => {
+          const typeSelect = componentNode.querySelector('select[data-field="type"]') as
+            | HTMLSelectElement
+            | null;
+          const isParachute = typeSelect?.value === "parachute";
+          const picker = componentNode.querySelector('[data-parachute-picker]') as HTMLElement | null;
+          const dragField = componentNode.querySelector('[data-parachute-drag]') as HTMLElement | null;
+          const overrideToggle = componentNode.querySelector('input[data-field="override_active"]') as
+            | HTMLInputElement
+            | null;
+          const overrideField = componentNode.querySelector('[data-override-mass]') as HTMLElement | null;
+          if (picker) picker.style.display = isParachute ? "grid" : "none";
+          if (dragField) dragField.style.display = isParachute ? "grid" : "none";
+          if (overrideField) overrideField.style.display = overrideToggle?.checked ? "grid" : "none";
+        };
+
+        showPage("init");
+        enhanceModuleRSelects();
+        if (ricInput) {
+          ricInput.style.display = "none";
+        }
+        const storedAutoPrefsRaw = window.localStorage.getItem("arx_module_r_auto_prefs");
+        if (storedAutoPrefsRaw) {
+          try {
+            const stored = JSON.parse(storedAutoPrefsRaw) as Record<string, unknown>;
+            const lengthInput = moduleR.querySelector('input[name="upper_length_m"]') as
+              | HTMLInputElement
+              | null;
+            const massInput = moduleR.querySelector('input[name="upper_mass_kg"]') as
+              | HTMLInputElement
+              | null;
+            const apogeeInput = moduleR.querySelector('input[name="target_apogee_m"]') as
+              | HTMLInputElement
+              | null;
+            const topNInput = moduleR.querySelector('input[name="top_n"]') as
+              | HTMLInputElement
+              | null;
+            const seedInput = moduleR.querySelector('input[name="random_seed"]') as
+              | HTMLInputElement
+              | null;
+            const includeBallast = moduleR.querySelector('input[name="include_ballast"]') as
+              | HTMLInputElement
+              | null;
+            const includeTelemetry = moduleR.querySelector('input[name="include_telemetry"]') as
+              | HTMLInputElement
+              | null;
+            const includeParachute = moduleR.querySelector('input[name="include_parachute"]') as
+              | HTMLInputElement
+              | null;
+            if (lengthInput && typeof stored.upper_length_in === "number") {
+              lengthInput.value = String(stored.upper_length_in);
+            }
+            if (massInput && typeof stored.upper_mass_lb === "number") {
+              massInput.value = String(stored.upper_mass_lb);
+            }
+            if (apogeeInput && typeof stored.target_apogee_ft === "number") {
+              apogeeInput.value = String(stored.target_apogee_ft);
+            }
+            if (topNInput && typeof stored.top_n === "number") {
+              topNInput.value = String(stored.top_n);
+            }
+            if (seedInput && typeof stored.random_seed === "number") {
+              seedInput.value = String(stored.random_seed);
+            }
+            if (includeBallast && typeof stored.include_ballast === "boolean") {
+              includeBallast.checked = stored.include_ballast;
+            }
+            if (includeTelemetry && typeof stored.include_telemetry === "boolean") {
+              includeTelemetry.checked = stored.include_telemetry;
+            }
+            if (includeParachute && typeof stored.include_parachute === "boolean") {
+              includeParachute.checked = stored.include_parachute;
+            }
+          } catch (error) {
+            console.warn("Failed to parse auto-build prefs", error);
+          }
+        }
+        updateCardStates();
+
+        pickRicBtn?.addEventListener("click", () => {
+          ricInput?.click();
+        });
+
+        ricInput?.addEventListener("change", () => {
+          if (!ricName) return;
+          const files = ricInput.files ? Array.from(ricInput.files) : [];
+          if (!files.length) {
+            ricName.textContent = "No file chosen";
+          } else if (files.length === 1) {
+            ricName.textContent = files[0].name;
+          } else {
+            ricName.textContent = `${files.length} files selected`;
+          }
+        });
+
+        lockBtn?.addEventListener("click", () => {
+          if (!widthInput) return;
+          const value = Number(widthInput.value);
+          if (!Number.isFinite(value) || value <= 0) {
+            setStatus("ENTER A VALID DIAMETER.");
+            return;
+          }
+          widthInput.disabled = true;
+          window.localStorage.setItem("arx_module_r_width", String(value));
+          setStatus("WIDTH LOCKED.");
+          showPage("entry");
+        });
+
+        resetBtn?.addEventListener("click", () => {
+          if (widthInput) {
+            widthInput.value = "";
+            widthInput.disabled = false;
+          }
+          window.localStorage.removeItem("arx_module_r_width");
+          setStatus("WIDTH RESET.");
+        });
+
+        manualBtn?.addEventListener("click", () => {
+          window.localStorage.setItem("arx_module_r_mode", "MANUAL");
+          window.localStorage.removeItem("arx_module_r_latest_auto_assembly");
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          showPage("manual");
+          setStatus("MANUAL MODE SELECTED.");
+        });
+
+        const stageModal = moduleR.querySelector(".module-r-stage-modal") as HTMLElement | null;
+        const stageInput = moduleR.querySelector('input[name="stage_count"]') as
+          | HTMLInputElement
+          | null;
+        const stageConfirm = moduleR.querySelector('[data-action="stage-confirm"]') as
+          | HTMLButtonElement
+          | null;
+        const stageCancel = moduleR.querySelector('[data-action="stage-cancel"]') as
+          | HTMLButtonElement
+          | null;
+
+        const openStageModal = () => {
+          if (!stageModal || !stageInput) return;
+          stageModal.classList.add("active");
+          stageInput.value = "1";
+          stageInput.focus();
+        };
+
+        const closeStageModal = () => {
+          stageModal?.classList.remove("active");
+        };
+
+        autoBtn?.addEventListener("click", () => {
+          openStageModal();
+        });
+
+        stageCancel?.addEventListener("click", () => {
+          closeStageModal();
+        });
+
+        stageConfirm?.addEventListener("click", () => {
+          const stages = Number(stageInput?.value);
+          if (!Number.isFinite(stages) || stages < 1 || stages > 5) {
+            setStatus("ENTER A STAGE COUNT BETWEEN 1 AND 5.");
+            return;
+          }
+          window.localStorage.setItem("arx_module_r_stage_count", String(stages));
+          window.localStorage.setItem("arx_module_r_mode", "AUTO");
+          window.localStorage.removeItem("arx_module_r_latest_auto_assembly");
+          closeStageModal();
+          showPage("auto");
+          setStatus("AUTO MODE SELECTED.");
+        });
+
+        backInitBtn?.addEventListener("click", () => {
+          showPage("init");
+          setStatus("");
+        });
+
+        backEntryBtn.forEach((button) => {
+          button.addEventListener("click", () => {
+            showPage("entry");
+            setStatus("");
+          });
+        });
+
+        cardBody?.addEventListener("click", () => {
+          showPage("body");
+        });
+        cardNose?.addEventListener("click", () => {
+          showPage("nose");
+        });
+        cardFins?.addEventListener("click", () => {
+          showPage("fins");
+        });
+        cardPositioning?.addEventListener("click", () => {
+          const { allDone } = getModuleRCompletionState();
+          if (!allDone) {
+            setStatus("COMPLETE BODY TUBES, NOSE CONES, AND FINS FIRST.");
+            return;
+          }
+          showPage("positioning");
+        });
+
+        backManualBtns.forEach((button) => {
+          button.addEventListener("click", () => {
+            showPage("manual");
+            setStatus("");
+          });
+        });
+
+        const buildPositioningList = () => {
+          if (!storageList || !workspaceDrop) return;
+          const items: string[] = [];
+          const stageCount = Number(
+            window.localStorage.getItem("arx_module_r_stage_count") || "1"
+          );
+          const additionalCount = Number(
+            window.localStorage.getItem("arx_module_r_additional_count") || "0"
+          );
+          for (let i = 1; i <= stageCount; i += 1) {
+            items.push(`Stage ${i} Motor Mount`);
+          }
+          for (let i = 1; i <= additionalCount; i += 1) {
+            items.push(`Additional Tube ${i}`);
+          }
+          items.push("Nose Cone");
+          const finCount = Number(
+            window.localStorage.getItem("arx_module_r_fin_set_count") || "0"
+          );
+          for (let i = 1; i <= finCount; i += 1) {
+            items.push(`Fin Set ${i}`);
+          }
+
+          storageList.innerHTML = "";
+          workspaceDrop.innerHTML = '<div class="module-r-workspace-hint">DROP COMPONENTS HERE</div>';
+
+          items.forEach((label) => {
+            const item = document.createElement("div");
+            item.className = "module-r-item";
+            item.innerHTML = `
+              <div class="module-r-item-shape"></div>
+              <div class="module-r-item-label">${label}</div>
+            `;
+            item.draggable = true;
+            item.addEventListener("dragstart", (event) => {
+              event.dataTransfer?.setData("text/plain", label);
+            });
+            storageList.appendChild(item);
+          });
+        };
+
+        const setupDropZone = (zone: HTMLElement) => {
+          zone.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            zone.classList.add("module-r-drop-active");
+          });
+          zone.addEventListener("dragleave", () => {
+            zone.classList.remove("module-r-drop-active");
+          });
+          zone.addEventListener("drop", (event) => {
+            event.preventDefault();
+            zone.classList.remove("module-r-drop-active");
+            const label = event.dataTransfer?.getData("text/plain");
+            if (!label) return;
+            const item = document.createElement("div");
+            item.className = "module-r-item";
+            item.innerHTML = `
+              <div class="module-r-item-shape"></div>
+              <div class="module-r-item-label">${label}</div>
+            `;
+            item.draggable = true;
+            item.addEventListener("dragstart", (evt) => {
+              evt.dataTransfer?.setData("text/plain", label);
+            });
+            zone.appendChild(item);
+          });
+        };
+
+        if (workspaceDrop) {
+          setupDropZone(workspaceDrop);
+        }
+        if (storageList) {
+          setupDropZone(storageList);
+        }
+
+        savePositioningBtn?.addEventListener("click", () => {
+          if (!workspaceDrop) return;
+          const items = Array.from(workspaceDrop.querySelectorAll(".module-r-item")).map(
+            (node) => (node as HTMLElement).textContent || ""
+          );
+          window.localStorage.setItem("arx_module_r_stack", JSON.stringify(items));
+          setStatus("POSITIONING SAVED.");
+          window.alert("Positioning saved.");
+        });
+
+        openMotorMounts?.addEventListener("click", () => {
+          showPage("motor-mounts");
+          setStatus("");
+        });
+        openAdditionalTubes?.addEventListener("click", () => {
+          showPage("additional-tubes");
+          setStatus("");
+        });
+        openBulkheads?.addEventListener("click", () => {
+          showPage("bulkheads");
+          setStatus("");
+        });
+        backBodyBtns.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            showPage("body");
+            setStatus("");
+          });
+        });
+        backMotorMounts?.addEventListener("click", () => {
+          showPage("motor-mounts");
+          setStatus("");
+        });
+        backAdditional?.addEventListener("click", () => {
+          showPage("additional-tubes");
+          setStatus("");
+        });
+        backBulkheads?.addEventListener("click", () => {
+          showPage("bulkheads");
+          setStatus("");
+        });
+
+        motorMountsNext?.addEventListener("click", () => {
+          if (!stageCountInput || !stageList) return;
+          const count = Number(stageCountInput.value);
+          if (!Number.isFinite(count) || count < 1 || count > 5) {
+            setStatus("ENTER STAGE COUNT BETWEEN 1 AND 5.");
+            return;
+          }
+          window.localStorage.setItem("arx_module_r_stage_count", String(count));
+          const widthValue = Number(window.localStorage.getItem("arx_module_r_width") || "0");
+          // Motor-mount tube should be much smaller than body diameter by default.
+          const suggestedDiameter = widthValue > 0 ? Math.max(widthValue * 0.34, 0.75) : 0;
+          const suggestedThickness = widthValue > 0 ? Math.max(widthValue * 0.018, 0.06) : 0;
+          const suggestedDiameterText =
+            widthValue > 0 ? `${suggestedDiameter.toFixed(2)} IN` : "N/A";
+          const suggestedThicknessText =
+            widthValue > 0 ? `${suggestedThickness.toFixed(2)} IN` : "N/A";
+          const savedStages = JSON.parse(
+            window.localStorage.getItem("arx_module_r_motor_mounts") || "[]"
+          ) as Array<{
+            length_in?: number;
+            inner_tube_diameter_in?: number;
+            inner_tube_thickness_in?: number;
+          }>;
+          const stageRows: string[] = [];
+          for (let i = 1; i <= count; i += 1) {
+            const saved = savedStages[i - 1] || {};
+            stageRows.push(`
+              <div class="module-r-fin-row module-r-stage-row" data-stage-row="${i}">
+                <div class="module-r-fin-fields">
+                  <div class="module-r-finset-title">STAGE ${i}</div>
+                  <div class="launch-modal-grid">
+                    <div class="arx-field">
+                      <input type="number" name="stage_length_${i}" placeholder=" " min="0" step="any" value="${Number(saved.length_in || 0) > 0 ? Number(saved.length_in) : ""}" />
+                      <label>STAGE ${i} LENGTH (IN)</label>
+                    </div>
+                    <div class="arx-field">
+                      <input type="number" name="inner_tube_diameter_${i}" placeholder=" " min="0" step="any" value="${Number(saved.inner_tube_diameter_in || 0) > 0 ? Number(saved.inner_tube_diameter_in) : suggestedDiameter || ""}" />
+                      <label>INNER TUBE ${i} DIAMETER (IN)</label>
+                      <div class="field-hint">RECOMMENDED: ${suggestedDiameterText}</div>
+                    </div>
+                    <div class="arx-field">
+                      <input type="number" name="inner_tube_thickness_${i}" placeholder=" " min="0" step="any" value="${Number(saved.inner_tube_thickness_in || 0) > 0 ? Number(saved.inner_tube_thickness_in) : suggestedThickness || ""}" />
+                      <label>INNER TUBE ${i} THICKNESS (IN)</label>
+                      <div class="field-hint">RECOMMENDED: ${suggestedThicknessText}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="module-r-fin-preview-grid">
+                  <div class="module-r-fin-preview-title">M${i} GRID</div>
+                  <svg class="module-r-fin-preview-svg" data-stage-preview="${i}" viewBox="0 0 240 130" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                      <pattern id="stage-grid-${i}" width="12" height="12" patternUnits="userSpaceOnUse">
+                        <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(0,243,255,0.25)" stroke-width="1" />
+                      </pattern>
+                    </defs>
+                    <rect x="0" y="0" width="240" height="130" fill="url(#stage-grid-${i})" />
+                    <path data-stage-shape="${i}" d="M 16 102 L 214 102 L 214 26 L 16 26 Z" fill="rgba(0,243,255,0.15)" stroke="rgba(255,215,0,0.92)" stroke-width="2" fill-rule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+            `);
+          }
+          stageList.innerHTML = stageRows.join("");
+          for (let i = 1; i <= count; i += 1) {
+            ["stage_length", "inner_tube_diameter", "inner_tube_thickness"].forEach((key) => {
+              stageList
+                .querySelector(`input[name="${key}_${i}"]`)
+                ?.addEventListener("input", () => {
+                  updateStagePreview(i);
+                  persistMotorMountDraft();
+                });
+            });
+            updateStagePreview(i);
+          }
+          persistMotorMountDraft();
+          showPage("motor-mounts-detail");
+        });
+
+        motorMountsSave?.addEventListener("click", () => {
+          if (!stageList) return;
+          const lengthInputs = stageList.querySelectorAll('input[name^="stage_length_"]');
+          const innerDiameterInputs = stageList.querySelectorAll(
+            'input[name^="inner_tube_diameter_"]'
+          );
+          const innerThicknessInputs = stageList.querySelectorAll(
+            'input[name^="inner_tube_thickness_"]'
+          );
+          const allLengthsValid = Array.from(lengthInputs).every((input) => {
+            const value = Number((input as HTMLInputElement).value);
+            return Number.isFinite(value) && value > 0;
+          });
+          const allInnerDiametersValid = Array.from(innerDiameterInputs).every((input) => {
+            const value = Number((input as HTMLInputElement).value);
+            return Number.isFinite(value) && value > 0;
+          });
+          const allInnerThicknessValid = Array.from(innerThicknessInputs).every((input) => {
+            const value = Number((input as HTMLInputElement).value);
+            return Number.isFinite(value) && value > 0;
+          });
+          if (
+            !allLengthsValid ||
+            !allInnerDiametersValid ||
+            !allInnerThicknessValid
+          ) {
+            setStatus("COMPLETE ALL STAGE FIELDS BEFORE SAVING.");
+            return;
+          }
+          const stages = Array.from(lengthInputs).map((input, idx) => ({
+            length_in: Number((input as HTMLInputElement).value),
+            bulkhead_height_in: Math.max(
+              Number((innerThicknessInputs[idx] as HTMLInputElement).value || 0.1),
+              0.05
+            ),
+            bulkhead_material: "Cardboard",
+            inner_tube_diameter_in: Number((innerDiameterInputs[idx] as HTMLInputElement).value),
+            inner_tube_thickness_in: Number((innerThicknessInputs[idx] as HTMLInputElement).value),
+          }));
+          window.localStorage.setItem("arx_module_r_motor_mounts", JSON.stringify(stages));
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          setStatus("MOTOR MOUNTS SAVED.");
+          window.localStorage.setItem("arx_module_r_body_motor_done", "true");
+          updateCardStates();
+          window.alert("Motor Mounts saved.");
+          showPage("body");
+        });
+
+        motorMountsClear?.addEventListener("click", () => {
+          window.localStorage.removeItem("arx_module_r_motor_owned");
+          window.localStorage.setItem("arx_module_r_body_motor_done", "false");
+          window.localStorage.removeItem("arx_module_r_stage_count");
+          window.localStorage.removeItem("arx_module_r_motor_mounts");
+          if (stageCountInput) stageCountInput.value = "";
+          if (stageList) stageList.innerHTML = "";
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          showPage("motor-mounts");
+          setStatus("MOTOR MOUNTS CLEARED.");
+        });
+
+        motorMountsClearIndex?.addEventListener("click", () => {
+          window.localStorage.removeItem("arx_module_r_motor_owned");
+          window.localStorage.setItem("arx_module_r_body_motor_done", "false");
+          window.localStorage.removeItem("arx_module_r_stage_count");
+          window.localStorage.removeItem("arx_module_r_motor_mounts");
+          if (stageCountInput) stageCountInput.value = "";
+          if (stageList) stageList.innerHTML = "";
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          setStatus("MOTOR MOUNTS CLEARED.");
+        });
+
+        additionalNext?.addEventListener("click", () => {
+          if (!additionalCountInput || !additionalList) return;
+          const count = Number(additionalCountInput.value);
+          if (!Number.isFinite(count) || count < 0 || count > 10) {
+            setStatus("ENTER 0-10 ADDITIONAL TUBES.");
+            return;
+          }
+          window.localStorage.setItem("arx_module_r_additional_count", String(count));
+          additionalList.innerHTML = "";
+          const savedAdditionalTubes = JSON.parse(
+            window.localStorage.getItem("arx_module_r_additional_tubes") || "[]"
+          ) as Array<{
+            tube?: number;
+            components?: Array<{
+              name?: string;
+              type?: string;
+              mass_lb?: number;
+              drag_coefficient?: number;
+              parachute_material?: string;
+              parachute_library_id?: string;
+              parachute_model?: string;
+              is_override_active?: boolean;
+              manual_override_mass_lb?: number;
+            }>;
+          }>;
+          const escAttr = (value: string) => value.replace(/"/g, "&quot;");
+          const componentTemplate = (
+            tubeIndex: number,
+            componentIndex: number,
+            initial?: {
+              name?: string;
+              type?: string;
+              mass_lb?: number;
+              drag_coefficient?: number;
+              parachute_material?: string;
+              parachute_library_id?: string;
+              parachute_model?: string;
+              is_override_active?: boolean;
+              manual_override_mass_lb?: number;
+            }
+          ) => `
+            <div class="module-r-additional-component" data-component-id="tube-${tubeIndex}-component-${componentIndex}"${
+              initial?.parachute_library_id
+                ? ` data-parachute-id="${escAttr(String(initial.parachute_library_id))}"`
+                : ""
+            }>
+              <div class="launch-modal-grid">
+                <div class="arx-field">
+                  <input type="text" data-field="name" name="additional_name_${tubeIndex}_${componentIndex}" placeholder=" " value="${
+                    initial?.name ? escAttr(String(initial.name)) : ""
+                  }" />
+                  <label>COMPONENT ${componentIndex} NAME</label>
+                </div>
+                <div class="arx-field">
+                  <select data-field="type" name="additional_type_${tubeIndex}_${componentIndex}">
+                    <option value="telemetry" ${
+                      (initial?.type || "telemetry") === "telemetry" ? "selected" : ""
+                    }>Telemetry Module</option>
+                    <option value="mass" ${initial?.type === "mass" ? "selected" : ""}>Mass Component</option>
+                    <option value="inner_tube" ${
+                      initial?.type === "inner_tube" ? "selected" : ""
+                    }>Inner Tube</option>
+                    <option value="parachute" ${
+                      initial?.type === "parachute" ? "selected" : ""
+                    }>Parachute</option>
+                  </select>
+                </div>
+                <div class="arx-field">
+                  <input type="number" data-field="mass" name="additional_mass_${tubeIndex}_${componentIndex}" placeholder=" " min="0" step="any" value="${
+                    Number(initial?.mass_lb || 0) > 0 ? Number(initial?.mass_lb) : ""
+                  }" />
+                  <label>MASS (LB)</label>
+                </div>
+                <div class="arx-field" data-parachute-picker style="display:none;">
+                  <input type="text" data-field="parachute_display" name="additional_parachute_display_${tubeIndex}_${componentIndex}" placeholder=" " value="${
+                    initial?.parachute_model ? escAttr(String(initial.parachute_model)) : ""
+                  }" readonly />
+                  <label>PARACHUTE MODEL</label>
+                  <button type="button" class="arx-btn module-r-parachute-pick-btn" data-action="pick-parachute-model">Select from Library</button>
+                </div>
+                <div class="arx-field" data-parachute-drag style="display:none;">
+                  <input type="number" data-field="drag" name="additional_drag_${tubeIndex}_${componentIndex}" placeholder=" " min="0" step="any" value="${
+                    Number(initial?.drag_coefficient || 0) > 0 ? Number(initial?.drag_coefficient) : ""
+                  }" readonly />
+                  <label>DRAG COEFFICIENT</label>
+                </div>
+                <input type="hidden" data-field="parachute_material" name="additional_material_${tubeIndex}_${componentIndex}" value="${
+                  initial?.parachute_material
+                    ? escAttr(String(initial.parachute_material))
+                    : "Nylon"
+                }" />
+                <div class="arx-field">
+                  <label class="nav-link module-r-fin-checkbox">
+                    <input type="checkbox" data-field="override_active" name="additional_override_active_${tubeIndex}_${componentIndex}" ${
+                      initial?.is_override_active ? "checked" : ""
+                    } />
+                    Override Mass
+                  </label>
+                </div>
+                <div class="arx-field" data-override-mass style="display:none;">
+                  <input type="number" data-field="override_mass" name="additional_override_mass_${tubeIndex}_${componentIndex}" placeholder=" " min="0" step="any" value="${
+                    Number(initial?.manual_override_mass_lb || 0) > 0
+                      ? Number(initial?.manual_override_mass_lb)
+                      : ""
+                  }" />
+                  <label>OVERRIDE MASS (LB)</label>
+                </div>
+              </div>
+            </div>
+          `;
+          for (let i = 1; i <= count; i += 1) {
+            const savedTube = savedAdditionalTubes.find((tube) => Number(tube.tube) === i);
+            const savedComponents = Array.isArray(savedTube?.components)
+              ? savedTube?.components || []
+              : [];
+            const componentMarkup = (savedComponents.length
+              ? savedComponents.map((component, idx) => componentTemplate(i, idx + 1, component))
+              : [componentTemplate(i, 1)]
+            ).join("");
+            const nextIndex = Math.max(savedComponents.length + 1, 2);
+            additionalList.innerHTML += `
+              <div class="module-r-fin-row module-r-additional-tube" data-tube="${i}">
+                <div class="module-r-fin-fields">
+                  <div class="module-r-finset-title">TUBE ${i} COMPONENTS</div>
+                  <div class="module-r-additional-components" data-tube="${i}" data-next-index="${nextIndex}">
+                    ${componentMarkup}
+                  </div>
+                  <div class="arx-form-actions">
+                    <button type="button" class="arx-btn" data-action="add-additional-component" data-tube="${i}">
+                      Add Component
+                    </button>
+                  </div>
+                </div>
+                <div class="module-r-fin-preview-grid">
+                  <div class="module-r-fin-preview-title">A${i} GRID</div>
+                  <div class="module-r-additional-preview-shell">
+                    <svg class="module-r-fin-preview-svg" data-additional-preview="${i}" viewBox="0 0 240 130" preserveAspectRatio="xMidYMid meet">
+                      <defs>
+                        <pattern id="additional-grid-${i}" width="12" height="12" patternUnits="userSpaceOnUse">
+                          <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(0,243,255,0.25)" stroke-width="1" />
+                        </pattern>
+                      </defs>
+                      <rect x="0" y="0" width="240" height="130" fill="url(#additional-grid-${i})" />
+                      <path data-additional-shape="${i}" d="M 12 124 L 228 124 L 228 8 L 12 8 Z M 14 122 Q 120 108 226 122 L 226 124 L 14 124 Z" fill="rgba(0,243,255,0.18)" stroke="rgba(255,215,0,0.92)" stroke-width="2" fill-rule="evenodd" />
+                      <g data-additional-telemetry="${i}" style="opacity:0;">
+                        <circle class="module-r-telemetry-halo" cx="120" cy="66" r="26" />
+                        <circle class="module-r-telemetry-halo" cx="120" cy="66" r="16" />
+                        <circle class="module-r-telemetry-core" cx="120" cy="66" r="6" />
+                        <path class="module-r-telemetry-stream" d="M 52 98 L 80 82 L 102 90 L 120 70 L 138 86 L 164 64 L 188 72" />
+                      </g>
+                      <g data-additional-parachute-icon="${i}" style="opacity:0;">
+                        <path class="module-r-parachute-outline" d="M 58 72 C 72 44, 96 32, 120 32 C 144 32, 168 44, 182 72" />
+                        <path class="module-r-parachute-outline" d="M 58 72 C 68 62, 78 60, 88 72 C 98 60, 108 58, 120 72 C 132 58, 142 60, 152 72 C 162 60, 172 62, 182 72" />
+                        <line class="module-r-parachute-lines" x1="70" y1="72" x2="120" y2="108" />
+                        <line class="module-r-parachute-lines" x1="88" y1="72" x2="120" y2="108" />
+                        <line class="module-r-parachute-lines" x1="104" y1="72" x2="120" y2="108" />
+                        <line class="module-r-parachute-lines" x1="136" y1="72" x2="120" y2="108" />
+                        <line class="module-r-parachute-lines" x1="152" y1="72" x2="120" y2="108" />
+                        <line class="module-r-parachute-lines" x1="170" y1="72" x2="120" y2="108" />
+                        <path class="module-r-parachute-capsule" d="M 108 108 L 132 108 L 136 120 L 132 128 L 108 128 L 104 120 Z" />
+                      </g>
+                      <g data-additional-mass-icon="${i}" style="opacity:0;">
+                        <rect class="module-r-mass-core" x="90" y="58" width="60" height="44" rx="4" />
+                        <line class="module-r-mass-grid" x1="110" y1="58" x2="110" y2="102" />
+                        <line class="module-r-mass-grid" x1="130" y1="58" x2="130" y2="102" />
+                        <line class="module-r-mass-grid" x1="90" y1="74" x2="150" y2="74" />
+                        <line class="module-r-mass-grid" x1="90" y1="88" x2="150" y2="88" />
+                        <path class="module-r-mass-base" d="M 96 108 L 144 108 L 150 118 L 90 118 Z" />
+                      </g>
+                    </svg>
+                    <video class="module-r-additional-media module-r-additional-media-telemetry" data-additional-telemetry-video="${i}" muted loop playsinline preload="auto"></video>
+                    <img class="module-r-additional-media module-r-additional-media-image" data-additional-parachute-image="${i}" alt="" />
+                    <img class="module-r-additional-media module-r-additional-media-image" data-additional-mass-image="${i}" alt="" />
+                  </div>
+                </div>
+              </div>
+            `;
+            updateAdditionalPreview(i);
+            const firstComponent = additionalList.querySelector(
+              `.module-r-additional-components[data-tube="${i}"] .module-r-additional-component`
+            ) as HTMLElement | null;
+            if (firstComponent) syncAdditionalComponentUI(firstComponent);
+          }
+          persistAdditionalDraft();
+          showPage("additional-detail");
+        });
+
+        additionalList?.addEventListener("click", (event) => {
+          const target = event.target as HTMLElement | null;
+          if (!target) return;
+          const parachutePickBtn = target.closest(
+            '[data-action="pick-parachute-model"]'
+          ) as HTMLButtonElement | null;
+          if (parachutePickBtn) {
+            const componentNode = parachutePickBtn.closest(
+              ".module-r-additional-component"
+            ) as HTMLElement | null;
+            if (!componentNode) return;
+            openParachuteModal(componentNode);
+            return;
+          }
+          const addBtn = target.closest(
+            '[data-action="add-additional-component"]'
+          ) as HTMLButtonElement | null;
+          if (!addBtn) return;
+          const tubeIndex = Number(addBtn.getAttribute("data-tube"));
+          if (!Number.isFinite(tubeIndex)) return;
+          const container = additionalList.querySelector(
+            `.module-r-additional-components[data-tube="${tubeIndex}"]`
+          ) as HTMLElement | null;
+          if (!container) return;
+          const nextIndex = Number(container.getAttribute("data-next-index") || "1");
+          if (!Number.isFinite(nextIndex)) return;
+          container.insertAdjacentHTML(
+            "beforeend",
+            `
+            <div class="module-r-additional-component" data-component-id="tube-${tubeIndex}-component-${nextIndex}">
+              <div class="launch-modal-grid">
+                <div class="arx-field">
+                  <input type="text" data-field="name" name="additional_name_${tubeIndex}_${nextIndex}" placeholder=" " />
+                  <label>COMPONENT ${nextIndex} NAME</label>
+                </div>
+                <div class="arx-field">
+                  <select data-field="type" name="additional_type_${tubeIndex}_${nextIndex}">
+                    <option value="telemetry">Telemetry Module</option>
+                    <option value="mass">Mass Component</option>
+                    <option value="inner_tube">Inner Tube</option>
+                    <option value="parachute">Parachute</option>
+                  </select>
+                </div>
+                <div class="arx-field">
+                  <input type="number" data-field="mass" name="additional_mass_${tubeIndex}_${nextIndex}" placeholder=" " min="0" step="any" />
+                  <label>MASS (LB)</label>
+                </div>
+                <div class="arx-field" data-parachute-picker style="display:none;">
+                  <input type="text" data-field="parachute_display" name="additional_parachute_display_${tubeIndex}_${nextIndex}" placeholder=" " readonly />
+                  <label>PARACHUTE MODEL</label>
+                  <button type="button" class="arx-btn module-r-parachute-pick-btn" data-action="pick-parachute-model">Select from Library</button>
+                </div>
+                <div class="arx-field" data-parachute-drag style="display:none;">
+                  <input type="number" data-field="drag" name="additional_drag_${tubeIndex}_${nextIndex}" placeholder=" " min="0" step="any" readonly />
+                  <label>DRAG COEFFICIENT</label>
+                </div>
+                <input type="hidden" data-field="parachute_material" name="additional_material_${tubeIndex}_${nextIndex}" value="Nylon" />
+                <div class="arx-field">
+                  <label class="nav-link module-r-fin-checkbox">
+                    <input type="checkbox" data-field="override_active" name="additional_override_active_${tubeIndex}_${nextIndex}" />
+                    Override Mass
+                  </label>
+                </div>
+                <div class="arx-field" data-override-mass style="display:none;">
+                  <input type="number" data-field="override_mass" name="additional_override_mass_${tubeIndex}_${nextIndex}" placeholder=" " min="0" step="any" />
+                  <label>OVERRIDE MASS (LB)</label>
+                </div>
+              </div>
+            </div>
+          `
+          );
+          container.setAttribute("data-next-index", String(nextIndex + 1));
+          const addedComponent = container.querySelector(
+            `.module-r-additional-component[data-component-id="tube-${tubeIndex}-component-${nextIndex}"]`
+          ) as HTMLElement | null;
+          if (addedComponent) syncAdditionalComponentUI(addedComponent);
+          updateAdditionalPreview(tubeIndex);
+          persistAdditionalDraft();
+          enhanceModuleRSelects();
+        });
+        moduleR.addEventListener("click", (event) => {
+          const target = event.target as HTMLElement | null;
+          if (!target) return;
+          const closeBtn = target.closest('[data-action="close-parachute-modal"]') as
+            | HTMLButtonElement
+            | null;
+          if (closeBtn) {
+            closeParachuteModal();
+            return;
+          }
+          const applyBtn = target.closest('[data-action="apply-parachute-modal"]') as
+            | HTMLButtonElement
+            | null;
+          if (!applyBtn) return;
+          const modal = ensureParachuteModal();
+          const select = modal.querySelector('select[data-field="parachute_modal_select"]') as
+            | HTMLSelectElement
+            | null;
+          const parachuteId = String(select?.value || "");
+          if (!parachuteId) return;
+          const componentId = String(modal.getAttribute("data-target-component-id") || "");
+          if (!componentId) return;
+          const componentNode = additionalList?.querySelector(
+            `.module-r-additional-component[data-component-id="${componentId}"]`
+          ) as HTMLElement | null;
+          if (!componentNode) return;
+          applyParachuteSelectionToComponent(componentNode, parachuteId);
+          closeParachuteModal();
+          const tube = componentNode.closest(".module-r-additional-tube") as HTMLElement | null;
+          const tubeIndex = Number(tube?.getAttribute("data-tube") || "0");
+          if (Number.isFinite(tubeIndex) && tubeIndex > 0) updateAdditionalPreview(tubeIndex);
+          persistAdditionalDraft();
+        });
+        additionalList?.addEventListener("input", (event) => {
+          const target = event.target as HTMLElement | null;
+          const component = target?.closest(".module-r-additional-component") as HTMLElement | null;
+          const overrideToggle = component?.querySelector('input[data-field="override_active"]') as
+            | HTMLInputElement
+            | null;
+          const overrideField = component?.querySelector('[data-override-mass]') as HTMLElement | null;
+          if (overrideToggle && overrideField) {
+            overrideField.style.display = overrideToggle.checked ? "grid" : "none";
+          }
+          const tube = target?.closest(".module-r-additional-tube") as HTMLElement | null;
+          const tubeIndex = Number(tube?.getAttribute("data-tube") || "0");
+          if (Number.isFinite(tubeIndex) && tubeIndex > 0) {
+            updateAdditionalPreview(tubeIndex);
+          }
+          persistAdditionalDraft();
+        });
+        additionalList?.addEventListener("change", (event) => {
+          const target = event.target as HTMLElement | null;
+          const component = target?.closest(".module-r-additional-component") as HTMLElement | null;
+          const typeSelect = component?.querySelector('select[data-field="type"]') as
+            | HTMLSelectElement
+            | null;
+          if (component && typeSelect) {
+            const isParachute = typeSelect.value === "parachute";
+            const picker = component.querySelector('[data-parachute-picker]') as HTMLElement | null;
+            const dragField = component.querySelector('[data-parachute-drag]') as HTMLElement | null;
+            if (picker) picker.style.display = isParachute ? "grid" : "none";
+            if (dragField) dragField.style.display = isParachute ? "grid" : "none";
+          }
+          const overrideToggle = component?.querySelector('input[data-field="override_active"]') as
+            | HTMLInputElement
+            | null;
+          const overrideField = component?.querySelector('[data-override-mass]') as HTMLElement | null;
+          if (overrideToggle && overrideField) {
+            overrideField.style.display = overrideToggle.checked ? "grid" : "none";
+          }
+          const tube = target?.closest(".module-r-additional-tube") as HTMLElement | null;
+          const tubeIndex = Number(tube?.getAttribute("data-tube") || "0");
+          if (Number.isFinite(tubeIndex) && tubeIndex > 0) {
+            updateAdditionalPreview(tubeIndex);
+          }
+          persistAdditionalDraft();
+        });
+
+        additionalSave?.addEventListener("click", () => {
+          if (!additionalList) return;
+          const components = Array.from(
+            additionalList.querySelectorAll(".module-r-additional-component")
+          );
+          if (!components.length) {
+            setStatus("ADD AT LEAST ONE COMPONENT PER TUBE.");
+            return;
+          }
+          const allValid = components.every((component) => {
+            const nameInput = component.querySelector('input[data-field="name"]') as
+              | HTMLInputElement
+              | null;
+            const typeSelect = component.querySelector('select[data-field="type"]') as
+              | HTMLSelectElement
+              | null;
+            const massInput = component.querySelector('input[data-field="mass"]') as
+              | HTMLInputElement
+              | null;
+            const overrideToggle = component.querySelector('input[data-field="override_active"]') as
+              | HTMLInputElement
+              | null;
+            const overrideMassInput = component.querySelector('input[data-field="override_mass"]') as
+              | HTMLInputElement
+              | null;
+            const dragInput = component.querySelector('input[data-field="drag"]') as
+              | HTMLInputElement
+              | null;
+            const nameValid = String(nameInput?.value || "").trim().length > 0;
+            const typeValid = Boolean(typeSelect?.value);
+            const massValue = Number(massInput?.value);
+            const massValid = Number.isFinite(massValue) && massValue >= 0;
+            const overrideActive = Boolean(overrideToggle?.checked);
+            const overrideMass = Number(overrideMassInput?.value);
+            const overrideValid =
+              !overrideActive || (Number.isFinite(overrideMass) && overrideMass >= 0);
+            const isParachute = String(typeSelect?.value || "") === "parachute";
+            const dragValue = Number(dragInput?.value);
+            const dragValid = !isParachute || (Number.isFinite(dragValue) && dragValue > 0);
+            return nameValid && typeValid && massValid && overrideValid && dragValid;
+          });
+          if (!allValid) {
+            setStatus("COMPLETE ALL ADDITIONAL COMPONENT FIELDS BEFORE SAVING.");
+            return;
+          }
+          const tubeCount = Number(
+            window.localStorage.getItem("arx_module_r_additional_count") || "0"
+          );
+          const tubes = Array.from({ length: tubeCount }, (_, idx) => {
+            const tubeIndex = idx + 1;
+            const container = additionalList.querySelector(
+              `.module-r-additional-components[data-tube="${tubeIndex}"]`
+            ) as HTMLElement | null;
+            const tubeComponents = Array.from(
+              container?.querySelectorAll(".module-r-additional-component") || []
+            ).map((component) => {
+              const nameInput = component.querySelector('input[data-field="name"]') as
+                | HTMLInputElement
+                | null;
+              const typeSelect = component.querySelector('select[data-field="type"]') as
+                | HTMLSelectElement
+                | null;
+              const massInput = component.querySelector('input[data-field="mass"]') as
+                | HTMLInputElement
+                | null;
+              const overrideToggle = component.querySelector('input[data-field="override_active"]') as
+                | HTMLInputElement
+                | null;
+              const overrideMassInput = component.querySelector('input[data-field="override_mass"]') as
+                | HTMLInputElement
+                | null;
+              const dragInput = component.querySelector('input[data-field="drag"]') as
+                | HTMLInputElement
+                | null;
+              const parachuteMaterialInput = component.querySelector(
+                'input[data-field="parachute_material"]'
+              ) as HTMLInputElement | null;
+              const parachuteDisplayInput = component.querySelector(
+                'input[data-field="parachute_display"]'
+              ) as HTMLInputElement | null;
+              return {
+                name: String(nameInput?.value || "").trim(),
+                type: String(typeSelect?.value || ""),
+                mass_lb: Number(massInput?.value || 0),
+                drag_coefficient: Number(dragInput?.value || 0),
+                parachute_material: String(parachuteMaterialInput?.value || "Nylon"),
+                parachute_library_id: String(component.getAttribute("data-parachute-id") || ""),
+                parachute_model: String(parachuteDisplayInput?.value || ""),
+                is_override_active: Boolean(overrideToggle?.checked),
+                manual_override_mass_lb: Number(overrideMassInput?.value || 0),
+              };
+            });
+            return { tube: tubeIndex, components: tubeComponents };
+          });
+          window.localStorage.setItem("arx_module_r_additional_tubes", JSON.stringify(tubes));
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          window.localStorage.setItem("arx_module_r_body_additional_done", "true");
+          updateCardStates();
+          window.alert("Additional Tubes saved.");
+          showPage("body");
+          setStatus("ADDITIONAL TUBES SAVED.");
+        });
+
+        additionalClear?.addEventListener("click", () => {
+          window.localStorage.removeItem("arx_module_r_additional_owned");
+          window.localStorage.setItem("arx_module_r_body_additional_done", "false");
+          window.localStorage.removeItem("arx_module_r_additional_count");
+          window.localStorage.removeItem("arx_module_r_additional_tubes");
+          if (additionalCountInput) additionalCountInput.value = "";
+          if (additionalList) additionalList.innerHTML = "";
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          showPage("additional-tubes");
+          setStatus("ADDITIONAL TUBES CLEARED.");
+        });
+
+        additionalClearIndex?.addEventListener("click", () => {
+          window.localStorage.removeItem("arx_module_r_additional_owned");
+          window.localStorage.setItem("arx_module_r_body_additional_done", "false");
+          window.localStorage.removeItem("arx_module_r_additional_count");
+          window.localStorage.removeItem("arx_module_r_additional_tubes");
+          if (additionalCountInput) additionalCountInput.value = "";
+          if (additionalList) additionalList.innerHTML = "";
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          setStatus("ADDITIONAL TUBES CLEARED.");
+        });
+
+        bulkheadNext?.addEventListener("click", () => {
+          if (!bulkheadCountInput || !bulkheadList) return;
+          const count = Number(bulkheadCountInput.value);
+          if (!Number.isFinite(count) || count < 1 || count > 12) {
+            setStatus("ENTER 1-12 BULKHEADS.");
+            return;
+          }
+          window.localStorage.setItem("arx_module_r_bulkhead_count", String(count));
+          const savedBulkheads = JSON.parse(
+            window.localStorage.getItem("arx_module_r_bulkheads") || "[]"
+          ) as Array<{
+            outer_diameter_in?: number;
+            thickness_in?: number;
+            position_in?: number;
+            material?: string;
+          }>;
+          const bulkheadRows: string[] = [];
+          for (let i = 1; i <= count; i += 1) {
+            const saved = savedBulkheads[i - 1] || {};
+            bulkheadRows.push(`
+              <div class="module-r-fin-row module-r-bulkhead-row" data-bulkhead-row="${i}">
+                <div class="module-r-fin-fields">
+                  <div class="module-r-finset-title">BULKHEAD ${i}</div>
+                  <div class="module-r-fin-fields-horizontal">
+                    <div class="arx-field">
+                      <input type="number" name="bulkhead_outer_diameter_${i}" placeholder=" " min="0" step="any" value="${Number(saved.outer_diameter_in || 0) > 0 ? Number(saved.outer_diameter_in) : ""}" />
+                      <label>OUTER DIAMETER (IN)</label>
+                    </div>
+                    <div class="arx-field">
+                      <input type="number" name="bulkhead_thickness_${i}" placeholder=" " min="0" step="any" value="${Number(saved.thickness_in || 0) > 0 ? Number(saved.thickness_in) : ""}" />
+                      <label>THICKNESS (IN)</label>
+                    </div>
+                    <div class="arx-field">
+                      <input type="number" name="bulkhead_position_${i}" placeholder=" " min="0" step="any" value="${Number(saved.position_in || 0) >= 0 ? Number(saved.position_in || 0) : 0}" />
+                      <label>POSITION FROM BASE (IN)</label>
+                    </div>
+                    <div class="arx-field">
+                      <select name="bulkhead_material_detail_${i}">
+                        ${MODULE_R_FULL_MATERIAL_OPTIONS_HTML}
+                      </select>
+                      <label>BULKHEAD MATERIAL</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="module-r-fin-preview-grid">
+                  <div class="module-r-fin-preview-title">B${i} GRID</div>
+                  <svg class="module-r-fin-preview-svg" data-bulkhead-preview="${i}" viewBox="0 0 240 130" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                      <pattern id="bulkhead-grid-${i}" width="12" height="12" patternUnits="userSpaceOnUse">
+                        <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(0,243,255,0.25)" stroke-width="1" />
+                      </pattern>
+                    </defs>
+                    <rect x="0" y="0" width="240" height="130" fill="url(#bulkhead-grid-${i})" />
+                    <path data-bulkhead-shape="${i}" d="M 72 66 a 32 32 0 1 0 64 0 a 32 32 0 1 0 -64 0 M 88 66 a 16 16 0 1 1 32 0 a 16 16 0 1 1 -32 0" fill="rgba(0,243,255,0.22)" stroke="rgba(255,215,0,0.92)" stroke-width="2" fill-rule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+            `);
+          }
+          bulkheadList.innerHTML = bulkheadRows.join("");
+          for (let i = 1; i <= count; i += 1) {
+            ["bulkhead_outer_diameter", "bulkhead_thickness", "bulkhead_position"].forEach((key) => {
+              bulkheadList
+                .querySelector(`input[name="${key}_${i}"]`)
+                ?.addEventListener("input", () => updateBulkheadPreview(i));
+            });
+            const materialSelect = bulkheadList.querySelector(
+              `select[name="bulkhead_material_detail_${i}"]`
+            ) as HTMLSelectElement | null;
+            const saved = savedBulkheads[i - 1];
+            if (materialSelect && saved?.material) materialSelect.value = saved.material;
+            materialSelect?.addEventListener("change", () => {
+              updateBulkheadPreview(i);
+              persistBulkheadDraft();
+            });
+            updateBulkheadPreview(i);
+            ["bulkhead_outer_diameter", "bulkhead_thickness", "bulkhead_position"].forEach((key) => {
+              bulkheadList
+                .querySelector(`input[name="${key}_${i}"]`)
+                ?.addEventListener("input", persistBulkheadDraft);
+            });
+          }
+          persistBulkheadDraft();
+          showPage("bulkheads-detail");
+        });
+
+        bulkheadsSave?.addEventListener("click", () => {
+          if (!bulkheadList) return;
+          const count = Number(bulkheadCountInput?.value || "0");
+          if (!Number.isFinite(count) || count < 1) {
+            setStatus("ENTER BULKHEAD COUNT.");
+            return;
+          }
+          const bulkheads = Array.from({ length: count }, (_, idx) => {
+            const i = idx + 1;
+            const getNumber = (name: string, fallback = 0) => {
+              const input = bulkheadList.querySelector(`input[name="${name}_${i}"]`) as
+                | HTMLInputElement
+                | null;
+              const value = Number(input?.value ?? fallback);
+              return Number.isFinite(value) ? value : fallback;
+            };
+            const getSelect = (name: string) =>
+              bulkheadList.querySelector(`select[name="${name}_${i}"]`) as
+                | HTMLSelectElement
+                | null;
+            return {
+              outer_diameter_in: getNumber("bulkhead_outer_diameter", 0),
+              thickness_in: getNumber("bulkhead_thickness", 0),
+              position_in: getNumber("bulkhead_position", 0),
+              material: getSelect("bulkhead_material_detail")?.value || "Cardboard",
+            };
+          });
+          const hasInvalid = bulkheads.some(
+            (item) =>
+              !Number.isFinite(item.outer_diameter_in) ||
+              item.outer_diameter_in <= 0 ||
+              !Number.isFinite(item.thickness_in) ||
+              item.thickness_in <= 0 ||
+              !Number.isFinite(item.position_in) ||
+              item.position_in < 0 ||
+              !item.material
+          );
+          if (hasInvalid) {
+            setStatus("COMPLETE ALL BULKHEAD FIELDS BEFORE SAVING.");
+            return;
+          }
+          window.localStorage.setItem("arx_module_r_bulkheads", JSON.stringify(bulkheads));
+          window.localStorage.setItem("arx_module_r_body_bulkheads_done", "true");
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          window.alert("Bulkheads saved.");
+          showPage("body");
+          setStatus("BULKHEADS SAVED.");
+        });
+
+        bulkheadsClear?.addEventListener("click", () => {
+          window.localStorage.removeItem("arx_module_r_bulkheads_owned");
+          window.localStorage.setItem("arx_module_r_body_bulkheads_done", "false");
+          window.localStorage.removeItem("arx_module_r_bulkhead_count");
+          window.localStorage.removeItem("arx_module_r_bulkheads");
+          if (bulkheadCountInput) bulkheadCountInput.value = "";
+          if (bulkheadList) bulkheadList.innerHTML = "";
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          showPage("bulkheads");
+          setStatus("BULKHEADS CLEARED.");
+        });
+
+        bulkheadsClearIndex?.addEventListener("click", () => {
+          window.localStorage.removeItem("arx_module_r_bulkheads_owned");
+          window.localStorage.setItem("arx_module_r_body_bulkheads_done", "false");
+          window.localStorage.removeItem("arx_module_r_bulkhead_count");
+          window.localStorage.removeItem("arx_module_r_bulkheads");
+          if (bulkheadCountInput) bulkheadCountInput.value = "";
+          if (bulkheadList) bulkheadList.innerHTML = "";
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          setStatus("BULKHEADS CLEARED.");
+        });
+
+        saveNoseBtn?.addEventListener("click", () => {
+          const lengthInput = moduleR.querySelector('input[name="nose_length_in"]') as
+            | HTMLInputElement
+            | null;
+          const typeSelect = moduleR.querySelector('select[name="nose_type"]') as
+            | HTMLSelectElement
+            | null;
+          const materialSelect = moduleR.querySelector('select[name="nose_material"]') as
+            | HTMLSelectElement
+            | null;
+          const lengthValue = Number(lengthInput?.value);
+          if (!Number.isFinite(lengthValue) || lengthValue <= 0) {
+            setStatus("ENTER NOSE HEIGHT.");
+            return;
+          }
+          if (!typeSelect?.value || !materialSelect?.value) {
+            setStatus("SELECT NOSE TYPE AND MATERIAL.");
+            return;
+          }
+          window.localStorage.setItem(
+            "arx_module_r_nose_cone",
+            JSON.stringify({
+              length_in: lengthValue,
+              profile: typeSelect.value,
+              material: materialSelect.value,
+            })
+          );
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          window.localStorage.setItem("arx_module_r_nose_done", "true");
+          updateCardStates();
+          window.alert("Nose Cone saved.");
+          showPage("manual");
+          setStatus("NOSE CONE SAVED.");
+        });
+
+        noseClearBtn?.addEventListener("click", () => {
+          const lengthInput = moduleR.querySelector('input[name="nose_length_in"]') as
+            | HTMLInputElement
+            | null;
+          const typeSelect = moduleR.querySelector('select[name="nose_type"]') as
+            | HTMLSelectElement
+            | null;
+          const materialSelect = moduleR.querySelector('select[name="nose_material"]') as
+            | HTMLSelectElement
+            | null;
+          if (lengthInput) lengthInput.value = "";
+          if (typeSelect) typeSelect.selectedIndex = 0;
+          if (materialSelect) materialSelect.selectedIndex = 0;
+          window.localStorage.removeItem("arx_module_r_nose_cone");
+          window.localStorage.setItem("arx_module_r_nose_done", "false");
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          setStatus("NOSE CONE CLEARED.");
+        });
+
+        const finTypeOptions = [
+          { value: "trapezoidal", label: "Trapezoidal" },
+          { value: "elliptical", label: "Elliptical" },
+          { value: "free_form", label: "Free Form" },
+          { value: "tube_fin", label: "Tube Fin Sets" },
+        ] as const;
+        const noseLengthInput = moduleR.querySelector('input[name="nose_length_in"]') as
+          | HTMLInputElement
+          | null;
+        const noseTypeSelect = moduleR.querySelector('select[name="nose_type"]') as
+          | HTMLSelectElement
+          | null;
+        const noseMaterialSelect = moduleR.querySelector('select[name="nose_material"]') as
+          | HTMLSelectElement
+          | null;
+        const savedNoseRaw = window.localStorage.getItem("arx_module_r_nose_cone");
+        if (savedNoseRaw) {
+          try {
+            const savedNose = JSON.parse(savedNoseRaw) as {
+              length_in?: number;
+              profile?: string;
+              material?: string;
+            };
+            if (noseLengthInput && Number(savedNose.length_in || 0) > 0) {
+              noseLengthInput.value = String(savedNose.length_in);
+            }
+            if (noseTypeSelect && savedNose.profile) noseTypeSelect.value = savedNose.profile;
+            if (noseMaterialSelect && savedNose.material) noseMaterialSelect.value = savedNose.material;
+          } catch {
+            // no-op
+          }
+        }
+        noseLengthInput?.addEventListener("input", updateNosePreview);
+        noseTypeSelect?.addEventListener("change", updateNosePreview);
+        updateNosePreview();
+
+        const crossSectionSelect = (index: number) => `
+          <div class="arx-field">
+            <select name="fin_cross_section_${index}">
+              <option value="square">Square</option>
+              <option value="rounded">Rounded</option>
+              <option value="airfoil">Airfoil</option>
+            </select>
+            <label>CROSS SECTION</label>
+          </div>
+        `;
+
+        const placementBlock = (index: number) => `
+          <div class="module-r-fin-block">
+            <div class="module-r-fin-block-title">Placement</div>
+            <div class="module-r-fin-fields-compact">
+              <div class="arx-field">
+                <select name="fin_position_relative_${index}">
+                  <option value="bottom">Bottom of the parent component</option>
+                  <option value="top">Top of the parent component</option>
+                </select>
+                <label>POSITION RELATIVE TO</label>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="fin_plus_offset_${index}" placeholder=" " min="0" step="any" value="0" />
+                <label>PLUS (IN)</label>
+              </div>
+              <div class="arx-field">
+                <input type="number" name="fin_rotation_${index}" placeholder=" " min="0" step="any" value="0" />
+                <label>FIN ROTATION (DEG)</label>
+              </div>
+            </div>
+          </div>
+        `;
+
+        const materialBlock = (index: number) => `
+          <div class="module-r-fin-block">
+            <div class="module-r-fin-block-title">Material</div>
+            <div class="module-r-fin-fields-compact">
+              <div class="arx-field">
+                <select name="fin_material_${index}">
+                  ${MODULE_R_FULL_MATERIAL_OPTIONS_HTML}
+                </select>
+                <label>MATERIAL</label>
+              </div>
+              <div class="arx-field">
+                <select name="fin_finish_${index}">
+                  <option value="regular_paint">Regular paint</option>
+                  <option value="polished">Polished</option>
+                  <option value="matte">Matte</option>
+                </select>
+                <label>COMPONENT FINISH</label>
+              </div>
+            </div>
+          </div>
+        `;
+
+        const filletBlock = (index: number) => `
+          <div class="module-r-fin-block">
+            <div class="module-r-fin-block-title">Root Fillets</div>
+            <div class="module-r-fin-fields-compact">
+              <div class="arx-field">
+                <input type="number" name="fin_fillet_radius_${index}" placeholder=" " min="0" step="any" value="0" />
+                <label>FILLET RADIUS (IN)</label>
+              </div>
+              <div class="arx-field">
+                <select name="fin_fillet_material_${index}">
+                  ${MODULE_R_FULL_MATERIAL_OPTIONS_HTML}
+                </select>
+                <label>FILLET MATERIAL</label>
+              </div>
+            </div>
+          </div>
+        `;
+
+        const freeformShapeBlock = (index: number) => `
+          <div class="module-r-fin-pages" data-fin-pages="${index}">
+            <div class="module-r-fin-page-nav">
+              <button type="button" class="module-r-fin-page-btn is-active" data-fin-page-btn="${index}" data-page="general">General</button>
+              <button type="button" class="module-r-fin-page-btn" data-fin-page-btn="${index}" data-page="shape">Shape</button>
+            </div>
+            <div class="module-r-fin-page" data-fin-page="${index}" data-page="general">
+              <div class="module-r-fin-block">
+                <div class="module-r-fin-block-title">General</div>
+                <div class="module-r-fin-fields-compact">
+                  <div class="arx-field"><input type="number" name="fin_count_${index}" placeholder=" " min="2" step="1" value="3" /><label>NUMBER OF FINS</label></div>
+                  <div class="arx-field"><input type="number" name="fin_cant_${index}" placeholder=" " min="0" step="any" value="0" /><label>FIN CANT (DEG)</label></div>
+                  ${crossSectionSelect(index)}
+                  <div class="arx-field"><input type="number" name="fin_thickness_${index}" placeholder=" " min="0" step="any" value="0.12" /><label>THICKNESS (IN)</label></div>
+                </div>
+              </div>
+              ${placementBlock(index)}
+              ${materialBlock(index)}
+              ${filletBlock(index)}
+            </div>
+            <div class="module-r-fin-page is-hidden" data-fin-page="${index}" data-page="shape">
+              <div class="module-r-fin-block">
+                <div class="module-r-fin-block-title">Freeform Shape Coordinates</div>
+                <div class="module-r-freeform-shape-panel" data-freeform-panel="${index}">
+                  <div class="module-r-freeform-table">
+                    <div class="module-r-freeform-head">X / in</div><div class="module-r-freeform-head">Y / in</div>
+                    <input type="number" name="free_x_1_${index}" value="0" step="any" /><input type="number" name="free_y_1_${index}" value="0" step="any" />
+                    <input type="number" name="free_x_2_${index}" value="0.984" step="any" /><input type="number" name="free_y_2_${index}" value="1.969" step="any" />
+                    <input type="number" name="free_x_3_${index}" value="2.953" step="any" /><input type="number" name="free_y_3_${index}" value="1.969" step="any" />
+                    <input type="number" name="free_x_4_${index}" value="1.969" step="any" /><input type="number" name="free_y_4_${index}" value="0" step="any" />
+                  </div>
+                  <svg class="module-r-freeform-svg" data-freeform-svg="${index}" viewBox="0 0 260 170" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                      <pattern id="free-grid-${index}" width="10" height="10" patternUnits="userSpaceOnUse">
+                        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(80,120,255,0.30)" stroke-width="1" />
+                      </pattern>
+                    </defs>
+                    <rect x="0" y="0" width="260" height="170" fill="url(#free-grid-${index})" />
+                    <path data-freeform-shape="${index}" d="M 25 145 L 85 28 L 235 28 L 170 145 Z" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="2" />
+                      <g data-freeform-handles="${index}">
+                        <circle data-freeform-handle="${index}" data-point="1" cx="25" cy="145" r="6" />
+                        <circle data-freeform-handle="${index}" data-point="2" cx="85" cy="28" r="6" />
+                        <circle data-freeform-handle="${index}" data-point="3" cx="235" cy="28" r="6" />
+                        <circle data-freeform-handle="${index}" data-point="4" cx="170" cy="145" r="6" />
+                      </g>
+                  </svg>
+                  <div class="module-r-freeform-actions">
+                    <button type="button" class="arx-btn" data-action="freeform-scale">Scale Fin</button>
+                    <button type="button" class="arx-btn" data-action="freeform-import">Import from image</button>
+                    <button type="button" class="arx-btn" data-action="freeform-export">Export CSV</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        const renderFinTypeFields = (type: string, index: number) => {
+          const t = String(type || "trapezoidal");
+          if (t === "free_form") {
+            return `<div class="module-r-fin-type-fields-inner">${freeformShapeBlock(index)}</div>`;
+          }
+          if (t === "elliptical") {
+            return `
+              <div class="module-r-fin-type-fields-inner">
+                <div class="module-r-fin-block">
+                  <div class="module-r-fin-block-title">General</div>
+                  <div class="module-r-fin-fields-compact">
+                    <div class="arx-field"><input type="number" name="fin_count_${index}" placeholder=" " min="2" step="1" value="3" /><label>NUMBER OF FINS</label></div>
+                    <div class="arx-field"><input type="number" name="fin_cant_${index}" placeholder=" " min="0" step="any" value="0" /><label>FIN CANT (DEG)</label></div>
+                    <div class="arx-field"><input type="number" name="fin_root_${index}" placeholder=" " min="0" step="any" value="2" /><label>ROOT CHORD (IN)</label></div>
+                    <div class="arx-field"><input type="number" name="fin_height_${index}" placeholder=" " min="0" step="any" value="2" /><label>HEIGHT (IN)</label></div>
+                    ${crossSectionSelect(index)}
+                    <div class="arx-field"><input type="number" name="fin_thickness_${index}" placeholder=" " min="0" step="any" value="0.12" /><label>THICKNESS (IN)</label></div>
+                  </div>
+                </div>
+                ${placementBlock(index)}
+                ${materialBlock(index)}
+                ${filletBlock(index)}
+              </div>
+            `;
+          }
+          if (t === "tube_fin") {
+            return `
+              <div class="module-r-fin-type-fields-inner">
+                <div class="module-r-fin-block">
+                  <div class="module-r-fin-block-title">General</div>
+                  <div class="module-r-fin-fields-compact">
+                    <div class="arx-field"><input type="number" name="fin_count_${index}" placeholder=" " min="2" step="1" value="6" /><label>NUMBER OF FINS</label></div>
+                    <div class="arx-field"><input type="number" name="tube_length_${index}" placeholder=" " min="0" step="any" value="4" /><label>LENGTH (IN)</label></div>
+                    <div class="arx-field"><input type="number" name="tube_outer_diameter_${index}" placeholder=" " min="0" step="any" value="2" /><label>OUTER DIAMETER (IN)</label></div>
+                    <label class="nav-link module-r-fin-checkbox"><input type="checkbox" name="tube_auto_inner_${index}" checked />Automatic</label>
+                    <div class="arx-field"><input type="number" name="tube_inner_diameter_${index}" placeholder=" " min="0" step="any" value="1.8" /><label>INNER DIAMETER (IN)</label></div>
+                    <div class="arx-field"><input type="number" name="fin_thickness_${index}" placeholder=" " min="0" step="any" value="0.08" /><label>THICKNESS (IN)</label></div>
+                  </div>
+                </div>
+                ${placementBlock(index)}
+                ${materialBlock(index)}
+              </div>
+            `;
+          }
+          return `
+            <div class="module-r-fin-type-fields-inner">
+              <div class="module-r-fin-block">
+                <div class="module-r-fin-block-title">General</div>
+                <div class="module-r-fin-fields-compact">
+                  <div class="arx-field"><input type="number" name="fin_count_${index}" placeholder=" " min="2" step="1" value="3" /><label>NUMBER OF FINS</label></div>
+                  <div class="arx-field"><input type="number" name="fin_cant_${index}" placeholder=" " min="0" step="any" value="0" /><label>FIN CANT (DEG)</label></div>
+                  <div class="arx-field"><input type="number" name="fin_root_${index}" placeholder=" " min="0" step="any" value="2" /><label>ROOT CHORD (IN)</label></div>
+                  <div class="arx-field"><input type="number" name="fin_tip_${index}" placeholder=" " min="0" step="any" value="2" /><label>TIP CHORD (IN)</label></div>
+                  <div class="arx-field"><input type="number" name="fin_span_${index}" placeholder=" " min="0" step="any" value="1.2" /><label>HEIGHT (IN)</label></div>
+                  <div class="arx-field"><input type="number" name="fin_sweep_${index}" placeholder=" " min="0" step="any" value="1" /><label>SWEEP LENGTH (IN)</label></div>
+                  <div class="arx-field"><input type="number" name="fin_sweep_angle_${index}" placeholder=" " min="0" step="any" value="39.8" /><label>SWEEP ANGLE (DEG)</label></div>
+                  ${crossSectionSelect(index)}
+                  <div class="arx-field"><input type="number" name="fin_thickness_${index}" placeholder=" " min="0" step="any" value="0.12" /><label>THICKNESS (IN)</label></div>
+                </div>
+              </div>
+              ${placementBlock(index)}
+              ${materialBlock(index)}
+              ${filletBlock(index)}
+            </div>
+          `;
+        };
+
+        const updateFreeformShape = (index: number) => {
+          if (!finsList) return;
+          const svg = finsList.querySelector(
+            `.module-r-freeform-svg[data-freeform-svg="${index}"]`
+          ) as SVGSVGElement | null;
+          const path = finsList.querySelector(
+            `[data-freeform-shape="${index}"]`
+          ) as SVGPathElement | null;
+          if (!svg || !path) return;
+          const handles = Array.from(
+            finsList.querySelectorAll(
+              `[data-freeform-handle="${index}"]`
+            )
+          ) as SVGCircleElement[];
+          const getPoint = (n: number, axis: "x" | "y", fallback: number) => {
+            const input = finsList.querySelector(
+              `input[name="free_${axis}_${n}_${index}"]`
+            ) as HTMLInputElement | null;
+            const value = Number(input?.value ?? fallback);
+            return Number.isFinite(value) ? value : fallback;
+          };
+          const pts = [
+            { x: getPoint(1, "x", 0), y: getPoint(1, "y", 0) },
+            { x: getPoint(2, "x", 1), y: getPoint(2, "y", 2) },
+            { x: getPoint(3, "x", 3), y: getPoint(3, "y", 2) },
+            { x: getPoint(4, "x", 2), y: getPoint(4, "y", 0) },
+          ];
+          const minX = Math.min(...pts.map((p) => p.x));
+          const maxX = Math.max(...pts.map((p) => p.x));
+          const minY = Math.min(...pts.map((p) => p.y));
+          const maxY = Math.max(...pts.map((p) => p.y));
+          const w = Math.max(maxX - minX, 0.1);
+          const h = Math.max(maxY - minY, 0.1);
+          const pad = 18;
+          const width = 260;
+          const height = 170;
+          const scale = Math.min((width - pad * 2) / w, (height - pad * 2) / h);
+          const toX = (v: number) => pad + (v - minX) * scale;
+          const toY = (v: number) => height - (pad + (v - minY) * scale);
+          svg.setAttribute("data-min-x", String(minX));
+          svg.setAttribute("data-min-y", String(minY));
+          svg.setAttribute("data-scale", String(scale));
+          svg.setAttribute("data-pad", String(pad));
+          svg.setAttribute("data-h", String(height));
+          path.setAttribute(
+            "d",
+            `M ${toX(pts[0].x)} ${toY(pts[0].y)} L ${toX(pts[1].x)} ${toY(pts[1].y)} L ${toX(
+              pts[2].x
+            )} ${toY(pts[2].y)} L ${toX(pts[3].x)} ${toY(pts[3].y)} Z`
+          );
+          handles.forEach((handle) => {
+            const point = Number(handle.getAttribute("data-point") || "1");
+            const pt = pts[Math.max(0, Math.min(3, point - 1))];
+            handle.setAttribute("cx", String(toX(pt.x)));
+            handle.setAttribute("cy", String(toY(pt.y)));
+          });
+        };
+
+        const updateFinPreview = (index: number) => {
+          if (!finsList) return;
+          const svg = finsList.querySelector(
+            `.module-r-fin-preview-svg[data-fin-preview="${index}"]`
+          ) as SVGSVGElement | null;
+          if (!svg) return;
+          const shape = svg.querySelector('[data-shape="fin"]') as SVGPathElement | null;
+          if (!shape) return;
+
+          const getNumber = (name: string, fallback: number, allowZero = false) => {
+            const input = finsList.querySelector(`input[name="${name}_${index}"]`) as
+              | HTMLInputElement
+              | null;
+            const value = Number(input?.value ?? fallback);
+            if (!Number.isFinite(value)) return fallback;
+            if (allowZero) return value;
+            return value > 0 ? value : fallback;
+          };
+          const getType = () =>
+            (
+              finsList.querySelector(`select[name="fin_type_${index}"]`) as
+                | HTMLSelectElement
+                | null
+            )?.value || "trapezoidal";
+
+          const type = getType();
+          const root = getNumber("fin_root", 6);
+          const tip = getNumber("fin_tip", 3);
+          const span = getNumber("fin_span", getNumber("fin_height", 4));
+          const sweep = getNumber("fin_sweep", 1, true);
+          const tubeLength = getNumber("tube_length", 4);
+          const tubeOuter = getNumber("tube_outer_diameter", 2);
+          const recommendationNode = finsList.querySelector(
+            `[data-fin-recommendation="${index}"]`
+          ) as HTMLElement | null;
+          const rocketDiameterIn = Math.max(
+            0,
+            Number(window.localStorage.getItem("arx_module_r_width") || "0")
+          );
+          if (recommendationNode) {
+            if (rocketDiameterIn > 0) {
+              const recommendedSpanIn = rocketDiameterIn * 3;
+              const tolerance = Math.max(0.15, recommendedSpanIn * 0.08);
+              const proportional = Math.abs(span - recommendedSpanIn) <= tolerance;
+              recommendationNode.textContent = proportional
+                ? `PROPORTIONAL | RECOMMENDED SPAN ${recommendedSpanIn.toFixed(2)} IN`
+                : `RECOMMENDED SPAN ${recommendedSpanIn.toFixed(2)} IN (1:3 BODY:SPAN)`;
+              recommendationNode.classList.toggle("is-good", proportional);
+            } else {
+              recommendationNode.textContent = "";
+              recommendationNode.classList.remove("is-good");
+            }
+          }
+
+          const width = 240;
+          const height = 130;
+          const pad = 14;
+          const shapeWidth = Math.max(root, sweep + tip, 0.5);
+          const shapeHeight = Math.max(span, 0.5);
+          const scale = Math.min(
+            (width - pad * 2) / Math.max(shapeWidth, 0.5),
+            (height - pad * 2) / Math.max(shapeHeight, 0.5)
+          );
+          const x = (v: number) => pad + v * scale;
+          const y = (v: number) => height - (pad + v * scale);
+          if (type === "trapezoidal") {
+            const p0 = `${x(0)},${y(0)}`;
+            const p1 = `${x(root)},${y(0)}`;
+            const p2 = `${x(sweep + tip)},${y(span)}`;
+            const p3 = `${x(sweep)},${y(span)}`;
+            shape.setAttribute("d", `M ${p0} L ${p1} L ${p2} L ${p3} Z`);
+            return;
+          }
+
+          if (type === "elliptical") {
+            const cx = x(shapeWidth * 0.5);
+            const cy = y(shapeHeight * 0.5);
+            const rx = Math.max((shapeWidth * scale) / 2, 8);
+            const ry = Math.max((shapeHeight * scale) / 2, 8);
+            shape.setAttribute("d", `M ${cx - rx},${cy} a ${rx},${ry} 0 1,0 ${rx * 2},0 a ${rx},${ry} 0 1,0 -${rx * 2},0`);
+            return;
+          }
+
+          if (type === "tube_fin") {
+            const w = Math.max(tubeLength, 0.5);
+            const h = Math.max(tubeOuter, 0.5);
+            const innerInput = finsList.querySelector(
+              `input[name="tube_inner_diameter_${index}"]`
+            ) as HTMLInputElement | null;
+            const innerRaw = Number(innerInput?.value ?? 0);
+            const inner = Number.isFinite(innerRaw) ? Math.max(0, Math.min(innerRaw, h - 0.02)) : 0;
+            const localScale = Math.min((width - pad * 2) / w, (height - pad * 2) / h);
+            const rx = (h * localScale) * 0.5;
+            const ry = rx;
+            const rectW = w * localScale;
+            const left = pad;
+            const right = left + rectW;
+            const top = (height - h * localScale) / 2;
+            const bottom = top + h * localScale;
+            let path = `M ${left + rx},${top} L ${right - rx},${top} A ${rx},${ry} 0 0,1 ${right - rx},${bottom} L ${
+              left + rx
+            },${bottom} A ${rx},${ry} 0 0,1 ${left + rx},${top} Z`;
+            if (inner > 0.01) {
+              const innerH = inner * localScale;
+              const innerTop = (height - innerH) / 2;
+              const innerBottom = innerTop + innerH;
+              const innerRx = innerH * 0.5;
+              path += ` M ${left + innerRx},${innerTop} L ${right - innerRx},${innerTop} A ${innerRx},${innerRx} 0 0,0 ${
+                right - innerRx
+              },${innerBottom} L ${left + innerRx},${innerBottom} A ${innerRx},${innerRx} 0 0,0 ${left + innerRx},${innerTop} Z`;
+              shape.setAttribute("fill-rule", "evenodd");
+            } else {
+              shape.removeAttribute("fill-rule");
+            }
+            shape.setAttribute(
+              "d",
+              path
+            );
+            return;
+          }
+
+          if (type === "free_form") {
+            const getFree = (axis: "x" | "y", n: number, fallback: number) => {
+              const input = finsList.querySelector(
+                `input[name="free_${axis}_${n}_${index}"]`
+              ) as HTMLInputElement | null;
+              const value = Number(input?.value ?? fallback);
+              return Number.isFinite(value) ? value : fallback;
+            };
+            const pts = [
+              { x: getFree("x", 1, 0), y: getFree("y", 1, 0) },
+              { x: getFree("x", 2, 1), y: getFree("y", 2, 2) },
+              { x: getFree("x", 3, 3), y: getFree("y", 3, 2) },
+              { x: getFree("x", 4, 2), y: getFree("y", 4, 0) },
+            ];
+            const minX = Math.min(...pts.map((p) => p.x));
+            const maxX = Math.max(...pts.map((p) => p.x));
+            const minY = Math.min(...pts.map((p) => p.y));
+            const maxY = Math.max(...pts.map((p) => p.y));
+            const fw = Math.max(maxX - minX, 0.5);
+            const fh = Math.max(maxY - minY, 0.5);
+            const fs = Math.min((width - pad * 2) / fw, (height - pad * 2) / fh);
+            const px = (v: number) => pad + (v - minX) * fs;
+            const py = (v: number) => height - (pad + (v - minY) * fs);
+            shape.setAttribute(
+              "d",
+              `M ${px(pts[0].x)} ${py(pts[0].y)} L ${px(pts[1].x)} ${py(pts[1].y)} L ${px(
+                pts[2].x
+              )} ${py(pts[2].y)} L ${px(pts[3].x)} ${py(pts[3].y)} Z`
+            );
+            updateFreeformShape(index);
+            return;
+          }
+
+          const p0 = `${x(0)},${y(0)}`;
+          const p1 = `${x(root * 0.8)},${y(0.15 * span)}`;
+          const p2 = `${x(sweep + tip)},${y(span)}`;
+          const p3 = `${x(sweep * 0.6)},${y(span * 0.85)}`;
+          shape.setAttribute("d", `M ${p0} L ${p1} L ${p2} L ${p3} Z`);
+        };
+
+        const attachFinRowListeners = (index: number) => {
+          if (!finsList) return;
+          const typeSelect = finsList.querySelector(`select[name="fin_type_${index}"]`) as
+            | HTMLSelectElement
+            | null;
+          const typeFields = finsList.querySelector(
+            `.module-r-fin-type-fields[data-fin-type-fields="${index}"]`
+          ) as HTMLElement | null;
+          const row = finsList.querySelector(
+            `.module-r-fin-row[data-fin-row="${index}"]`
+          ) as HTMLElement | null;
+          const freeformInputs = row
+            ? Array.from(
+                row.querySelectorAll(
+                  `input[name^="free_x_"], input[name^="free_y_"]`
+                )
+              ) as HTMLInputElement[]
+            : [];
+          const redraw = () => updateFinPreview(index);
+          const getPoint = (n: number, axis: "x" | "y", fallback: number) => {
+            const input = row?.querySelector(
+              `input[name="free_${axis}_${n}_${index}"]`
+            ) as HTMLInputElement | null;
+            const value = Number(input?.value ?? fallback);
+            return Number.isFinite(value) ? value : fallback;
+          };
+          const setPoint = (n: number, axis: "x" | "y", value: number) => {
+            const input = row?.querySelector(
+              `input[name="free_${axis}_${n}_${index}"]`
+            ) as HTMLInputElement | null;
+            if (input) input.value = String(value);
+          };
+          const applyTubeAutoState = () => {
+            const autoInner = row?.querySelector(
+              `input[name="tube_auto_inner_${index}"]`
+            ) as HTMLInputElement | null;
+            const outerInput = row?.querySelector(
+              `input[name="tube_outer_diameter_${index}"]`
+            ) as HTMLInputElement | null;
+            const thicknessInput = row?.querySelector(
+              `input[name="fin_thickness_${index}"]`
+            ) as HTMLInputElement | null;
+            const innerInput = row?.querySelector(
+              `input[name="tube_inner_diameter_${index}"]`
+            ) as HTMLInputElement | null;
+            if (!innerInput) return;
+            const outer = Number(outerInput?.value ?? 0);
+            const thickness = Math.max(0, Number(thicknessInput?.value ?? 0));
+            const checked = Boolean(autoInner?.checked);
+            innerInput.disabled = checked;
+            if (checked && Number.isFinite(outer) && outer > 0) {
+              const computed = Math.max(outer - 2 * Math.max(thickness, 0.01), 0.02);
+              innerInput.value = String(Math.min(computed, outer - 0.01));
+            }
+            redraw();
+          };
+          const wireFreeformActions = () => {
+            const scaleBtn = row?.querySelector(
+              `[data-action="freeform-scale"]`
+            ) as HTMLButtonElement | null;
+            const exportBtn = row?.querySelector(
+              `[data-action="freeform-export"]`
+            ) as HTMLButtonElement | null;
+            const importBtn = row?.querySelector(
+              `[data-action="freeform-import"]`
+            ) as HTMLButtonElement | null;
+            const panel = row?.querySelector(
+              `[data-freeform-panel="${index}"]`
+            ) as HTMLElement | null;
+            if (!panel) return;
+            let fileInput = panel.querySelector(
+              `input[type="file"][data-freeform-file="${index}"]`
+            ) as HTMLInputElement | null;
+            if (!fileInput) {
+              fileInput = document.createElement("input");
+              fileInput.type = "file";
+              fileInput.accept = ".csv,text/csv";
+              fileInput.style.display = "none";
+              fileInput.setAttribute("data-freeform-file", String(index));
+              panel.appendChild(fileInput);
+            }
+            scaleBtn!.onclick = () => {
+              const points = [1, 2, 3, 4].map((n) => ({
+                x: getPoint(n, "x", n === 3 ? 3 : n === 4 ? 2 : n - 1),
+                y: getPoint(n, "y", n === 1 || n === 4 ? 0 : 2),
+              }));
+              const minX = Math.min(...points.map((p) => p.x));
+              const maxX = Math.max(...points.map((p) => p.x));
+              const minY = Math.min(...points.map((p) => p.y));
+              const maxY = Math.max(...points.map((p) => p.y));
+              const width = Math.max(maxX - minX, 0.0001);
+              const height = Math.max(maxY - minY, 0.0001);
+              const target = 3;
+              const scale = target / Math.max(width, height);
+              points.forEach((p, i) => {
+                const nx = (p.x - minX) * scale;
+                const ny = (p.y - minY) * scale;
+                setPoint(i + 1, "x", Number(nx.toFixed(3)));
+                setPoint(i + 1, "y", Number(ny.toFixed(3)));
+              });
+              redraw();
+              updateFreeformShape(index);
+              setStatus(`FREEFORM FIN ${index}: SCALED TO ${target} IN MAX EXTENT.`);
+            };
+            exportBtn!.onclick = () => {
+              const rows = [
+                "x_in,y_in",
+                ...[1, 2, 3, 4].map((n) => `${getPoint(n, "x", 0)},${getPoint(n, "y", 0)}`),
+              ].join("\n");
+              const blob = new Blob([rows], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `module_r_freeform_fin_${index}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              setStatus(`FREEFORM FIN ${index}: CSV EXPORTED.`);
+            };
+            fileInput!.onchange = () => {
+              const file = fileInput?.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                const text = String(reader.result ?? "");
+                const lines = text
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean);
+                const parsed: Array<{ x: number; y: number }> = [];
+                lines.forEach((line) => {
+                  const clean = line.replace(/[;\t]/g, ",");
+                  const [a, b] = clean.split(",").map((v) => Number(v.trim()));
+                  if (Number.isFinite(a) && Number.isFinite(b)) parsed.push({ x: a, y: b });
+                });
+                if (parsed.length < 4) {
+                  setStatus("FREEFORM CSV MUST CONTAIN AT LEAST 4 NUMERIC X,Y ROWS.");
+                  return;
+                }
+                parsed.slice(0, 4).forEach((p, i) => {
+                  setPoint(i + 1, "x", Number(p.x.toFixed(3)));
+                  setPoint(i + 1, "y", Number(p.y.toFixed(3)));
+                });
+                redraw();
+                updateFreeformShape(index);
+                setStatus(`FREEFORM FIN ${index}: IMPORTED ${parsed.length} POINTS (FIRST 4 USED).`);
+              };
+              reader.readAsText(file);
+              fileInput.value = "";
+            };
+            importBtn!.onclick = () => fileInput?.click();
+          };
+          const wireFreeformDrag = () => {
+            const svg = row?.querySelector(
+              `.module-r-freeform-svg[data-freeform-svg="${index}"]`
+            ) as SVGSVGElement | null;
+            if (!svg) return;
+            const getGraphPointFromEvent = (ev: PointerEvent) => {
+              const rect = svg.getBoundingClientRect();
+              const sx = ((ev.clientX - rect.left) / Math.max(rect.width, 1)) * 260;
+              const sy = ((ev.clientY - rect.top) / Math.max(rect.height, 1)) * 170;
+              const minX = Number(svg.getAttribute("data-min-x") || "0");
+              const minY = Number(svg.getAttribute("data-min-y") || "0");
+              const scale = Number(svg.getAttribute("data-scale") || "1");
+              const pad = Number(svg.getAttribute("data-pad") || "18");
+              const h = Number(svg.getAttribute("data-h") || "170");
+              const x = minX + (sx - pad) / Math.max(scale, 0.0001);
+              const y = minY + ((h - sy) - pad) / Math.max(scale, 0.0001);
+              return { x, y, sx, sy };
+            };
+            const nearestHandle = (sx: number, sy: number) => {
+              const handles = Array.from(
+                svg.querySelectorAll(`[data-freeform-handle="${index}"]`)
+              ) as SVGCircleElement[];
+              let bestPoint = 1;
+              let bestDist = Number.POSITIVE_INFINITY;
+              handles.forEach((handle) => {
+                const hx = Number(handle.getAttribute("cx") || "0");
+                const hy = Number(handle.getAttribute("cy") || "0");
+                const d = Math.hypot(hx - sx, hy - sy);
+                if (d < bestDist) {
+                  bestDist = d;
+                  bestPoint = Number(handle.getAttribute("data-point") || "1");
+                }
+              });
+              return bestDist <= 24 ? bestPoint : null;
+            };
+            let dragPoint: number | null = null;
+            const move = (ev: PointerEvent) => {
+              if (dragPoint == null) return;
+              ev.preventDefault();
+              const p = getGraphPointFromEvent(ev);
+              setPoint(dragPoint, "x", Number(p.x.toFixed(3)));
+              setPoint(dragPoint, "y", Number(p.y.toFixed(3)));
+              updateFreeformShape(index);
+              redraw();
+            };
+            const stop = () => {
+              dragPoint = null;
+              window.removeEventListener("pointermove", move);
+              window.removeEventListener("pointerup", stop);
+            };
+            svg.onpointerdown = (ev: PointerEvent) => {
+              const target = ev.target as Element | null;
+              const directPoint = target?.getAttribute("data-point");
+              if (directPoint) {
+                dragPoint = Number(directPoint);
+              } else {
+                const p = getGraphPointFromEvent(ev);
+                dragPoint = nearestHandle(p.sx, p.sy);
+              }
+              if (dragPoint == null) return;
+              ev.preventDefault();
+              window.addEventListener("pointermove", move);
+              window.addEventListener("pointerup", stop);
+            };
+          };
+
+          const wireFreeformTabs = () => {
+            const pageButtons = row?.querySelectorAll(
+              `[data-fin-page-btn="${index}"]`
+            ) as NodeListOf<HTMLButtonElement> | undefined;
+            const pages = row?.querySelectorAll(
+              `[data-fin-page="${index}"]`
+            ) as NodeListOf<HTMLElement> | undefined;
+            pageButtons?.forEach((btn) => {
+              btn.onclick = () => {
+                const page = btn.getAttribute("data-page") || "general";
+                pageButtons.forEach((b) => {
+                  b.classList.toggle("is-active", b === btn);
+                });
+                pages?.forEach((p) => {
+                  p.classList.toggle("is-hidden", p.getAttribute("data-page") !== page);
+                });
+              };
+            });
+          };
+
+          row?.querySelectorAll("input, select").forEach((el) => {
+            if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
+              el.addEventListener("input", redraw);
+              el.addEventListener("change", redraw);
+            }
+          });
+          freeformInputs.forEach((input) => {
+            input.addEventListener("input", () => updateFreeformShape(index));
+          });
+          wireFreeformTabs();
+          wireFreeformActions();
+          wireFreeformDrag();
+          applyTubeAutoState();
+          row
+            ?.querySelector(`input[name="tube_auto_inner_${index}"]`)
+            ?.addEventListener("change", applyTubeAutoState);
+          row
+            ?.querySelector(`input[name="tube_outer_diameter_${index}"]`)
+            ?.addEventListener("input", applyTubeAutoState);
+          row
+            ?.querySelector(`input[name="fin_thickness_${index}"]`)
+            ?.addEventListener("input", applyTubeAutoState);
+
+          if (typeSelect) {
+            typeSelect.onchange = () => {
+            const selectedType = typeSelect.value || "trapezoidal";
+            if (typeFields) {
+              typeFields.innerHTML = renderFinTypeFields(selectedType, index);
+            }
+            if (row) {
+              row.setAttribute("data-fin-type", selectedType);
+            }
+            attachFinRowListeners(index);
+            redraw();
+            };
+          }
+          redraw();
+          updateFreeformShape(index);
+        };
+
+        finsNextBtn?.addEventListener("click", () => {
+          if (!finsCountInput || !finsList) return;
+          const count = Number(finsCountInput.value);
+          if (!Number.isFinite(count) || count < 1 || count > 8) {
+            setStatus("ENTER 1-8 FIN SETS.");
+            return;
+          }
+          const stageCount = Number(
+            window.localStorage.getItem("arx_module_r_stage_count") || "1"
+          );
+          const additionalCount = Number(
+            window.localStorage.getItem("arx_module_r_additional_count") || "0"
+          );
+          const parentOptions = [
+            ...Array.from({ length: stageCount }, (_, i) => ({
+              value: `stage-${i + 1}`,
+              label: `Stage ${i + 1}`,
+            })),
+            ...Array.from({ length: additionalCount }, (_, i) => ({
+              value: `additional-${i + 1}`,
+              label: `Additional Tube ${i + 1}`,
+            })),
+          ];
+
+          const finRowsHtml: string[] = [];
+          for (let i = 1; i <= count; i += 1) {
+            const optionsHtml = parentOptions
+              .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
+              .join("");
+            finRowsHtml.push(`
+              <div class="module-r-fin-row" data-fin-row="${i}" data-fin-type="trapezoidal">
+                <div class="module-r-fin-fields">
+                  <div class="module-r-finset-title">FIN SET ${i}</div>
+                  <div class="module-r-fin-recommendation" data-fin-recommendation="${i}"></div>
+                  <div class="module-r-fin-fields-horizontal">
+                    <div class="arx-field">
+                      <select name="fin_parent_${i}">${optionsHtml}</select>
+                      <label>PARENT COMPONENT</label>
+                    </div>
+                    <div class="arx-field">
+                      <select name="fin_type_${i}">
+                        ${finTypeOptions
+                          .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
+                          .join("")}
+                      </select>
+                      <label>FIN TYPE</label>
+                    </div>
+                  </div>
+                  <div class="module-r-fin-type-fields" data-fin-type-fields="${i}">
+                    ${renderFinTypeFields("trapezoidal", i)}
+                  </div>
+                </div>
+                <div class="module-r-fin-preview-grid">
+                  <div class="module-r-fin-preview-title">X${i} GRID</div>
+                  <svg class="module-r-fin-preview-svg" data-fin-preview="${i}" viewBox="0 0 240 130" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                      <pattern id="fin-grid-${i}" width="12" height="12" patternUnits="userSpaceOnUse">
+                        <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(0,243,255,0.25)" stroke-width="1" />
+                      </pattern>
+                    </defs>
+                    <rect x="0" y="0" width="240" height="130" fill="url(#fin-grid-${i})" />
+                    <g transform="translate(0,0)">
+                      <path data-shape="fin" d="M 14,116 L 120,116 L 96,42 L 46,42 Z" fill="rgba(0,243,255,0.28)" stroke="rgba(255,215,0,0.9)" stroke-width="2" />
+                    </g>
+                  </svg>
+                </div>
+              </div>
+            `);
+          }
+          finsList.innerHTML = finRowsHtml.join("");
+          for (let i = 1; i <= count; i += 1) {
+            attachFinRowListeners(i);
+          }
+          showPage("fins-detail");
+        });
+
+        finsSaveBtn?.addEventListener("click", () => {
+          if (!finsList) return;
+          const finSetCount = Number(finsCountInput?.value);
+          if (Number.isFinite(finSetCount) && finSetCount > 0) {
+            const fins = Array.from({ length: finSetCount }, (_, idx) => {
+              const index = idx + 1;
+              const getSelect = (name: string) =>
+                finsList.querySelector(`select[name="fin_${name}_${index}"]`) as
+                  | HTMLSelectElement
+                  | null;
+              const getNumber = (name: string, fallback = 0) => {
+                const input = finsList.querySelector(
+                  `input[name="${name}_${index}"]`
+                ) as HTMLInputElement | null;
+                const value = Number(input?.value ?? fallback);
+                return Number.isFinite(value) ? value : fallback;
+              };
+              const type = getSelect("type")?.value || "trapezoidal";
+              const baseCount = Math.max(2, getNumber("fin_count", 3));
+              let root = getNumber("fin_root", 2);
+              let tip = getNumber("fin_tip", 2);
+              let span = getNumber("fin_span", getNumber("fin_height", 1.2));
+              let sweep = getNumber("fin_sweep", 0);
+              const freePoints = [1, 2, 3, 4].map((n) => ({
+                x: getNumber(`free_x_${n}`, n === 3 ? 3 : n === 4 ? 2 : n - 1),
+                y: getNumber(`free_y_${n}`, n === 1 || n === 4 ? 0 : 2),
+              }));
+              const tubeOuter = getNumber("tube_outer_diameter", 2);
+              const tubeAuto = Boolean(
+                (
+                  finsList.querySelector(`input[name="tube_auto_inner_${index}"]`) as
+                    | HTMLInputElement
+                    | null
+                )?.checked
+              );
+              let tubeInner = getNumber("tube_inner_diameter", 1.8);
+              if (tubeAuto && tubeOuter > 0) {
+                tubeInner = Math.max(tubeOuter - 2 * Math.max(getNumber("fin_thickness", 0.08), 0.01), 0.02);
+              }
+              if (type === "elliptical") {
+                root = getNumber("fin_root", 2);
+                tip = root;
+                span = getNumber("fin_height", 2);
+                sweep = 0;
+              } else if (type === "free_form") {
+                const minX = Math.min(...freePoints.map((p) => p.x));
+                const maxX = Math.max(...freePoints.map((p) => p.x));
+                const minY = Math.min(...freePoints.map((p) => p.y));
+                const maxY = Math.max(...freePoints.map((p) => p.y));
+                root = Math.max(maxX - minX, 0.1);
+                span = Math.max(maxY - minY, 0.1);
+                tip = Math.max(freePoints[2].x - freePoints[1].x, 0.1);
+                sweep = Math.max(freePoints[1].x - freePoints[0].x, 0);
+              } else if (type === "tube_fin") {
+                root = getNumber("tube_length", 4);
+                tip = root;
+                span = tubeOuter;
+                sweep = 0;
+              }
+              const thickness = Math.max(0.01, getNumber("fin_thickness", 0.12));
+              return {
+                parent: getSelect("parent")?.value || "",
+                type,
+                count: baseCount,
+                root,
+                tip,
+                span,
+                sweep,
+                thickness,
+                material: getSelect("material")?.value || "Cardboard",
+                finish: getSelect("finish")?.value || "regular_paint",
+                cross_section: getSelect("cross_section")?.value || "square",
+                position_relative: getSelect("position_relative")?.value || "bottom",
+                plus_offset: getNumber("fin_plus_offset", 0),
+                rotation_deg: getNumber("fin_rotation", 0),
+                fillet_radius: getNumber("fin_fillet_radius", 0),
+                fillet_material: getSelect("fillet_material")?.value || "Balsa",
+                free_points: JSON.stringify(freePoints),
+                tube_length: getNumber("tube_length", 4),
+                tube_outer_diameter: tubeOuter,
+                tube_inner_diameter: tubeInner,
+                tube_auto_inner: tubeAuto,
+              };
+            });
+            const hasInvalid = fins.some(
+              (f: Record<string, unknown>) =>
+                !Number.isFinite(Number(f.count)) ||
+                Number(f.count) < 2 ||
+                !Number.isFinite(Number(f.root)) ||
+                Number(f.root) <= 0 ||
+                !Number.isFinite(Number(f.span)) ||
+                Number(f.span) <= 0 ||
+                (String(f.type) === "tube_fin" &&
+                  (!Number.isFinite(Number(f.tube_outer_diameter)) ||
+                    Number(f.tube_outer_diameter) <= 0 ||
+                    !Number.isFinite(Number(f.tube_inner_diameter)) ||
+                    Number(f.tube_inner_diameter) < 0 ||
+                    Number(f.tube_inner_diameter) >= Number(f.tube_outer_diameter))) ||
+                (String(f.type) === "free_form" &&
+                  (() => {
+                    const raw = String(f.free_points || "[]");
+                    try {
+                      const pts = JSON.parse(raw) as Array<{ x?: number; y?: number }>;
+                      if (!Array.isArray(pts) || pts.length < 3) return true;
+                      let area = 0;
+                      for (let i = 0; i < pts.length; i += 1) {
+                        const p1 = pts[i];
+                        const p2 = pts[(i + 1) % pts.length];
+                        area += Number(p1.x ?? 0) * Number(p2.y ?? 0) - Number(p2.x ?? 0) * Number(p1.y ?? 0);
+                      }
+                      return Math.abs(area) < 0.001;
+                    } catch {
+                      return true;
+                    }
+                  })())
+            );
+            if (hasInvalid) {
+              setStatus("COMPLETE ALL REQUIRED FIN SET FIELDS.");
+              return;
+            }
+            window.localStorage.setItem("arx_module_r_fins", JSON.stringify(fins));
+            window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          }
+          window.localStorage.setItem("arx_module_r_fins_done", "true");
+          if (Number.isFinite(finSetCount)) {
+            window.localStorage.setItem("arx_module_r_fin_set_count", String(finSetCount));
+          }
+          updateCardStates();
+          window.alert("Fin Sets saved.");
+          showPage("manual");
+          setStatus("FIN SETS SAVED.");
+        });
+
+        finsClearIndex?.addEventListener("click", () => {
+          if (finsCountInput) finsCountInput.value = "";
+          if (finsList) finsList.innerHTML = "";
+          window.localStorage.setItem("arx_module_r_fins_done", "false");
+          window.localStorage.removeItem("arx_module_r_fin_set_count");
+          window.localStorage.removeItem("arx_module_r_fins");
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          setStatus("FIN SETS CLEARED.");
+        });
+
+        finsClearBtn?.addEventListener("click", () => {
+          if (finsCountInput) finsCountInput.value = "";
+          if (finsList) finsList.innerHTML = "";
+          window.localStorage.setItem("arx_module_r_fins_done", "false");
+          window.localStorage.removeItem("arx_module_r_fin_set_count");
+          window.localStorage.removeItem("arx_module_r_fins");
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          showPage("fins");
+          setStatus("FIN SETS CLEARED.");
+        });
+
+        backFinsBtn?.addEventListener("click", () => {
+          showPage("fins");
+          setStatus("");
+        });
+
+        markBodyBtn?.addEventListener("click", () => {
+          window.localStorage.setItem("arx_module_r_body_motor_done", "true");
+          window.localStorage.setItem("arx_module_r_body_additional_done", "true");
+          window.localStorage.setItem("arx_module_r_body_bulkheads_done", "true");
+          updateCardStates();
+          showPage("manual");
+        });
+        unmarkBodyBtn?.addEventListener("click", () => {
+          window.localStorage.setItem("arx_module_r_body_motor_done", "false");
+          window.localStorage.setItem("arx_module_r_body_additional_done", "false");
+          window.localStorage.setItem("arx_module_r_body_bulkheads_done", "false");
+          updateCardStates();
+        });
+        clearBodyBtn?.addEventListener("click", () => {
+          window.localStorage.removeItem("arx_module_r_motor_owned");
+          window.localStorage.removeItem("arx_module_r_additional_owned");
+          window.localStorage.removeItem("arx_module_r_bulkheads_owned");
+          window.localStorage.setItem("arx_module_r_body_motor_done", "false");
+          window.localStorage.setItem("arx_module_r_body_additional_done", "false");
+          window.localStorage.setItem("arx_module_r_body_bulkheads_done", "false");
+          window.localStorage.removeItem("arx_module_r_stage_count");
+          window.localStorage.removeItem("arx_module_r_additional_count");
+          window.localStorage.removeItem("arx_module_r_bulkhead_count");
+          window.localStorage.removeItem("arx_module_r_motor_mounts");
+          window.localStorage.removeItem("arx_module_r_additional_tubes");
+          window.localStorage.removeItem("arx_module_r_bulkheads");
+          if (stageCountInput) stageCountInput.value = "";
+          if (stageList) stageList.innerHTML = "";
+          if (additionalCountInput) additionalCountInput.value = "";
+          if (additionalList) additionalList.innerHTML = "";
+          if (bulkheadCountInput) bulkheadCountInput.value = "";
+          if (bulkheadList) bulkheadList.innerHTML = "";
+          window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+          updateCardStates();
+          setStatus("BODY TUBES CLEARED.");
+        });
+        markNoseBtn?.addEventListener("click", () => {
+          window.localStorage.setItem("arx_module_r_nose_done", "true");
+          updateCardStates();
+          showPage("manual");
+        });
+        unmarkNoseBtn?.addEventListener("click", () => {
+          window.localStorage.setItem("arx_module_r_nose_done", "false");
+          updateCardStates();
+        });
+        markFinsBtn?.addEventListener("click", () => {
+          window.localStorage.setItem("arx_module_r_fins_done", "true");
+          updateCardStates();
+          showPage("manual");
+        });
+        unmarkFinsBtn?.addEventListener("click", () => {
+          window.localStorage.setItem("arx_module_r_fins_done", "false");
+          updateCardStates();
+        });
+
+        submitAuto?.addEventListener("click", async () => {
+          const fileInput = ricInput;
+          const lengthInput = moduleR.querySelector('input[name="upper_length_m"]') as
+            | HTMLInputElement
+            | null;
+          const massInput = moduleR.querySelector('input[name="upper_mass_kg"]') as
+            | HTMLInputElement
+            | null;
+          const apogeeInput = moduleR.querySelector('input[name="target_apogee_m"]') as
+            | HTMLInputElement
+            | null;
+          const includeBallast = moduleR.querySelector('input[name="include_ballast"]') as
+            | HTMLInputElement
+            | null;
+          const includeTelemetry = moduleR.querySelector('input[name="include_telemetry"]') as
+            | HTMLInputElement
+            | null;
+          const includeParachute = moduleR.querySelector('input[name="include_parachute"]') as
+            | HTMLInputElement
+            | null;
+          const topNInput = moduleR.querySelector('input[name="top_n"]') as
+            | HTMLInputElement
+            | null;
+          const seedInput = moduleR.querySelector('input[name="random_seed"]') as
+            | HTMLInputElement
+            | null;
+
+          if (!fileInput?.files || fileInput.files.length === 0) {
+            setStatus("UPLOAD A .RIC FILE.");
+            return;
+          }
+          const upperLengthIn = Number(lengthInput?.value);
+          const upperMassLb = Number(massInput?.value);
+          if (!Number.isFinite(upperLengthIn) || upperLengthIn <= 0) {
+            setStatus("ENTER UPPER LENGTH.");
+            return;
+          }
+          if (!Number.isFinite(upperMassLb) || upperMassLb <= 0) {
+            setStatus("ENTER UPPER MASS.");
+            return;
+          }
+          const targetApogeeFt = Number(apogeeInput?.value);
+          const upperLength = upperLengthIn * 0.0254;
+          const upperMass = upperMassLb * 0.45359237;
+          const targetApogee = Number.isFinite(targetApogeeFt) ? targetApogeeFt * 0.3048 : NaN;
+
+          const payload = new FormData();
+          Array.from(fileInput.files).forEach((file) => {
+            payload.append("ric_file", file);
+          });
+          const stageCount = window.localStorage.getItem("arx_module_r_stage_count");
+          if (stageCount) {
+            payload.append("stage_count", stageCount);
+          }
+          payload.append("upper_length_m", String(upperLength));
+          payload.append("upper_mass_kg", String(upperMass));
+          if (Number.isFinite(targetApogee) && targetApogee > 0) {
+            payload.append("target_apogee_m", String(targetApogee));
+          }
+          payload.append("include_ballast", includeBallast?.checked ? "true" : "false");
+          payload.append("include_telemetry", includeTelemetry?.checked ? "true" : "false");
+          payload.append("include_parachute", includeParachute?.checked ? "true" : "false");
+          const topN = Number(topNInput?.value || 5);
+          if (Number.isFinite(topN) && topN > 0) payload.append("top_n", String(Math.floor(topN)));
+          const randomSeed = Number(seedInput?.value);
+          if (Number.isFinite(randomSeed)) payload.append("random_seed", String(Math.floor(randomSeed)));
+          window.localStorage.setItem(
+            "arx_module_r_auto_prefs",
+            JSON.stringify({
+              upper_length_in: upperLengthIn,
+              upper_mass_lb: upperMassLb,
+              target_apogee_ft: Number.isFinite(targetApogeeFt) ? targetApogeeFt : null,
+              include_ballast: Boolean(includeBallast?.checked),
+              include_telemetry: Boolean(includeTelemetry?.checked),
+              include_parachute: Boolean(includeParachute?.checked),
+              top_n: Number.isFinite(topN) ? Math.floor(topN) : 5,
+              random_seed: Number.isFinite(randomSeed) ? Math.floor(randomSeed) : null,
+            })
+          );
+          if (autoResultsEl) autoResultsEl.innerHTML = "";
+
+          const buildDownloadUrl = (orkPath?: string) => {
+            if (!orkPath) return "";
+            if (orkPath.startsWith("http")) return orkPath;
+            const normalized = orkPath.replace(/\\/g, "/");
+            const testsMarker = "/tests/";
+            const relative = normalized.includes(testsMarker)
+              ? normalized.split(testsMarker)[1]
+              : normalized.split("/").slice(-2).join("/");
+            if (!relative) return "";
+            const encoded = relative
+              .split("/")
+              .filter(Boolean)
+              .map((segment) => encodeURIComponent(segment))
+              .join("/");
+            return `${API_BASE}/api/v1/downloads/${encoded}`;
+          };
+
+          let progress = 5;
+          const progressStages = [
+            "Parsing motor file(s)",
+            "Loading component library",
+            "Generating candidates",
+            "Filtering invalid rockets",
+            "Scoring and ranking",
+            "Selecting winner and exporting .ork",
+          ];
+          let progressStageIndex = 0;
+          setStatus(
+            `AUTO-BUILD IN PROGRESS... ${progress}% | ${progressStages[progressStageIndex]}`
+          );
+          const progressTimer = window.setInterval(() => {
+            progress = Math.min(progress + 7, 90);
+            if (progress >= 20 && progressStageIndex < progressStages.length - 1) {
+              progressStageIndex = Math.min(
+                progressStages.length - 1,
+                Math.floor((progress / 100) * progressStages.length)
+              );
+            }
+            setStatus(
+              `AUTO-BUILD IN PROGRESS... ${progress}% | ${progressStages[progressStageIndex]}`
+            );
+          }, 450);
+
+          try {
+            const response = await fetch(`${API_BASE}/api/v1/module-r/auto-build/upload`, {
+              method: "POST",
+              body: payload,
+            });
+            window.clearInterval(progressTimer);
+            if (!response.ok) {
+              let detail = "";
+              try {
+                const errorJson = await response.json();
+                detail = String(errorJson?.detail || "");
+              } catch {
+                detail = await response.text();
+              }
+              const lowerDetail = (detail || "").toLowerCase();
+              let friendly = detail || "UNKNOWN ERROR";
+              if (lowerDetail.includes("no physically valid candidates")) {
+                friendly =
+                  "No valid rocket matched your limits. Try increasing max length/mass, lowering target apogee, or enabling telemetry/parachute.";
+              } else if (lowerDetail.includes("exceeds feasible length budget")) {
+                friendly = toImperialAutoBuildError(detail);
+              } else if (lowerDetail.includes("no compatible body tubes")) {
+                friendly =
+                  "No compatible body tube found for this motor. Try another .ric or broaden constraints.";
+              } else if (
+                lowerDetail.includes("motor fit") ||
+                lowerDetail.includes("motor_mount") ||
+                lowerDetail.includes("motor mount")
+              ) {
+                friendly =
+                  "Motor mount fit failed. Check stage count or try a different motor geometry.";
+              } else if (
+                lowerDetail.includes("ric") ||
+                lowerDetail.includes("grain") ||
+                lowerDetail.includes("invalid motor")
+              ) {
+                friendly = "RIC parsing failed. Verify the uploaded motor file is valid and complete.";
+              } else {
+                friendly = toImperialAutoBuildError(friendly);
+              }
+              setStatus(`AUTO-BUILD FAILED: ${friendly}`);
+              return;
+            }
+            const result = await response.json();
+            renderAutoBuildResults(result);
+            if (result?.assembly) {
+              window.localStorage.setItem(
+                "arx_module_r_latest_auto_assembly",
+                JSON.stringify(result.assembly)
+              );
+              window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+            }
+            if (result?.ork_path) {
+              window.localStorage.setItem("arx_module_r_ork_path", result.ork_path);
+              const downloadUrl = buildDownloadUrl(result.ork_path);
+              if (downloadUrl) {
+                window.open(downloadUrl, "_blank", "noopener,noreferrer");
+              }
+            }
+            const variant = String(
+              (result as { assembly?: { metadata?: { backend_variant?: unknown } } } | undefined)?.assembly
+                ?.metadata?.backend_variant ?? "unknown"
+            );
+            setStatus(`AUTO-BUILD COMPLETE. 100% | backend=${variant}`);
+          } catch (error) {
+            window.clearInterval(progressTimer);
+            console.error(error);
+            setStatus("AUTO-BUILD ERROR.");
+          }
+        });
+      }
       let pendingSuccessToken = Date.now();
       const cancelPendingSuccess = () => {
         pendingSuccessToken = Date.now();
@@ -1594,6 +5491,8 @@ const ArxInterface: React.FC = () => {
         const year = yearInput.value.trim();
         if (!month && !day && !year) return "";
         if (month.length < 2 || day.length < 2 || year.length < 4) return "";
+        const parsedDob = parseDobParts(month, day, year);
+        if (!parsedDob.valid || !parsedDob.date) return "";
         return `${year.padStart(4, "0")}-${month.padStart(2, "0")}-${day.padStart(
           2,
           "0"
@@ -1632,8 +5531,13 @@ const ArxInterface: React.FC = () => {
         } else if (formType === "new") {
           const name = String(fields.get("name") || "").trim();
           const email = String(fields.get("email") || "").trim();
+          const password = String(fields.get("password") || "").trim();
           const dob = readDobValue();
-          if (!name || !email || !dob) {
+          if (!dob) {
+            if (status) status.textContent = "PLEASE PUT REAL DATE.";
+            return;
+          }
+          if (!name || !email || !password) {
             if (status) status.textContent = "INPUT INFORMATION.";
             return;
           }
@@ -1772,8 +5676,9 @@ const ArxInterface: React.FC = () => {
         } else if (formType === "new" && fields) {
           const name = String(fields.get("name") || "").trim();
           const email = String(fields.get("email") || "").trim();
+          const password = String(fields.get("password") || "").trim();
           const hasDob = hasAnyDobInput();
-          if (!name && !email && !hasDob) {
+          if (!name && !email && !password && !hasDob) {
             if (status) status.textContent = "NOTHING TO RESET.";
             return;
           }
@@ -1907,6 +5812,16 @@ const ArxInterface: React.FC = () => {
             <div class="arx-field">
               <input type="email" name="email" placeholder=" " autocomplete="email" required />
               <label>YOUR EMAIL</label>
+            </div>
+            <div class="arx-field">
+              <input
+                type="password"
+                name="password"
+                placeholder=" "
+                autocomplete="new-password"
+                required
+              />
+              <label>YOUR PASSWORD</label>
             </div>
             <div class="arx-field dob-field">
               <div class="dob-inputs">
@@ -2156,6 +6071,31 @@ const ArxInterface: React.FC = () => {
               const payload = (await response.json()) as { path?: string };
               if (payload?.path) {
                 window.localStorage.setItem("arx_ork_path", payload.path);
+                try {
+                  const parseResponse = await fetch(`${API_BASE}/api/v1/ork/parse`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: payload.path }),
+                  });
+                  if (parseResponse.ok) {
+                    const parsed = (await parseResponse.json()) as {
+                      assembly?: unknown;
+                      warnings?: string[];
+                    };
+                    if (parsed?.assembly) {
+                      window.localStorage.setItem(
+                        "arx_module_r_latest_auto_assembly",
+                        JSON.stringify(parsed.assembly)
+                      );
+                      window.dispatchEvent(new Event("arx:module-r:parts-updated"));
+                    }
+                    if (Array.isArray(parsed?.warnings) && parsed.warnings.length > 0) {
+                      console.warn("ORK parse warnings:", parsed.warnings);
+                    }
+                  }
+                } catch (parseError) {
+                  console.warn("ORK parse bridge failed", parseError);
+                }
               }
             } catch (error) {
               console.warn("ORK upload failed", error);
@@ -2369,6 +6309,7 @@ const ArxInterface: React.FC = () => {
               </div>
               <div class="form-status" id="mission-status-2"></div>
               <div class="arx-form-actions">
+                <button type="button" class="arx-btn" id="mission-back-2">Back</button>
                 <button type="button" class="arx-btn" id="mission-continue-2">Continue</button>
               </div>
             </div>
@@ -2396,6 +6337,7 @@ const ArxInterface: React.FC = () => {
               </div>
               <div class="form-status" id="mission-status-2b"></div>
               <div class="arx-form-actions">
+                <button type="button" class="arx-btn" id="mission-back-2b">Back</button>
                 <button type="button" class="arx-btn" id="mission-continue-2b">Continue</button>
               </div>
             </div>
@@ -2434,6 +6376,7 @@ const ArxInterface: React.FC = () => {
             </div>
               <div class="form-status" id="mission-status-3"></div>
               <div class="arx-form-actions" id="mission-actions">
+                <button type="button" class="arx-btn" id="mission-back-3">Back</button>
                 <button type="button" class="arx-btn" id="mission-continue-3">Continue</button>
                 <div class="mini-reactor-loader" id="mission-loader" aria-hidden="true"></div>
               </div>
@@ -2584,6 +6527,9 @@ const ArxInterface: React.FC = () => {
         window.setTimeout(() => {
           document.body.classList.remove("grid-only");
           document.body.classList.add("panel-active");
+          if (type === "ARMOR") {
+            window.location.assign("/module-r");
+          }
         }, 1000);
 
         const goToVehicleInfo = () => {
@@ -2611,6 +6557,13 @@ const ArxInterface: React.FC = () => {
             window.location.hash = "vehicle-info";
           }
           pendingSubPageType = "VEHICLE";
+          revealPendingSubPage();
+        };
+        const goToTargetProfile = () => {
+          if (window.location.hash !== "#mission-target") {
+            window.location.hash = "mission-target";
+          }
+          pendingSubPageType = "SYSTEM";
           revealPendingSubPage();
         };
 
@@ -2653,6 +6606,43 @@ const ArxInterface: React.FC = () => {
         const continue2 = subPageContent.querySelector("#mission-continue-2") as HTMLButtonElement | null;
         const continue2b = subPageContent.querySelector("#mission-continue-2b") as HTMLButtonElement | null;
         const continue3 = subPageContent.querySelector("#mission-continue-3") as HTMLButtonElement | null;
+        const back2 = subPageContent.querySelector("#mission-back-2") as HTMLButtonElement | null;
+        const back2b = subPageContent.querySelector("#mission-back-2b") as HTMLButtonElement | null;
+        const back3 = subPageContent.querySelector("#mission-back-3") as HTMLButtonElement | null;
+        const ensureMissionNoticeModal = () => {
+          let modal = subPageContent.querySelector(".mission-notice-modal") as HTMLElement | null;
+          if (modal) return modal;
+          modal = document.createElement("div");
+          modal.className = "mission-notice-modal";
+          modal.innerHTML = `
+            <div class="mission-notice-modal-panel">
+              <div class="panel-header">TIME ESTIMATE</div>
+              <div class="modal-text">Per stage, time is estimated 5 minutes ± 1 minute.</div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="mission-notice-ok">OK</button>
+              </div>
+            </div>
+          `;
+          const close = () => {
+            modal?.setAttribute("data-open", "false");
+          };
+          modal.addEventListener("click", (event) => {
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+            if (
+              target === modal ||
+              target.closest('[data-action="mission-notice-ok"]')
+            ) {
+              close();
+            }
+          });
+          subPageContent.appendChild(modal);
+          return modal;
+        };
+        const openMissionNoticeModal = () => {
+          const modal = ensureMissionNoticeModal();
+          modal.setAttribute("data-open", "true");
+        };
 
         // Target profile enhancements (step 1 only)
         const apogeeInput = subPageContent.querySelector(
@@ -2860,7 +6850,7 @@ const ArxInterface: React.FC = () => {
           const renderTarget = new THREE.WebGLRenderTarget(width, height, {
             type: THREE.HalfFloatType,
             format: THREE.RGBAFormat,
-            encoding: THREE.sRGBEncoding,
+            colorSpace: THREE.SRGBColorSpace,
           });
 
           engineComposer = new EffectComposer(engineRenderer, renderTarget);
@@ -3151,6 +7141,9 @@ const ArxInterface: React.FC = () => {
           updateStageLengthVisibility();
           showStep(2);
         });
+        back2?.addEventListener("click", () => {
+          goToTargetProfile();
+        });
 
         continue2b?.addEventListener("click", () => {
           if (status2b) status2b.textContent = "";
@@ -3174,6 +7167,16 @@ const ArxInterface: React.FC = () => {
           );
           showStep(3);
           updateConstraintsContinue();
+        });
+        back2b?.addEventListener("click", () => {
+          const useOrk =
+            window.localStorage.getItem("arx_use_ork") === "true" ||
+            Boolean(window.localStorage.getItem("arx_ork_vehicle_profile"));
+          if (useOrk) {
+            goToTargetProfile();
+          } else {
+            showStep(1);
+          }
         });
 
         const renderResults = (candidate: Record<string, unknown>) => {
@@ -3394,6 +7397,7 @@ const ArxInterface: React.FC = () => {
         };
 
         continue3?.addEventListener("click", () => {
+          openMissionNoticeModal();
           if (status3) status3.textContent = "";
           window.localStorage.removeItem("arx_mission_target_result");
           window.localStorage.removeItem("arx_mission_target_job_id");
@@ -3627,6 +7631,9 @@ const ArxInterface: React.FC = () => {
           window.addEventListener("arx:mission-target:error", handleMissionError as EventListener);
           void runMissionTarget();
         });
+        back3?.addEventListener("click", () => {
+          showStep(2);
+        });
 
         const handleConstraintsInput = (event: Event) => {
           const target = event.target as HTMLElement | null;
@@ -3635,17 +7642,440 @@ const ArxInterface: React.FC = () => {
         };
         subPageContent.addEventListener("input", handleConstraintsInput);
         updateConstraintsContinue();
-      } else if (type === "ARMOR" || type === "NETWORK") {
-        const title = type === "ARMOR" ? "ROCKET DEVELOPMENT" : "SIMULATIONS";
+      } else if (type === "ARMOR") {
+        const title = "ROCKET DEVELOPMENT";
+        document.body.classList.add("holo-active");
+        document.body.classList.add("grid-only");
+        subPageContent.innerHTML = `
+          <div class="subpage-form" data-form="module-r">
+            <div class="module-r-page module-r-init" data-page="init">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">FLIGHT-READY BUILDER</div>
+              <div class="panel-header" style="margin-top: 18px;">IMMUTABLE CONSTRAINT</div>
+              <div class="arx-field">
+                <input type="number" name="global_width" placeholder=" " min="0" step="any" />
+                <label>ROCKET DIAMETER (IN)</label>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="lock-width">Lock Width</button>
+              <button type="button" class="arx-btn" data-action="reset-width">Reset</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-entry" data-page="entry">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">FLIGHT-READY BUILDER</div>
+              <div class="panel-header" style="margin-top: 18px;">ENTRY PATH</div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="mode-manual">Manual</button>
+                <button
+                  type="button"
+                  class="arx-btn module-r-btn-disabled"
+                  data-action="mode-auto"
+                  disabled
+                  aria-disabled="true"
+                >
+                  Auto (.ric)
+                </button>
+              </div>
+            <div class="arx-form-actions">
+              <button type="button" class="arx-btn" data-action="back-init">Back</button>
+            </div>
+
+            <div class="module-r-stage-modal modal-overlay">
+              <div class="modal-content">
+                <div class="panel-header">AUTO BUILD</div>
+                <div class="modal-text">How many stages? (1-5)</div>
+                <div class="arx-field">
+                  <input type="number" name="stage_count" placeholder=" " min="1" max="5" step="1" />
+                  <label>STAGE COUNT</label>
+                </div>
+                <div class="arx-form-actions">
+                  <button type="button" class="arx-btn" data-action="stage-confirm">Confirm</button>
+                  <button type="button" class="arx-btn" data-action="stage-cancel">Cancel</button>
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div class="module-r-page module-r-manual" data-page="manual">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">FLIGHT-READY BUILDER</div>
+              <div class="panel-header" style="margin-top: 18px;">MODULE DASHBOARD</div>
+              <div class="grid-container module-r-dashboard">
+                <div class="module-card card-square module-r-card" data-card="body">
+                  <div class="tech-corner-text tr">BT.01<br/>RDY</div>
+                  <div class="tech-corner-text bl">BODY</div>
+                  <span class="card-label" style="fontSize:3rem;line-height:1;">B</span>
+                  <span class="card-subtext">BODY TUBES</span>
+                  <div class="card-border-bottom"></div>
+                </div>
+                <div class="module-card card-square module-r-card" data-card="nose">
+                  <div class="tech-corner-text tr">NC.02<br/>RDY</div>
+                  <div class="tech-corner-text bl">NOSE</div>
+                  <span class="card-label" style="fontSize:3rem;line-height:1;">N</span>
+                  <span class="card-subtext">NOSE CONES</span>
+                  <div class="card-border-bottom"></div>
+                </div>
+                <div class="module-card card-square module-r-card" data-card="fins">
+                  <div class="tech-corner-text tr">FIN.03<br/>RDY</div>
+                  <div class="tech-corner-text bl">FINS</div>
+                  <span class="card-label" style="fontSize:3rem;line-height:1;">F</span>
+                  <span class="card-subtext">FIN SETS</span>
+                  <div class="card-border-bottom"></div>
+                </div>
+                <div class="module-card card-square module-r-card" data-card="positioning">
+                  <div class="tech-corner-text tr">POS.04<br/>LCK</div>
+                  <div class="tech-corner-text bl">STACK</div>
+                  <span class="card-label" style="fontSize:3rem;line-height:1;">P</span>
+                  <span class="card-subtext">POSITIONING</span>
+                  <div class="card-border-bottom"></div>
+                </div>
+              </div>
+            <div class="arx-form-actions">
+              <button type="button" class="arx-btn" data-action="back-entry">Back</button>
+            </div>
+            </div>
+
+            <div class="module-r-page module-r-body" data-page="body">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">BODY TUBES</div>
+              <div class="panel-header" style="margin-top: 18px;">BODY TUBES INDEX</div>
+              <div class="form-status">Select a subcomponent.</div>
+              <div class="grid-container module-r-subgrid">
+                <div class="module-card card-square module-r-card" data-action="open-bulkheads">
+                  <div class="tech-corner-text tr">BH.01<br/>RDY</div>
+                  <div class="tech-corner-text bl">BULK</div>
+                  <span class="card-label" style="fontSize:3rem;line-height:1;">B</span>
+                  <span class="card-subtext">BULKHEADS</span>
+                  <div class="card-border-bottom"></div>
+                </div>
+                <div class="module-card card-square module-r-card" data-action="open-motor-mounts">
+                  <div class="tech-corner-text tr">MM.02<br/>RDY</div>
+                  <div class="tech-corner-text bl">MOTOR</div>
+                  <span class="card-label" style="fontSize:3rem;line-height:1;">M</span>
+                  <span class="card-subtext">MOTOR MOUNTS</span>
+                  <div class="card-border-bottom"></div>
+                </div>
+                <div class="module-card card-square module-r-card" data-action="open-additional-tubes">
+                  <div class="tech-corner-text tr">AT.03<br/>RDY</div>
+                  <div class="tech-corner-text bl">TUBES</div>
+                  <span class="card-label" style="fontSize:3rem;line-height:1;">A</span>
+                  <span class="card-subtext">ADDITIONAL TUBES</span>
+                  <div class="card-border-bottom"></div>
+                </div>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="clear-body">Clear Body Tubes</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-manual">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-bulkheads" data-page="bulkheads">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">BULKHEADS</div>
+              <div class="panel-header" style="margin-top: 18px;">BULKHEADS INDEX</div>
+              <div class="form-status">How many bulkheads?</div>
+              <div class="arx-field">
+                <input type="number" name="bulkhead_count" placeholder=" " min="1" max="12" step="1" />
+                <label>BULKHEAD COUNT</label>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="bulkheads-next">Continue</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="bulkheads-clear-index">
+                  Clear Bulkheads
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-body">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-bulkheads-detail" data-page="bulkheads-detail">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">BULKHEADS</div>
+              <div class="panel-header" style="margin-top: 18px;">BULKHEAD DETAILS</div>
+              <div class="form-status">Define bulkhead geometry and material per set.</div>
+              <div class="module-r-bulkhead-list"></div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="bulkheads-save">
+                  Save Bulkheads
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="bulkheads-clear">
+                  Clear Bulkheads
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-bulkheads">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-motor-mounts" data-page="motor-mounts">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">MOTOR MOUNTS</div>
+              <div class="panel-header" style="margin-top: 18px;">STAGE CONFIGURATION</div>
+              <div class="form-status">How many stages?</div>
+              <div class="arx-field">
+                <input type="number" name="stage_count_manual" placeholder=" " min="1" max="5" step="1" />
+                <label>STAGE COUNT</label>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="motor-mounts-next">Continue</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="motor-mounts-clear-index">
+                  Clear Motor Mounts
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-body">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-motor-mounts-detail" data-page="motor-mounts-detail">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">MOTOR MOUNTS</div>
+              <div class="panel-header" style="margin-top: 18px;">STAGE DETAILS</div>
+              <div class="form-status">Enter stage and inner tube geometry per stage.</div>
+              <div class="module-r-stage-list"></div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="motor-mounts-save">
+                  Save Motor Mounts
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="motor-mounts-clear">
+                  Clear Motor Mounts
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-motor-mounts">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-additional" data-page="additional-tubes">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">ADDITIONAL TUBES</div>
+              <div class="panel-header" style="margin-top: 18px;">ADDITIONAL COMPONENTS</div>
+              <div class="form-status">How many additional tubes?</div>
+              <div class="arx-field">
+                <input type="number" name="additional_tube_count" placeholder=" " min="0" max="10" step="1" />
+                <label>ADDITIONAL TUBES</label>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="additional-next">Continue</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="additional-clear-index">
+                  Clear Additional Tubes
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-body">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-additional-detail" data-page="additional-detail">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">ADDITIONAL TUBES</div>
+              <div class="panel-header" style="margin-top: 18px;">COMPONENT DETAILS</div>
+              <div class="form-status">Select component type for each tube.</div>
+              <div class="module-r-additional-list"></div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="additional-save">
+                  Save Additional Tubes
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="additional-clear">
+                  Clear Additional Tubes
+                </button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-additional">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-nose" data-page="nose">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">NOSE CONES</div>
+              <div class="panel-header" style="margin-top: 18px;">NOSE CONES INDEX</div>
+              <div class="form-status">Enter nose cone geometry and materials.</div>
+              <div class="launch-modal-grid">
+                <div class="arx-field">
+                  <input type="number" name="nose_length_in" placeholder=" " min="0" step="any" />
+                  <label>NOSE HEIGHT (IN)</label>
+                </div>
+                <div class="arx-field">
+                  <select name="nose_type">
+                    <option value="OGIVE">Ogive</option>
+                    <option value="CONICAL">Conical</option>
+                    <option value="ELLIPTICAL">Elliptical</option>
+                    <option value="PARABOLIC">Parabolic</option>
+                  </select>
+                </div>
+                <div class="arx-field">
+                  <select name="nose_material">
+                    ${MODULE_R_FULL_MATERIAL_OPTIONS_HTML}
+                  </select>
+                  <label>NOSE MATERIAL</label>
+                </div>
+              </div>
+              <div class="module-r-nose-preview-grid">
+                <div class="module-r-fin-preview-title">NOSE PREVIEW</div>
+                <svg class="module-r-fin-preview-svg module-r-nose-preview-svg" data-nose-preview="main" viewBox="0 0 240 130" preserveAspectRatio="xMidYMid meet">
+                  <defs>
+                    <pattern id="nose-grid" width="12" height="12" patternUnits="userSpaceOnUse">
+                      <path d="M 12 0 L 0 0 0 12" fill="none" stroke="rgba(0,243,255,0.25)" stroke-width="1" />
+                    </pattern>
+                  </defs>
+                  <rect x="0" y="0" width="240" height="130" fill="url(#nose-grid)" />
+                  <path data-nose-shape="main" d="M 18 110 Q 102 20 220 64 Q 102 108 18 110 Z" fill="rgba(0,243,255,0.24)" stroke="rgba(255,215,0,0.95)" stroke-width="2" />
+                </svg>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="save-nose">Save Nose Cone</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="clear-nose">Clear Nose Cone</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-manual">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-fins" data-page="fins">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">FIN SETS</div>
+              <div class="panel-header" style="margin-top: 18px;">FIN SETS INDEX</div>
+              <div class="form-status">How many fin sets?</div>
+              <div class="arx-field">
+                <input type="number" name="fin_set_count" placeholder=" " min="1" max="8" step="1" />
+                <label>FIN SET COUNT</label>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="fins-next">Continue</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="clear-fins-index">Clear Fin Sets</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-manual">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-fins-detail" data-page="fins-detail">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">FIN SETS</div>
+              <div class="panel-header" style="margin-top: 18px;">FIN SET DETAILS</div>
+              <div class="form-status">Select parent tube and fin geometry.</div>
+              <div class="module-r-fins-list"></div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="fins-save">Save Fin Sets</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="clear-fins">Clear Fin Sets</button>
+              </div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="back-fins">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-positioning" data-page="positioning">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">POSITIONING</div>
+              <div class="panel-header" style="margin-top: 18px;">POSITIONING INDEX</div>
+              <div class="form-status">Drag components into the workspace to set order.</div>
+              <div class="module-r-positioning-layout" data-positioning-root></div>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="save-positioning">
+                  Save Positioning
+                </button>
+                <button type="button" class="arx-btn" data-action="back-manual">Back</button>
+              </div>
+            </div>
+
+            <div class="module-r-page module-r-auto" data-page="auto">
+              <div class="form-title">${title}</div>
+              <div class="form-subtitle">FLIGHT-READY BUILDER</div>
+              <div class="panel-header" style="margin-top: 18px;">AUTO-BUILD (IMPORT .RIC)</div>
+              <div class="launch-modal-grid">
+                <div class="arx-field">
+                  <div class="module-r-file">
+                    <span class="module-r-file-name">No file chosen</span>
+                    <button type="button" class="arx-btn module-r-file-btn" data-action="pick-ric">
+                      Choose File
+                    </button>
+                    <input type="file" name="ric_file" accept=".ric" multiple />
+                  </div>
+                </div>
+                <div class="arx-field">
+                  <input type="number" name="upper_length_m" placeholder=" " min="0" step="any" />
+                  <label>UPPER LENGTH (IN)</label>
+                </div>
+                <div class="arx-field">
+                  <input type="number" name="upper_mass_kg" placeholder=" " min="0" step="any" />
+                  <label>UPPER MASS (LB)</label>
+                </div>
+                <div class="arx-field">
+                  <input type="number" name="target_apogee_m" placeholder=" " min="0" step="any" />
+                  <label>TARGET APOGEE (FT)</label>
+                </div>
+              </div>
+              <div class="arx-form-actions">
+                <label class="nav-link" style="display:inline-flex; gap:8px; align-items:center;">
+                  <input type="checkbox" name="include_ballast" /> Include Ballast
+                </label>
+                <label class="nav-link" style="display:inline-flex; gap:8px; align-items:center;">
+                  <input type="checkbox" name="include_telemetry" checked /> Include Telemetry
+                </label>
+                <label class="nav-link" style="display:inline-flex; gap:8px; align-items:center;">
+                  <input type="checkbox" name="include_parachute" checked /> Include Parachute
+                </label>
+              </div>
+              <details class="module-r-auto-advanced">
+                <summary>Advanced</summary>
+                <div class="launch-modal-grid">
+                  <div class="arx-field">
+                    <input type="number" name="top_n" placeholder=" " min="1" step="1" value="5" />
+                    <label>TOP CANDIDATES TO EVALUATE</label>
+                  </div>
+                  <div class="arx-field">
+                    <input type="number" name="random_seed" placeholder=" " step="1" />
+                    <label>REPRODUCIBLE SEED (OPTIONAL)</label>
+                  </div>
+                </div>
+              </details>
+              <div class="arx-form-actions">
+                <button type="button" class="arx-btn" data-action="submit-auto">Submit Auto-Build</button>
+              </div>
+              <div class="form-status"></div>
+              <div class="module-r-auto-results"></div>
+            <div class="arx-form-actions">
+              <button type="button" class="arx-btn" data-action="back-entry">Back</button>
+            </div>
+            </div>
+          </div>
+        `;
+        window.setTimeout(() => {
+          document.body.classList.remove("grid-only");
+          document.body.classList.add("panel-active");
+        }, 1000);
+      } else if (type === "NETWORK") {
         document.body.classList.add("holo-active");
         document.body.classList.add("grid-only");
         subPageContent.innerHTML = `
           <div class="subpage-form" data-form="coming-soon">
-            <div class="form-title">${title}</div>
-            <div class="form-subtitle">MODULE INITIALIZATION PENDING</div>
-            <div class="coming-soon-icon" aria-hidden="true"></div>
+            <div class="form-title">SIMULATIONS</div>
+            <div class="form-subtitle">ROCKET SIMULATOR</div>
+            <div class="coming-soon-icon"></div>
             <div class="coming-soon-text">COMING SOON</div>
-            <div class="form-status">GRID MODE ACTIVE • STANDBY</div>
           </div>
         `;
         window.setTimeout(() => {
@@ -3946,20 +8376,23 @@ const ArxInterface: React.FC = () => {
                   ring2?.classList.remove("reactor-critical", "vanish-final");
                   ring1?.classList.add("ring-red");
                   ring2?.classList.add("ring-red-inner");
+                  const staleSpinner = document.getElementById("modeXBufferIcon");
+                  if (staleSpinner) staleSpinner.remove();
                   const floater = document.createElement("span");
-                  floater.innerText = "MODE X";
+                  floater.innerText = "COMING SOON";
                   floater.dataset.title = "A.R.X";
                   floater.dataset.mode = "mode-x";
-                  floater.className = "floating-letter centered-massive-word text-fade-entry";
+                  floater.className = "floating-letter centered-massive-word";
                   floater.style.color = "#ff3333";
-                  floater.style.fontSize = "4rem";
+                  floater.style.fontSize = "2.4rem";
                   floater.id = "activeFloater";
                   document.body.appendChild(floater);
-                  requestAnimationFrame(() => {
-                    setTimeout(() => {
-                      floater.classList.add("text-fade-visible");
-                    }, 50);
-                  });
+                  const spinner = document.createElement("div");
+                  spinner.className = "coming-soon-icon mode-x-buffer-icon";
+                  spinner.id = "modeXBufferIcon";
+                  document.body.appendChild(spinner);
+                  document.body.classList.remove("grid-only");
+                  document.body.classList.add("panel-active");
                   const subPageBtn = document.getElementById(
                     "subPageBtn"
                   ) as HTMLButtonElement | null;
@@ -3993,26 +8426,34 @@ const ArxInterface: React.FC = () => {
       ring2?.classList.remove("reactor-critical");
       ring1?.classList.add("ring-red");
       ring2?.classList.add("ring-red-inner");
+      const staleSpinner = document.getElementById("modeXBufferIcon");
+      if (staleSpinner) staleSpinner.remove();
       const floater = document.createElement("span");
-      floater.innerText = "MODE X";
+      floater.innerText = "COMING SOON";
       floater.dataset.title = "A.R.X";
       floater.dataset.mode = "mode-x";
-      floater.className =
-        "floating-letter centered-massive-word text-fade-entry text-fade-visible";
+      floater.className = "floating-letter centered-massive-word";
       floater.style.color = "#ff3333";
-      floater.style.fontSize = "4rem";
+      floater.style.fontSize = "2.4rem";
       floater.id = "activeFloater";
       document.body.appendChild(floater);
+      const spinner = document.createElement("div");
+      spinner.className = "coming-soon-icon mode-x-buffer-icon";
+      spinner.id = "modeXBufferIcon";
+      document.body.appendChild(spinner);
       const subPageBtn = document.getElementById("subPageBtn") as HTMLButtonElement | null;
       if (subPageBtn) {
         subPageBtn.innerText = "TURN OFF MODE X";
         subPageBtn.onclick = turnOffModeX;
       }
+      document.body.classList.remove("grid-only");
+      document.body.classList.add("panel-active");
       document.getElementById("subPage")?.classList.add("active");
       document.body.style.backgroundColor = "#000";
     };
 
     const turnOffModeX = () => {
+      document.getElementById("modeXBufferIcon")?.remove();
       const floater = document.getElementById("activeFloater");
       if (floater) {
         floater.classList.remove("centered-massive-word", "text-fade-visible");
@@ -4020,7 +8461,8 @@ const ArxInterface: React.FC = () => {
         setTimeout(() => {
           floater.remove();
           document.querySelectorAll(".floating-letter").forEach((node) => {
-            if (node.textContent?.trim() === "MODE X") {
+            const text = node.textContent?.trim();
+            if (text === "MODE X" || text === "COMING SOON") {
               node.remove();
             }
           });
@@ -4329,7 +8771,6 @@ const ArxInterface: React.FC = () => {
         <div id="telemetry-graph-left" role="img" aria-label="Telemetry graph"></div>
       </div>
       <div id="holo-orbit-layer" aria-hidden="true">
-        <div id="engine-holo-container"></div>
       </div>
       <div id="login-layer"></div>
       <div id="success-layer"></div>
@@ -4355,7 +8796,7 @@ const ArxInterface: React.FC = () => {
             </div>
           </div>
           <h1>ARX</h1>
-          <p>RELEASING SOON</p>
+          <p>AUTOMATED ROCKET EXPLORATION</p>
           <button className="btn" id="start-btn">
             GET STARTED
           </button>

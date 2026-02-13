@@ -180,7 +180,9 @@ class V1ConstraintSet(BaseModel):
     max_pressure_psi: float = Field(..., gt=0, description="psi")
     max_kn: float = Field(..., gt=0, description="dimensionless")
     max_vehicle_length_in: float = Field(..., gt=0, description="in")
-    max_stage_length_ratio: float = Field(default=1.15, gt=0, description="dimensionless")
+    max_stage_length_ratio: float = Field(
+        default=1.15, gt=0, description="dimensionless"
+    )
 
 
 class V1DesignSpace(BaseModel):

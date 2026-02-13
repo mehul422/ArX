@@ -8,10 +8,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.routes_inputs import router as inputs_router
+from app.api.v1.routes_module_r import router as module_r_router
 from app.api.v1.routes_motors import router as motors_router
 from app.api.v1.endpoints.motors import router as motors_classify_router
 from app.api.v1.routes_optimization import router as optimization_router
 from app.api.v1.routes_ork import router as ork_router
+from app.api.v1.routes_simulation_legacy import router as simulation_legacy_router
 from app.core.config import get_settings
 from app.db.queries import create_jobs_table, create_user_inputs_table
 from app.engine.openmotor_ai.ric_writer import normalize_ric_text
@@ -98,4 +100,6 @@ app.include_router(optimization_router, prefix="/api/v1")
 app.include_router(motors_router, prefix="/api/v1")
 app.include_router(inputs_router, prefix="/api/v1")
 app.include_router(ork_router, prefix="/api/v1")
+app.include_router(module_r_router, prefix="/api/v1")
+app.include_router(simulation_legacy_router, prefix="/api/v1")
 app.include_router(motors_classify_router, prefix="/motors", tags=["motors"])

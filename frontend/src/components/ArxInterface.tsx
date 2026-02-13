@@ -874,10 +874,37 @@ const ArxInterface: React.FC = () => {
       document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
       document.body.classList.remove("grid-mat-active");
       document.body.classList.remove("holo-active");
+      document.body.classList.remove("a-module-active");
       document.querySelector(".close-x-btn")?.classList.remove("active");
       document.getElementById("spacebar-hint")?.classList.remove("visible");
       hidePressAnyKey();
       setTimeout(() => resetDashboard(), 500);
+    };
+    const stopEngineHologram = () => {
+      if (engineAnimationId) {
+        cancelAnimationFrame(engineAnimationId);
+        engineAnimationId = null;
+      }
+      if (engineResizeObserver) {
+        engineResizeObserver.disconnect();
+        engineResizeObserver = null;
+      }
+      if (engineControls) {
+        engineControls.dispose();
+        engineControls = null;
+      }
+      if (engineComposer) {
+        engineComposer.dispose();
+        engineComposer = null;
+      }
+      if (engineRenderer) {
+        const dom = engineRenderer.domElement;
+        engineRenderer.dispose();
+        dom?.parentElement?.removeChild(dom);
+        engineRenderer = null;
+      }
+      engineScene = null;
+      engineCamera = null;
     };
 
     const handleNavClick = (type: string) => {
@@ -885,6 +912,10 @@ const ArxInterface: React.FC = () => {
       isTransitioning = true;
       pendingSubPageType = null;
       isSubPageLocked = false;
+      if (type !== "SYSTEM" && type !== "VEHICLE") {
+        document.body.classList.remove("a-module-active");
+        stopEngineHologram();
+      }
       if (type === "INIT" && loggedInEmail) {
         loggedInEmail = null;
         updateAuthUI();
@@ -1723,14 +1754,24 @@ const ArxInterface: React.FC = () => {
       const moduleR = container.querySelector('[data-form="module-r"]') as HTMLElement | null;
       if (moduleR && moduleR.getAttribute("data-bound") !== "true") {
         moduleR.setAttribute("data-bound", "true");
-        const positioningRoot = moduleR.querySelector(
-          "[data-positioning-root]"
-        ) as HTMLElement | null;
-        if (positioningRoot && positioningRoot.getAttribute("data-mounted") !== "true") {
-          const root = createRoot(positioningRoot);
-          root.render(<PositioningModule />);
+        let positioningRootInstance: ReturnType<typeof createRoot> | null = null;
+        const mountPositioningWorkspace = (forceRemount = false) => {
+          const positioningRoot = moduleR.querySelector(
+            "[data-positioning-root]"
+          ) as HTMLElement | null;
+          if (!positioningRoot) return;
+          const alreadyMounted = positioningRoot.getAttribute("data-mounted") === "true";
+          const hasRenderedChildren = positioningRoot.childElementCount > 0;
+          if (!forceRemount && alreadyMounted && hasRenderedChildren) return;
+          if (positioningRootInstance && forceRemount) {
+            positioningRootInstance.unmount();
+            positioningRootInstance = null;
+          }
+          positioningRoot.innerHTML = "";
+          positioningRootInstance = createRoot(positioningRoot);
+          positioningRootInstance.render(<PositioningModule />);
           positioningRoot.setAttribute("data-mounted", "true");
-        }
+        };
         const widthInput = moduleR.querySelector('input[name="global_width"]') as
           | HTMLInputElement
           | null;
@@ -2163,6 +2204,15 @@ const ArxInterface: React.FC = () => {
           moduleR.setAttribute("data-active-page", page);
           moduleR.scrollTop = 0;
           enhanceModuleRSelects();
+          if (page === "positioning") {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                mountPositioningWorkspace(true);
+                window.dispatchEvent(new Event("resize"));
+                window.setTimeout(() => window.dispatchEvent(new Event("resize")), 120);
+              });
+            });
+          }
         };
         const autoPage = moduleR.querySelector('[data-page="auto"]') as HTMLElement | null;
         const submitAuto = moduleR.querySelector('[data-action="submit-auto"]') as
@@ -5770,6 +5820,10 @@ const ArxInterface: React.FC = () => {
     const revealPendingSubPage = () => {
       const type = pendingSubPageType;
       if (!type) return;
+      if (type !== "SYSTEM" && type !== "VEHICLE") {
+        document.body.classList.remove("a-module-active");
+        stopEngineHologram();
+      }
       const floater = document.getElementById("activeFloater");
       if (floater && floater.classList.contains("centered-contained-word")) {
         floater.remove();
@@ -6272,6 +6326,7 @@ const ArxInterface: React.FC = () => {
         const isVehiclePage = type === "VEHICLE";
         let hasLockedTarget = false;
         document.body.classList.add("holo-active");
+        document.body.classList.add("a-module-active");
         document.body.classList.add("grid-only");
         subPageContent.innerHTML = isVehiclePage
           ? `
@@ -6878,7 +6933,7 @@ const ArxInterface: React.FC = () => {
           engineControls.enableZoom = false;
           engineControls.enablePan = false;
           engineControls.enabled = true;
-          engineRenderer.domElement.style.pointerEvents = "auto";
+          engineRenderer.domElement.style.pointerEvents = "none";
 
           const clock = new THREE.Clock();
           const renderEngine = () => {
@@ -8257,6 +8312,8 @@ const ArxInterface: React.FC = () => {
       document.getElementById("arc-reactor-overlay")?.classList.remove("arc-reactor-corner");
       document.body.classList.remove("grid-mat-active");
       document.body.classList.remove("holo-active");
+      document.body.classList.remove("a-module-active");
+      stopEngineHologram();
       document.getElementById("ring1")?.classList.remove("hidden-fast");
       document.getElementById("ring2")?.classList.remove("hidden-fast");
       document.querySelector(".close-x-btn")?.classList.remove("active");
@@ -8771,6 +8828,7 @@ const ArxInterface: React.FC = () => {
         <div id="telemetry-graph-left" role="img" aria-label="Telemetry graph"></div>
       </div>
       <div id="holo-orbit-layer" aria-hidden="true">
+        <div id="engine-holo-container"></div>
       </div>
       <div id="login-layer"></div>
       <div id="success-layer"></div>

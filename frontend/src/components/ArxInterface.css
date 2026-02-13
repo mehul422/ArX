@@ -352,8 +352,14 @@ body.holo-active #telemetry-graph-layer {
   opacity: 0;
   transition: opacity 300ms ease;
 }
-body.holo-active #holo-orbit-layer {
+body.holo-active.a-module-active #holo-orbit-layer {
   opacity: 1;
+}
+#engine-holo-container {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
 }
 .holo-focus {
   opacity: 1;

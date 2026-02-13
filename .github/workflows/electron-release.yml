@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   build:
+    env:
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
     strategy:
       fail-fast: false
       matrix:
@@ -45,6 +47,15 @@ jobs:
       - name: Install deps
         working-directory: frontend
         run: npm ci
+
+      - name: Validate hosted API base URL
+        shell: bash
+        run: |
+          if [ -z "${VITE_API_BASE_URL}" ]; then
+            echo "Missing repo variable VITE_API_BASE_URL."
+            echo "Set it in: Settings -> Secrets and variables -> Actions -> Variables."
+            exit 1
+          fi
 
       - name: Build app for target OS
         working-directory: frontend
